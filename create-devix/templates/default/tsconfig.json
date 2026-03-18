@@ -7,5 +7,5 @@
     "strict": true,
     "lib": ["ESNext", "DOM"]
   },
-  "include": ["app", "devix.config.ts"]
+  "include": ["app", "devix.config.ts", ".devix"]
 }

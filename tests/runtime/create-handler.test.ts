@@ -14,7 +14,7 @@ describe('createHandler', () => {
     })
 
     it('con body — fn.length es 1', () => {
-        const h = createHandler<{email: string}>(async (_body:any) => null)
+        const h = createHandler(async (_body: {email: string}) => null)
         expect(h.fn.length).toBe(1)
     })
 
@@ -25,7 +25,7 @@ describe('createHandler', () => {
     })
 
     it('ejecuta el handler con body', async () => {
-        const h = createHandler<{name: string}>(async (body:any) => json({hello: body.name}))
+        const h = createHandler(async (body: {name: string}) => json({hello: body.name}))
         const result = await h.fn({name: 'devix'})
         expect(await (result as Response).json()).toEqual({hello: 'devix'})
     })

@@ -13,10 +13,12 @@ Construye aplicaciones React full-stack con enrutamiento basado en archivos, ren
 - **Enrutamiento basado en archivos** — páginas, layouts anidados y rutas API desde el sistema de archivos
 - **SSR por defecto** — cada página se renderiza en el servidor
 - **SSG** — genera HTML estático con `generateStaticParams`
-- **Rutas API** — basadas en archivos, potenciadas por Hono
+- **Rutas API** — basadas en archivos, con `createHandler` para tipado de extremo a extremo
+- **$fetch** — cliente HTTP con body y respuesta tipados a partir del handler
 - **Carga de datos** — funciones `loader` con hidratación automática en el cliente
 - **Guards de ruta** — redirecciones del lado del servidor antes del renderizado
 - **SEO** — `metadata` y `generateMetadata` por página, con soporte de Open Graph y Twitter
+- **Hooks de contexto** — `useRequest()`, `useCtx()`, `useParams()` accesibles desde cualquier función del handler
 - **TypeScript primero** — inferencia de tipos completa en todo el framework
 
 ## Instalación
@@ -136,19 +138,28 @@ export default function RootLayout({ children }: LayoutProps) {
 
 ### Rutas API
 
+`createHandler` da tipado de extremo a extremo — el body y el retorno se infieren automáticamente para `$fetch`:
+
 ```ts
-import { json, type RouteHandler } from '@devlusoft/devix'
+import { createHandler, json } from '@devlusoft/devix'
 
-export const GET: RouteHandler = async (ctx) => {
-  return { hello: 'world' }  // auto JSON 200
-}
+export const GET = createHandler(async () => {
+  return json({ hello: 'world' })
+})
 
-export const POST: RouteHandler = async (ctx, req) => {
-  const body = await req.json()
-  return json(body, 201)
-}
+export const POST = createHandler(async (body: { name: string }) => {
+  const item = await db.items.create(body)
+  return json(item, 201)
+})
 
-export const DELETE: RouteHandler = async () => null  // 204
+export const DELETE = createHandler(async () => null)  // 204
+```
+
+```ts
+const res = await $fetch('/api/items', {
+  method: 'POST',
+  body: { name: 'nuevo item' },
+})
 ```
 
 ### Generación estática (SSG)

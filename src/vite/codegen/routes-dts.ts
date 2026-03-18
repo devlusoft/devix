@@ -45,8 +45,11 @@ export function generateRoutesDts(entries: RouteEntry[], apiDir: string): string
     return `// auto-generado por devix — no editar
 ${imports}
 
+type JsonResponse<T> = Response & { readonly __body: T }
 type InferRoute<T> = T extends (...args: any[]) => any
-  ? Exclude<Awaited<ReturnType<T>>, Response | null | void>
+  ? Awaited<ReturnType<T>> extends JsonResponse<infer U>
+    ? U
+    : Exclude<Awaited<ReturnType<T>>, Response | null | void>
   : never
 
 declare module '@devlusoft/devix' {

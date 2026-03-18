@@ -1,22 +1,17 @@
-import type {RouteResult} from './api-context'
-
 export const HANDLER_BRAND = '__devix_handler__' as const
 
-export interface DevixHandler<TBody = undefined, TReturn = RouteResult> {
+export interface DevixHandler<TBody = undefined, TReturn = unknown> {
     readonly [HANDLER_BRAND]: true
     readonly fn: (...args: any[]) => any
     readonly __body?: TBody
     readonly __return?: TReturn
 }
 
-export function createHandler<TReturn extends RouteResult = RouteResult>(
-    fn: () => Promise<TReturn> | TReturn,
-): DevixHandler<undefined, TReturn>
+type HandlerFn<TBody> = [TBody] extends [undefined] ? () => any : (body: TBody) => any
 
-export function createHandler<TBody, TReturn extends RouteResult = RouteResult>(
-    fn: (body: TBody) => Promise<TReturn> | TReturn,
-): DevixHandler<TBody, TReturn>
-
-export function createHandler(fn: (...args: any[]) => any): DevixHandler<any, any> {
+export function createHandler<
+    TBody = undefined,
+    TFn extends HandlerFn<TBody> = HandlerFn<TBody>,
+>(fn: TFn): DevixHandler<TBody, Awaited<ReturnType<TFn>>> {
     return {[HANDLER_BRAND]: true, fn}
 }

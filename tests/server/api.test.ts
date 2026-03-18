@@ -89,15 +89,39 @@ describe('handleApiRequest', () => {
         expect(receivedRequest).toBe(request)
     })
 
-    it('wraps non-Response return in JSON response', async () => {
+    it('auto-converts plain object return to JSON response', async () => {
         const glob = makeGlob({
             [`${API_DIR}/data.ts`]: vi.fn().mockResolvedValue({
-                GET: async () => null,
+                GET: async () => ({name: 'John', age: 30}),
             }),
         })
         const res = await handleApiRequest('http://localhost/api/data', req('GET', '/api/data'), glob)
+        expect(res.status).toBe(200)
         expect(res.headers.get('Content-Type')).toBe('application/json')
+        expect(await res.json()).toEqual({name: 'John', age: 30})
     })
+
+    it('auto-converts array return to JSON response', async () => {
+        const glob = makeGlob({
+            [`${API_DIR}/list.ts`]: vi.fn().mockResolvedValue({
+                GET: async () => [{id: 1}, {id: 2}],
+            }),
+        })
+        const res = await handleApiRequest('http://localhost/api/list', req('GET', '/api/list'), glob)
+        expect(res.status).toBe(200)
+        expect(await res.json()).toEqual([{id: 1}, {id: 2}])
+    })
+
+    it('returns 204 when handler returns null', async () => {
+        const glob = makeGlob({
+            [`${API_DIR}/empty.ts`]: vi.fn().mockResolvedValue({
+                DELETE: async () => null,
+            }),
+        })
+        const res = await handleApiRequest('http://localhost/api/empty', req('DELETE', '/api/empty'), glob)
+        expect(res.status).toBe(204)
+    })
+
 
     it('runs middleware before the handler', async () => {
         const order: string[] = []

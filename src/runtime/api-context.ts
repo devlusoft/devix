@@ -15,10 +15,12 @@ export class RouteContext {
     }
 }
 
-export type RouteHandler = (ctx: RouteContext, request: Request) => Promise<Response | null> | Response | null
+export type RouteResult = Response | Record<string, unknown> | unknown[] | null | void
+
+export type RouteHandler = (ctx: RouteContext, req: Request) => Promise<RouteResult> | RouteResult
 
 export interface MiddlewareModule {
-    middleware: (ctx: RouteContext, request: Request) => Promise<Response | null> | Response | null
+    middleware: (ctx: RouteContext, req: Request) => Promise<Response | null> | Response | null
 }
 
 export interface RouteModule {

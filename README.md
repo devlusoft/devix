@@ -137,16 +137,18 @@ export default function RootLayout({ children }: LayoutProps) {
 ### Rutas API
 
 ```ts
-import type { RouteHandler } from '@devlusoft/devix'
+import { json, type RouteHandler } from '@devlusoft/devix'
 
-export const GET: RouteHandler = async (ctx, req) => {
-  return Response.json({ hello: 'world' })
+export const GET: RouteHandler = async (ctx) => {
+  return { hello: 'world' }  // auto JSON 200
 }
 
 export const POST: RouteHandler = async (ctx, req) => {
   const body = await req.json()
-  return Response.json(body, { status: 201 })
+  return json(body, 201)
 }
+
+export const DELETE: RouteHandler = async () => null  // 204
 ```
 
 ### Generación estática (SSG)

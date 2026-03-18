@@ -40,6 +40,7 @@ export async function handleApiRequest(
 
         const result = await handler(ctx, request)
         if (result instanceof Response) return result
+        if (result == null) return new Response(null, {status: 204})
 
         return new Response(JSON.stringify(result), {
             headers: {'Content-Type': 'application/json'},

@@ -4,4 +4,7 @@ export {Link} from "./link"
 
 export type { Metadata, Viewport, LoaderContext, LoaderFunction, GuardFunction } from '../types'
 export type { PageProps, LayoutProps, PageModule, LayoutModule, ErrorProps } from '../server/types'
-export type { RouteHandler } from './api-context'
+export type { RouteHandler, RouteResult } from './api-context'
+export {getCookie, setCookie, deleteCookie} from '../utils/cookies'
+export type {CookieOptions} from '../utils/cookies'
+export {json, text, redirect} from '../utils/response'

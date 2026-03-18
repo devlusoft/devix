@@ -7,11 +7,20 @@ export interface DevixHandler<TBody = undefined, TReturn = unknown> {
     readonly __return?: TReturn
 }
 
-type HandlerFn<TBody> = [TBody] extends [undefined] ? () => any : (body: TBody) => any
+declare const UNSET: unique symbol
+type Unset = typeof UNSET
+
+type ExtractBody<TFn> = TFn extends (body: infer B) => any ? B : undefined
+
+type FnConstraint<TBody> = [TBody] extends [Unset]
+    ? (...args: any[]) => any
+    : (body: TBody) => unknown
+
+type ResolveBody<TBody, TFn> = [TBody] extends [Unset] ? ExtractBody<TFn> : TBody
 
 export function createHandler<
-    TBody = undefined,
-    TFn extends HandlerFn<TBody> = HandlerFn<TBody>,
->(fn: TFn): DevixHandler<TBody, Awaited<ReturnType<TFn>>> {
+    TBody = Unset,
+    TFn extends FnConstraint<TBody> = FnConstraint<TBody>,
+>(fn: TFn): DevixHandler<ResolveBody<TBody, TFn>, Awaited<ReturnType<TFn>>> {
     return {[HANDLER_BRAND]: true, fn}
 }

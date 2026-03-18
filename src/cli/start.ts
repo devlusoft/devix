@@ -5,6 +5,9 @@ import {Hono} from 'hono'
 import {resolve} from 'node:path'
 import type {Manifest} from 'vite'
 import {registerApiRoutes, registerSsrRoute} from '../server/routes'
+import {loadDotenv} from '../utils/env'
+
+loadDotenv('production')
 
 let renderModule: any
 let apiModule: any

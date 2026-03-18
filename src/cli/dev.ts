@@ -8,6 +8,9 @@ import {registerApiRoutes} from '../server/routes'
 import {printDevBanner} from "../utils/banner";
 import {collectCss} from "../server/collect-css";
 import {parseDuration} from "../utils/duration";
+import {loadDotenv} from "../utils/env";
+
+loadDotenv('development')
 
 const VIRTUAL_RENDER = 'virtual:devix/render'
 const VIRTUAL_API = 'virtual:devix/api'

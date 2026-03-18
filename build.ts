@@ -17,6 +17,7 @@ await build({
     packages: 'external',
     jsx: 'automatic',
     sourcemap: true,
+    minify: true,
 })
 
 execSync('tsc -p tsconfig.build.json', {stdio: 'inherit'})

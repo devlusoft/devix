@@ -21,7 +21,7 @@
     "devlusoft"
   ],
   "bin": {
-    "devix": "./bin/devix.js"
+    "devix": "bin/devix.js"
   },
   "types": "./dist/runtime/index.d.ts",
   "exports": {

@@ -46,10 +46,11 @@ export function generateRoutesDts(entries: RouteEntry[], apiDir: string): string
 ${imports}
 
 type JsonResponse<T> = Response & { readonly __body: T }
+type UnwrapJson<T> = T extends JsonResponse<infer U> ? U : never
 type InferRoute<T> = T extends (...args: any[]) => any
-  ? Awaited<ReturnType<T>> extends JsonResponse<infer U>
-    ? U
-    : Exclude<Awaited<ReturnType<T>>, Response | null | void>
+  ? [UnwrapJson<Awaited<ReturnType<T>>>] extends [never]
+    ? Exclude<Awaited<ReturnType<T>>, Response | null | void>
+    : UnwrapJson<Awaited<ReturnType<T>>>
   : never
 
 declare module '@devlusoft/devix' {

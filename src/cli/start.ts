@@ -1,0 +1,51 @@
+import {readFileSync} from 'node:fs'
+import {serve} from '@hono/node-server'
+import {serveStatic} from '@hono/node-server/serve-static'
+import {Hono} from 'hono'
+import {resolve} from 'node:path'
+import type {Manifest} from 'vite'
+import {registerApiRoutes, registerSsrRoute} from '../server/routes'
+
+let renderModule: any
+let apiModule: any
+let manifest: Manifest
+let runtimeConfig: { port: number, host: string | boolean, loaderTimeout: number, output: 'server' | 'static' }
+
+try {
+    runtimeConfig = JSON.parse(readFileSync(resolve(process.cwd(), 'dist/devix.config.json'), 'utf-8'))
+    if (runtimeConfig.output !== 'static') {
+        renderModule = await import(resolve(process.cwd(), 'dist/server/render.js'))
+        apiModule = await import(resolve(process.cwd(), 'dist/server/api.js'))
+    }
+    manifest = JSON.parse(readFileSync(resolve(process.cwd(), 'dist/client/.vite/manifest.json'), 'utf-8'))
+} catch {
+    console.error('[devix] Build not found. Run "devix build" first.')
+    process.exit(1)
+}
+
+const port = Number(process.env.PORT) || runtimeConfig!.port || 3000
+const host = typeof runtimeConfig!.host === 'string'
+    ? runtimeConfig!.host
+    : runtimeConfig!.host ? '0.0.0.0' : (process.env.HOST || '0.0.0.0')
+
+const app = new Hono()
+
+app.use('/*', serveStatic({
+    root: './dist/client',
+    onFound: (_path, c) => {
+        c.header('Cache-Control', _path.includes('/assets/')
+            ? 'public, immutable, max-age=31536000'
+            : 'no-cache')
+    }
+}))
+
+if (runtimeConfig!.output === 'static') {
+    console.log('[devix] Static mode — serving pre-generated files from dist/client')
+} else {
+    registerApiRoutes(app, {renderModule, apiModule, manifest})
+    registerSsrRoute(app, {renderModule, apiModule, manifest, loaderTimeout: runtimeConfig!.loaderTimeout})
+}
+
+serve({fetch: app.fetch, port, hostname: host}, (info) => console.log(`http://${info.address}:${info.port}`))
+
+export {}

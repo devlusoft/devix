@@ -1,0 +1,77 @@
+{
+  "name": "@devlusoft/devix",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A lightweight React SSR meta-framework — devix",
+  "author": "devlusoft",
+  "license": "MIT",
+  "homepage": "https://github.com/devlusoft/devix#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devlusoft/devix.git"
+  },
+  "keywords": [
+    "react",
+    "ssr",
+    "meta-framework",
+    "vite",
+    "file-based-routing",
+    "fullstack",
+    "devix",
+    "devlusoft"
+  ],
+  "bin": {
+    "devix": "./bin/devix.js"
+  },
+  "types": "./dist/runtime/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/runtime/index.d.ts",
+      "default": "./dist/runtime/index.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    "./runtime/context": {
+      "types": "./dist/runtime/context.d.ts",
+      "default": "./dist/runtime/context.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "build": "node --import tsx/esm build.ts",
+    "prepublishOnly": "pnpm run build",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "start": "node --import tsx/esm src/cli/index.ts start"
+  },
+  "peerDependencies": {
+    "react": ">=19",
+    "react-dom": ">=19",
+    "vite": ">=8"
+  },
+  "dependencies": {
+    "@hono/node-server": "1.19.11",
+    "@vitejs/plugin-react": "6.0.1",
+    "hono": "4.12.8",
+    "picocolors": "1.1.1"
+  },
+  "packageManager": "pnpm@10.31.0",
+  "devDependencies": {
+    "@types/node": "25.5.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "esbuild": "0.27.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3",
+    "vite": "8.0.0",
+    "vitest": "4.1.0"
+  }
+}

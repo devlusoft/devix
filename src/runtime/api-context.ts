@@ -1,3 +1,5 @@
+import type {DevixHandler} from './create-handler'
+
 export class RouteContext {
     readonly params: Record<string, string>
     private _state = new Map<string, unknown>()
@@ -23,12 +25,14 @@ export interface MiddlewareModule {
     middleware: (ctx: RouteContext, req: Request) => Promise<Response | null> | Response | null
 }
 
+type AnyHandler = RouteHandler | DevixHandler<any, any>
+
 export interface RouteModule {
-    GET?: RouteHandler
-    POST?: RouteHandler
-    PUT?: RouteHandler
-    PATCH?: RouteHandler
-    DELETE?: RouteHandler
-    HEAD?: RouteHandler
-    OPTIONS?: RouteHandler
+    GET?: AnyHandler
+    POST?: AnyHandler
+    PUT?: AnyHandler
+    PATCH?: AnyHandler
+    DELETE?: AnyHandler
+    HEAD?: AnyHandler
+    OPTIONS?: AnyHandler
 }

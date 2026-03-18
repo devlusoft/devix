@@ -1,6 +1,6 @@
 {
   "name": "@devlusoft/devix",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "type": "module",
   "description": "A lightweight React SSR meta-framework — devix",
   "author": "devlusoft",
@@ -36,6 +36,10 @@
     "./runtime/context": {
       "types": "./dist/runtime/context.d.ts",
       "default": "./dist/runtime/context.js"
+    },
+    "./server": {
+      "types": "./dist/server/public-index.d.ts",
+      "default": "./dist/server/public-index.js"
     }
   },
   "files": [

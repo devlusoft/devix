@@ -2,19 +2,26 @@ export interface ApiRoutes {}
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'
 
-export interface FetchOptions<M extends HttpMethod = 'GET'> {
+type ApiKey<M extends HttpMethod, P extends string> = `${M} ${P}`
+
+type RouteData<M extends HttpMethod, P extends string> =
+    ApiKey<M, P> extends keyof ApiRoutes ? ApiRoutes[ApiKey<M, P>] : unknown
+
+type ExtractBody<D> = D extends {__body: infer B} ? B : never
+type ExtractResponse<D> = D extends {__response: infer R} ? R : D
+
+type InferBody<M extends HttpMethod, P extends string> = ExtractBody<RouteData<M, P>>
+type InferResult<M extends HttpMethod, P extends string> = ExtractResponse<RouteData<M, P>>
+
+type BodyOption<M extends HttpMethod, P extends string> =
+    [InferBody<M, P>] extends [never] ? unknown : InferBody<M, P>
+
+export interface FetchOptions<M extends HttpMethod = 'GET', P extends string = string> {
     method?: M
-    body?: unknown
+    body?: BodyOption<M, P>
     headers?: HeadersInit
     signal?: AbortSignal
 }
-
-type ApiKey<M extends HttpMethod, P extends string> = `${M} ${P}`
-
-type InferResult<M extends HttpMethod, P extends string> =
-    ApiKey<M, P> extends keyof ApiRoutes
-        ? ApiRoutes[ApiKey<M, P>]
-        : unknown
 
 export class FetchError extends Error {
     constructor(
@@ -30,7 +37,7 @@ export class FetchError extends Error {
 export async function $fetch<
     P extends string,
     M extends HttpMethod = 'GET',
->(path: P, options?: FetchOptions<M>): Promise<InferResult<M, P>> {
+>(path: P, options?: FetchOptions<M, P>): Promise<InferResult<M, P>> {
     const method = (options?.method ?? 'GET') as string
     const headers = new Headers(options?.headers)
 

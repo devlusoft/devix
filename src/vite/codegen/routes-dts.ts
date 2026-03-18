@@ -47,11 +47,18 @@ ${imports}
 
 type JsonResponse<T> = Response & { readonly __body: T }
 type UnwrapJson<T> = T extends JsonResponse<infer U> ? U : never
-type InferRoute<T> = T extends (...args: any[]) => any
+type InferFnReturn<T> = T extends (...args: any[]) => any
   ? [UnwrapJson<Awaited<ReturnType<T>>>] extends [never]
     ? Exclude<Awaited<ReturnType<T>>, Response | null | void>
     : UnwrapJson<Awaited<ReturnType<T>>>
   : never
+type InferRoute<T> =
+  T extends { readonly __return?: infer TReturn; readonly __body?: infer TBody }
+    ? {
+        __body: [TBody] extends [undefined] ? never : Exclude<TBody, undefined>
+        __response: InferFnReturn<() => TReturn>
+      }
+    : InferFnReturn<T>
 
 declare module '@devlusoft/devix' {
   interface ApiRoutes {

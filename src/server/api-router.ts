@@ -17,7 +17,7 @@ export interface ApiResult {
     middlewares: ApiMiddleware[]
 }
 
-function keyToRoutePattern(key: string, apiDir: string): string {
+export function keyToRoutePattern(key: string, apiDir: string): string {
     const rel = key.slice(apiDir.length + 1).replace(/\\/g, '/')
     const pattern = routePattern(rel)
     return pattern === '/' ? '/api' : `/api/${pattern}`.replace('/api//', '/api/')

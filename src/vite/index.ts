@@ -10,6 +10,9 @@ import {generateApi} from './codegen/api'
 import {invalidatePagesCache} from "../server/pages-router";
 import {invalidateApiCache} from "../server/api-router";
 import {generateContext} from "./codegen/context";
+import {scanApiFiles} from "./codegen/scan-api";
+import {generateRoutesDts} from "./codegen/routes-dts";
+import {writeRoutesDts} from "./codegen/write-routes-dts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -53,14 +56,32 @@ export function devix(config: DevixConfig): UserConfig {
                 return generateContext()
         },
 
+        buildStart() {
+            const root = process.cwd()
+            const entries = scanApiFiles(appDir, root)
+            writeRoutesDts(generateRoutesDts(entries, `${appDir}/api`), root)
+        },
+
         configureServer(server) {
+            const root = process.cwd()
+
+            const regenerateDts = () => {
+                const entries = scanApiFiles(appDir, root)
+                writeRoutesDts(generateRoutesDts(entries, `${appDir}/api`), root)
+            }
+
             server.watcher.on('add', (file) => {
-                if (file.startsWith(resolve(process.cwd(), pagesDir))) invalidatePagesCache()
-                if (file.includes(`${appDir}/api`)) invalidateApiCache()
+                if (file.startsWith(resolve(root, pagesDir))) invalidatePagesCache()
+                if (file.includes(`${appDir}/api`)) { invalidateApiCache(); regenerateDts() }
             })
             server.watcher.on('unlink', (file) => {
-                if (file.startsWith(resolve(process.cwd(), pagesDir))) invalidatePagesCache()
-                if (file.includes(`${appDir}/api`)) invalidateApiCache()
+                if (file.startsWith(resolve(root, pagesDir))) invalidatePagesCache()
+                if (file.includes(`${appDir}/api`)) { invalidateApiCache(); regenerateDts() }
+            })
+            server.watcher.on('change', (file) => {
+                if (file.includes(`${appDir}/api`) && !file.endsWith('middleware.ts')) {
+                    regenerateDts()
+                }
             })
         },
     }

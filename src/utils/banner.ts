@@ -1,6 +1,7 @@
 import pc from 'picocolors'
 import {networkInterfaces} from 'node:os'
-import {createRequire} from 'node:module'
+
+declare const __DEVIX_VERSION__: string
 
 function getNetworkUrl(port: number): string | null {
     const nets = networkInterfaces()
@@ -15,8 +16,7 @@ function getNetworkUrl(port: number): string | null {
 }
 
 export function printDevBanner(port: number) {
-    const req = createRequire(import.meta.url)
-    const version = req('../../package.json').version
+    const version = __DEVIX_VERSION__
     const networkUrl = getNetworkUrl(port)
 
     console.log()

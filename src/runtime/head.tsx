@@ -64,6 +64,11 @@ function collectTags(metadata: Metadata, viewport?: Viewport): MetaTag[] {
     return tags
 }
 
+export function HeadSlot({metadata, viewport}: {metadata: Metadata | null, viewport?: Viewport}) {
+    if (typeof window === 'undefined' || !metadata) return null
+    return <>{buildHeadNodes(metadata, viewport)}</>
+}
+
 export function buildHeadNodes(metadata: Metadata, viewport?: Viewport): ReactNode {
     const tags = collectTags(metadata, viewport)
 

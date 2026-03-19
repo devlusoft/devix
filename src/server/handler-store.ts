@@ -6,7 +6,10 @@ interface HandlerStore {
     ctx: RouteContext
 }
 
-const storage = new AsyncLocalStorage<HandlerStore>()
+const ALS_KEY = Symbol.for('@devlusoft/devix.handlerStore')
+const g = globalThis as Record<symbol, unknown>
+if (!g[ALS_KEY]) g[ALS_KEY] = new AsyncLocalStorage<HandlerStore>()
+const storage = g[ALS_KEY] as AsyncLocalStorage<HandlerStore>
 
 export function withHandlerStore<T>(store: HandlerStore, fn: () => T): T {
     return storage.run(store, fn)

@@ -1,7 +1,5 @@
 #!/usr/bin/env node
-import {readFileSync} from 'node:fs'
-import {join, dirname} from 'node:path'
-import {fileURLToPath} from 'node:url'
+declare const __DEVIX_VERSION__: string
 
 const command = process.argv[2]
 
@@ -20,8 +18,7 @@ switch (command) {
         break
     case '--version':
     case '-v': {
-        const pkg = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../package.json'), 'utf-8'))
-        console.log(pkg.version)
+        console.log(__DEVIX_VERSION__)
         break
     }
     case '--help':

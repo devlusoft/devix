@@ -2,6 +2,11 @@ import {createContext, Context, ComponentType} from "react";
 import {Metadata, Viewport} from "../types";
 import {LayoutProps, PageProps} from "../server/types";
 
+export interface NavigateOptions {
+    replace?: boolean
+    viewTransition?: boolean
+}
+
 export interface RouterContextValue {
     pathname: string
     params: Record<string, string>
@@ -11,7 +16,8 @@ export interface RouterContextValue {
     layouts: ComponentType<LayoutProps>[]
     metadata: Metadata | null
     viewport?: Viewport
-    navigate: (to: string) => void
+    navigate: (to: string, options?: NavigateOptions) => Promise<void>
+    revalidate: () => Promise<void>
     isNavigating: boolean
 }
 

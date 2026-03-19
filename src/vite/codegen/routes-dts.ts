@@ -48,9 +48,7 @@ ${imports}
 type JsonResponse<T> = Response & { readonly __body: T }
 type UnwrapJson<T> = T extends JsonResponse<infer U> ? U : never
 type InferFnReturn<T> = T extends (...args: any[]) => any
-  ? [UnwrapJson<Awaited<ReturnType<T>>>] extends [never]
-    ? Exclude<Awaited<ReturnType<T>>, Response | null | void>
-    : UnwrapJson<Awaited<ReturnType<T>>>
+  ? UnwrapJson<Awaited<ReturnType<T>>> | Exclude<Awaited<ReturnType<T>>, JsonResponse<any> | null | void | undefined>
   : never
 type InferRoute<T> =
   T extends { readonly __return?: infer TReturn; readonly __body?: infer TBody }

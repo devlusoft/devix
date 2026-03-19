@@ -36,13 +36,28 @@ describe('text', () => {
 })
 
 describe('redirect', () => {
-    it('devuelve 302 por defecto', () => {
+    it('devuelve 302 y replace=false por defecto', () => {
         const res = redirect('/login')
         expect(res.status).toBe(302)
-        expect(res.headers.get('location')).toBe('/login')
+        expect(res.url).toBe('/login')
+        expect(res.replace).toBe(false)
     })
 
-    it('respeta el status indicado', () => {
-        expect(redirect('/home', 301).status).toBe(301)
+    it('respeta el status indicado como número', () => {
+        const res = redirect('/home', 301)
+        expect(res.status).toBe(301)
+        expect(res.replace).toBe(false)
+    })
+
+    it('acepta options object con status y replace', () => {
+        const res = redirect('/home', {status: 301, replace: true})
+        expect(res.status).toBe(301)
+        expect(res.replace).toBe(true)
+    })
+
+    it('replace sin status usa 302', () => {
+        const res = redirect('/home', {replace: true})
+        expect(res.status).toBe(302)
+        expect(res.replace).toBe(true)
     })
 })

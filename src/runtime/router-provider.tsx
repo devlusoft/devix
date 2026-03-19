@@ -3,9 +3,10 @@ import {RouterContext} from 'virtual:devix/context'
 import {ErrorProps, LayoutProps, PageProps} from "../server/types";
 import {Metadata, Viewport} from "../types";
 import {getDefaultErrorPage, loadErrorPage, matchClientRoute} from "virtual:devix/client-routes";
-import {buildHeadNodes} from "./head";
-import {PageMetaContext, RouteDataContext} from "./context";
+import {HeadSlot} from "./head";
+import {NavigateOptions, PageMetaContext, RouteDataContext} from "./context";
 import {DevixErrorBoundary} from "./error-boundary";
+import type {Redirect} from "../utils/response";
 
 interface RouteState {
     pathname: string
@@ -24,10 +25,17 @@ export function useRouter() {
     return useContext(RouterContext)
 }
 
+const noopNavigate = () => Promise.resolve()
+const noopRevalidate = () => Promise.resolve()
+
 export function useNavigate() {
     const ctx = useContext(RouterContext)
-    if (!ctx) throw new Error("useNavigate must be used within a RouterProvider")
-    return ctx.navigate
+    return ctx?.navigate ?? noopNavigate
+}
+
+export function useRevalidate() {
+    const ctx = useContext(RouterContext)
+    return ctx?.revalidate ?? noopRevalidate
 }
 
 export function useParams<T extends Record<string, string>>() {
@@ -37,9 +45,9 @@ export function useParams<T extends Record<string, string>>() {
 }
 
 type LoaderReturnType<T> = T extends (...args: any[]) => Promise<infer R>
-    ? R
+    ? [Exclude<R, Redirect | void | undefined>] extends [never] ? undefined : Exclude<R, Redirect | void | undefined>
     : T extends (...args: any[]) => infer R
-        ? R
+        ? [Exclude<R, Redirect | void | undefined>] extends [never] ? undefined : Exclude<R, Redirect | void | undefined>
         : T
 
 export function useLoaderData<T>() {
@@ -125,11 +133,27 @@ export function RouterProvider({
                 window.location.href = to
                 return
             }
-            console.error(`/_data${to} returned ${dataRes.status}`)
+            const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
+            setState(prev => ({
+                ...prev,
+                pathname,
+                pendingError: {statusCode: dataRes.status, message: 'Server error'},
+                ErrorPage: ErrorPage ?? undefined,
+            }))
             return
         }
 
         const data = await dataRes.json()
+
+        if (data.redirect) {
+            if (data.redirectReplace) {
+                window.history.replaceState(null, '', data.redirect)
+            } else {
+                window.history.pushState(null, '', data.redirect)
+            }
+            await loadRoute(data.redirect, controller)
+            return
+        }
 
         window.scrollTo(0, 0)
         setState({
@@ -144,19 +168,49 @@ export function RouterProvider({
         })
     }, [])
 
-    const navigate = useCallback(async (to: string) => {
+    const navigate = useCallback(async (to: string, options?: NavigateOptions) => {
         navigatingRef.current?.abort()
         const controller = new AbortController()
         navigatingRef.current = controller
 
         setIsNavigating(true)
-        try {
-            window.history.pushState(null, "", to)
+        const run = async () => {
+            window.history[options?.replace ? 'replaceState' : 'pushState'](null, '', to)
             await loadRoute(to, controller)
+        }
+        try {
+            if (options?.viewTransition && 'startViewTransition' in document) {
+                await (document as any).startViewTransition(run).finished
+            } else {
+                await run()
+            }
         } finally {
             if (!controller.signal.aborted) setIsNavigating(false)
         }
     }, [loadRoute])
+
+    const revalidate = useCallback(async () => {
+        const to = window.location.pathname + window.location.search
+        const controller = new AbortController()
+        const dataRes = await fetch(`/_data${to}`, {
+            headers: {Accept: 'application/json'},
+            signal: controller.signal,
+        })
+        if (!dataRes.ok) return
+        const data = await dataRes.json()
+        if (data.redirect) {
+            await navigate(data.redirect, {replace: data.redirectReplace})
+            return
+        }
+        setState(prev => ({
+            ...prev,
+            loaderData: data.loaderData,
+            layoutsData: (data.layouts ?? []).map((l: any) => l.loaderData),
+            params: data.params ?? prev.params,
+            metadata: data.metadata ?? prev.metadata,
+            viewport: data.viewport ?? prev.viewport,
+        }))
+    }, [navigate])
 
     useEffect(() => {
         const handlePop = () => {
@@ -209,8 +263,8 @@ export function RouterProvider({
             viewport: state.viewport,
             clientEntry,
         }}>
-            {state.metadata && buildHeadNodes(state.metadata, state.viewport)}
-            <RouterContext value={{...state, isNavigating, navigate}}>
+            <HeadSlot metadata={state.metadata} viewport={state.viewport}/>
+            <RouterContext value={{...state, isNavigating, navigate, revalidate}}>
                 {content}
             </RouterContext>
         </PageMetaContext>

@@ -1,6 +1,6 @@
 {
   "name": "@devlusoft/devix",
-  "version": "0.3.2",
+  "version": "0.4.0-beta.2",
   "type": "module",
   "description": "A lightweight React SSR meta-framework — devix",
   "author": "devlusoft",
@@ -71,6 +71,7 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "esbuild": "0.27.4",
+    "jsdom": "29.0.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "tsx": "4.21.0",

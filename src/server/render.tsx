@@ -1,15 +1,22 @@
-import {ComponentType, createElement, ReactElement} from 'react'
+import {createElement} from 'react'
 import {renderToString, renderToStaticMarkup} from 'react-dom/server'
 import {buildHeadNodes} from '../runtime/head'
+import {ServerApp} from '../runtime/server-app'
 import {buildPages, matchPage, collectLayoutChain} from './pages-router'
 import {resolveMetadata, mergeMetadata} from '../runtime/metadata'
-import {RouteDataContext} from '../runtime/context'
 import type {PageModule, LayoutModule, PageGlob} from './types'
 import type {Manifest} from "vite";
 import {escapeAttr, safeJsonStringify} from "../utils/html";
 import {withTimeout} from "../utils/async";
+import {isRedirect} from "../utils/response";
 
 const DEV_CLIENT_ENTRY = '/@id/virtual:devix/entry-client'
+
+function extractRedirect(result: unknown): {url: string, status: number, replace: boolean} | null {
+    if (typeof result === 'string') return {url: result, status: 302, replace: false}
+    if (isRedirect(result)) return {url: result.url, status: result.status, replace: result.replace}
+    return null
+}
 
 async function resolvePageData(pathname: string, request: Request, glob: PageGlob, timeout: number) {
     const {pages, layouts} = buildPages(Object.keys(glob.pages), Object.keys(glob.layouts), glob.pagesDir)
@@ -18,26 +25,47 @@ async function resolvePageData(pathname: string, request: Request, glob: PageGlo
 
     const {page, params} = matched
     const layoutChain = collectLayoutChain(page.key, layouts)
-    const ctx = {params, request}
 
-    const pageMod = await glob.pages[page.key]() as PageModule
+    const [pageMod, ...layoutMods] = await Promise.all([
+        glob.pages[page.key]() as Promise<PageModule>,
+        ...layoutChain.map(l => glob.layouts[l.key]() as Promise<LayoutModule>),
+    ])
 
-    if (pageMod.guard) {
-        const redirect = await pageMod.guard(ctx)
-        if (redirect) return {redirect}
+    let guardData: unknown = undefined
+
+    for (const mod of layoutMods) {
+        if (mod.guard) {
+            const result = await mod.guard({params, request, guardData})
+            const r = extractRedirect(result)
+            if (r !== null) return {redirect: r.url, redirectStatus: r.status, redirectReplace: r.replace}
+            if (result !== null && result !== undefined) guardData = result
+        }
     }
 
-    const loaderData = pageMod.loader
+    if (pageMod.guard) {
+        const result = await pageMod.guard({params, request, guardData})
+        const r = extractRedirect(result)
+        if (r !== null) return {redirect: r.url, redirectStatus: r.status, redirectReplace: r.replace}
+        if (result !== null && result !== undefined) guardData = result
+    }
+
+    const ctx = {params, request, guardData}
+
+    const rawLoaderData = pageMod.loader
         ? await withTimeout(pageMod.loader(ctx) as Promise<unknown>, timeout)
         : null
 
-    const layoutMods = await Promise.all(
-        layoutChain.map(l => glob.layouts[l.key]() as Promise<LayoutModule>)
-    )
-    const layoutsData = await withTimeout(
+    if (isRedirect(rawLoaderData)) return {redirect: rawLoaderData.url, redirectStatus: rawLoaderData.status, redirectReplace: rawLoaderData.replace}
+    const loaderData = rawLoaderData
+
+    const rawLayoutsData = await withTimeout(
         Promise.all(layoutMods.map(mod => mod.loader ? mod.loader(ctx) : null)),
         timeout
     )
+    for (const raw of rawLayoutsData) {
+        if (isRedirect(raw)) return {redirect: raw.url, redirectStatus: raw.status, redirectReplace: raw.replace}
+    }
+    const layoutsData = rawLayoutsData
 
     const pageMeta = await resolveMetadata(pageMod, {...ctx, loaderData})
     const layoutsMeta = await Promise.all(
@@ -49,7 +77,7 @@ async function resolvePageData(pathname: string, request: Request, glob: PageGlo
 
     const rootLayoutMod = layoutMods[0]
     const lang = rootLayoutMod?.generateLang
-        ? await rootLayoutMod.generateLang({...ctx, loaderData})
+        ? await rootLayoutMod.generateLang({...ctx, loaderData: layoutsData[0]})
         : rootLayoutMod?.lang ?? 'en'
 
     return {pageMod, layoutMods, params, loaderData, layoutsData, metadata, viewport, lang}
@@ -63,11 +91,15 @@ export async function runLoader(url: string, request: Request, glob: PageGlob, o
         result = await resolvePageData(pathname, request, glob, timeout)
     } catch (err) {
         console.error('[devix] render error:', err)
+        return {error: true as const, loaderData: null, params: {}, layouts: [], metadata: null, viewport: undefined}
+    }
+
+    if (!result) {
         return {loaderData: null, params: {}, layouts: [], metadata: null, viewport: undefined}
     }
 
-    if (!result || 'redirect' in result) {
-        return {loaderData: null, params: {}, layouts: [], metadata: null, viewport: undefined}
+    if ('redirect' in result) {
+        return {redirect: result.redirect, redirectStatus: result.redirectStatus, redirectReplace: result.redirectReplace}
     }
 
     const {loaderData, params, layoutsData, metadata, viewport} = result
@@ -119,34 +151,29 @@ export async function render(
     }
 
     if ('redirect' in result) {
-        return {html: '', statusCode: 302, headers: {Location: result.redirect}}
+        return {html: '', statusCode: result.redirectStatus, headers: {Location: result.redirect}}
     }
 
     const {pageMod, layoutMods, params, loaderData, layoutsData, metadata, viewport, lang} = result
 
-    let tree: ReactElement = createElement(
-        RouteDataContext as any,
-        {value: {loaderData, params}},
-        createElement(pageMod.default, {data: loaderData, params, url: pathname})
-    )
-
-    for (let i = layoutMods.length - 1; i >= 0; i--) {
-        const layoutData = layoutsData[i]
-        tree = createElement(
-            RouteDataContext as any,
-            {value: {loaderData: layoutData, params}},
-            createElement(layoutMods[i].default as ComponentType<any>, {data: layoutData, params}, tree),
-        )
-    }
-
-    const content = renderToString(tree)
+    const content = renderToString(createElement(ServerApp, {
+        pathname,
+        params,
+        loaderData,
+        layoutsData,
+        Page: pageMod.default as any,
+        layouts: layoutMods.map(m => m.default as any),
+        metadata: metadata ?? null,
+        viewport,
+        clientEntry,
+    }))
     const headTags = metadata ? renderToStaticMarkup(buildHeadNodes(metadata, viewport) as any) : ''
 
     const dataScript = `<script>window.__DEVIX__=${safeJsonStringify({
         metadata,
         viewport,
         clientEntry
-    })};window.__LOADER_DATA__=${safeJsonStringify(loaderData)};window.__LAYOUTS_DATA__=${safeJsonStringify(layoutsData)};</script>`
+    })};window.__LOADER_DATA__=${safeJsonStringify(loaderData ?? null)};window.__LAYOUTS_DATA__=${safeJsonStringify(layoutsData)};</script>`
     const clientScript = `<script type="module" src="${clientEntry}"></script>`
     const customHeaders: Record<string, string> = pageMod.headers ?? {}
 

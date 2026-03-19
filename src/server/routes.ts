@@ -24,6 +24,7 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTim
             const url = pathname.replace(/^\/_data/, '') + search
 
             const data = await renderModule.runLoader(url, c.req.raw, {loaderTimeout})
+            if (data.error) return c.json({error: 'internal error'}, 500)
             return c.json(data)
         } catch (e) {
             console.error(e)

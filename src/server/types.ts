@@ -1,16 +1,27 @@
 import type React from "react";
 import {LoaderContext, Metadata, Viewport} from "../types";
+import type {Redirect} from "../utils/response";
 
-export interface PageProps<TData = unknown, TParams = Record<string, string>> {
-    data: TData
-    params: TParams
+type InferLoaderData<T> = T extends (...args: any[]) => infer R
+    ? [Awaited<R>] extends [void | undefined | Redirect] ? undefined : Exclude<Awaited<R>, Redirect>
+    : T
+
+type IsParams<T> = [T] extends [Record<string, string>] ? true : false
+
+export interface PageProps<TDataOrParams = unknown, TParams = Record<string, string>> {
+    data: IsParams<TDataOrParams> extends true ? unknown : InferLoaderData<TDataOrParams>
+    params: IsParams<TDataOrParams> extends true
+        ? TDataOrParams extends Record<string, string> ? TDataOrParams : Record<string, string>
+        : TParams
     url: string
 }
 
-export interface LayoutProps<TData = unknown, TParams = Record<string, string>> {
+export interface LayoutProps<TDataOrParams = unknown, TParams = Record<string, string>> {
     children: React.ReactNode
-    data: TData
-    params: TParams
+    data: IsParams<TDataOrParams> extends true ? unknown : InferLoaderData<TDataOrParams>
+    params: IsParams<TDataOrParams> extends true
+        ? TDataOrParams extends Record<string, string> ? TDataOrParams : Record<string, string>
+        : TParams
 }
 
 export interface ErrorProps {
@@ -31,8 +42,8 @@ export interface ApiGlob {
 }
 
 interface BaseModule<TData, TParams> {
-    loader?: (ctx: LoaderContext<TParams>) => Promise<TData> | TData
-    guard?: (ctx: LoaderContext<TParams>) => Promise<string | null> | string | null
+    loader?: (ctx: LoaderContext<TParams>) => Promise<TData | Redirect | void> | TData | Redirect | void
+    guard?: (ctx: LoaderContext<TParams>) => Promise<string | Redirect | Record<string, unknown> | null> | string | Redirect | Record<string, unknown> | null
     metadata?: Metadata
     generateMetadata?: (ctx: LoaderContext<TParams> & { loaderData: TData }) => Promise<Metadata> | Metadata
     viewport?: Viewport

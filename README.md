@@ -4,8 +4,6 @@ Un meta-framework ligero de React 19 con SSR, impulsado por Vite 8 + Hono.
 
 Construye aplicaciones React full-stack con enrutamiento basado en archivos, renderizado del lado del servidor, generación estática de sitios y rutas API — configuración mínima, control máximo.
 
-> **⚠️ En desarrollo activo** — devix está en evolución constante. Las API's pueden cambiar entre versiones sin período de deprecación. No se recomienda para uso en producción todavía.
-
 ## Características
 
 - **Vite 8** — HMR instantáneo y builds rápidos con Rolldown
@@ -14,8 +12,10 @@ Construye aplicaciones React full-stack con enrutamiento basado en archivos, ren
 - **SSR por defecto** — cada página se renderiza en el servidor
 - **SSG** — genera HTML estático con `generateStaticParams`
 - **Rutas API** — basadas en archivos, con `createHandler` para tipado de extremo a extremo
-- **$fetch** — cliente HTTP con body y respuesta tipados a partir del handler
+- **$fetch** — cliente HTTP con body y respuesta tipados, con autocompletado de rutas
 - **Carga de datos** — funciones `loader` con hidratación automática en el cliente
+- **Navegación programática** — `useNavigate()` con soporte de `replace` y View Transitions API
+- **Revalidación de datos** — `useRevalidate()` para refrescar datos sin recargar la página
 - **Guards de ruta** — redirecciones del lado del servidor antes del renderizado
 - **SEO** — `metadata` y `generateMetadata` por página, con soporte de Open Graph y Twitter
 - **Hooks de contexto** — `useRequest()`, `useCtx()`, `useParams()` accesibles desde cualquier función del handler
@@ -136,6 +136,50 @@ export default function RootLayout({ children }: LayoutProps) {
 }
 ```
 
+### Tipado de params
+
+Pasa el tipo de params directamente sin necesidad de un loader:
+
+```tsx
+import type { PageProps } from '@devlusoft/devix'
+
+export default function ProviderPage({ params }: PageProps<{ providerId: string }>) {
+  return <h1>{params.providerId}</h1>
+}
+```
+
+### Navegación programática
+
+```tsx
+import { useNavigate, useRevalidate } from '@devlusoft/devix'
+
+function MyComponent() {
+  const navigate = useNavigate()
+  const revalidate = useRevalidate()
+
+  return (
+    <>
+      <button onClick={() => navigate('/dashboard')}>Ir al dashboard</button>
+      <button onClick={() => navigate('/login', { replace: true })}>Login (sin historial)</button>
+      <button onClick={() => navigate('/shop', { viewTransition: true })}>Con animación</button>
+      <button onClick={() => revalidate()}>Refrescar datos</button>
+    </>
+  )
+}
+```
+
+### redirect con replace
+
+```ts
+import { redirect } from '@devlusoft/devix'
+
+export async function loader({ request }: LoaderContext) {
+  const user = await getSession(request)
+  if (!user) return redirect('/login', { replace: true })
+  return user
+}
+```
+
 ### Rutas API
 
 `createHandler` da tipado de extremo a extremo — el body y el retorno se infieren automáticamente para `$fetch`:
@@ -203,6 +247,7 @@ export default defineConfig({
   port: 3000,                // puerto del servidor dev y producción (default: 3000)
   host: false,               // bind a 0.0.0.0 (default: false)
   appDir: 'app',             // directorio de la app (default: 'app')
+  publicDir: 'public',       // directorio de archivos estáticos (default: 'public')
   output: 'server',          // 'server' | 'static' (default: 'server')
   loaderTimeout: 10_000,     // timeout de los loaders en ms (default: 10000)
   css: ['./app/styles/global.css'],  // archivos CSS globales

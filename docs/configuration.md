@@ -8,6 +8,7 @@ export default defineConfig({
     port: 3000,
     host: false,
     appDir: 'app',
+    publicDir: 'public',
     output: 'server',
     loaderTimeout: '10s',
     css: ['./app/styles/global.css'],
@@ -31,6 +32,10 @@ Puerto del servidor. Default: `3000`. Se puede sobreescribir con la variable de 
 ### `appDir`
 
 Directorio raíz de la app. Default: `'app'`. Las páginas van en `{appDir}/pages/` y las rutas API en `{appDir}/api/`.
+
+### `publicDir`
+
+Directorio de archivos estáticos servidos en la raíz del sitio. Default: `'public'`. Los archivos en este directorio se copian tal cual a `dist/client/` durante el build y son accesibles en la misma ruta (p.ej. `public/logo.png` → `/logo.png`).
 
 ### `output`
 

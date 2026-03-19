@@ -88,6 +88,7 @@ export function devix(config: DevixConfig): UserConfig {
 
     const base: UserConfig = {
         plugins: [react(), virtualPlugin],
+        publicDir: resolve(process.cwd(), config.publicDir ?? 'public'),
         ssr: {noExternal: ['@devlusoft/devix']},
         ...(config.envPrefix ? {envPrefix: config.envPrefix} : {}),
     }

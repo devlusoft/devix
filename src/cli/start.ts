@@ -2,7 +2,7 @@ import {readFileSync} from 'node:fs'
 import {serve} from '@hono/node-server'
 import {serveStatic} from '@hono/node-server/serve-static'
 import {Hono} from 'hono'
-import {resolve} from 'node:path'
+import {resolve, join} from 'node:path'
 import type {Manifest} from 'vite'
 import {registerApiRoutes, registerSsrRoute} from '../server/routes'
 import {loadDotenv} from '../utils/env'
@@ -33,8 +33,10 @@ const host = typeof runtimeConfig!.host === 'string'
 
 const app = new Hono()
 
+const clientRoot = join(process.cwd(), 'dist/client')
+
 app.use('/*', serveStatic({
-    root: './dist/client',
+    root: clientRoot,
     onFound: (_path, c) => {
         c.header('Cache-Control', _path.includes('/assets/')
             ? 'public, immutable, max-age=31536000'

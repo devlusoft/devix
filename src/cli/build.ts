@@ -26,6 +26,7 @@ await build({
     build: {
         ssr: true,
         outDir: 'dist/server',
+        copyPublicDir: false,
         rolldownOptions: {
             input: {
                 render: 'virtual:devix/render',

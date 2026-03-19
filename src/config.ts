@@ -5,6 +5,7 @@ export interface DevixConfig {
     host?: string | boolean
     css?: string[]
     appDir?: string
+    publicDir?: string
     envPrefix?: string | string[]
     html?: { lang?: string }
     vite?: UserConfig

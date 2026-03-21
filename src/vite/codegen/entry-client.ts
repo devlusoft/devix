@@ -2,7 +2,7 @@ interface EntryClientOptions {
     cssUrls: string[]
 }
 
-export function generateEntryClient({cssUrls}: EntryClientOptions): string {
+export function generateEntryClient({ cssUrls }: EntryClientOptions): string {
     const cssImports = cssUrls.map(u => `import '${u}'`).join('\n')
 
     return `
@@ -43,6 +43,13 @@ if (!window.__DEVIX__) {
                 initialViewport: viewport,
             })
         )
+
+        if (window.location.hash) {
+            const id = window.location.hash.slice(1)
+            requestAnimationFrame(() => {
+                document.getElementById(id)?.scrollIntoView()
+            })
+        }
     } else {
         const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
         createRoot(root).render(

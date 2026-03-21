@@ -23,7 +23,7 @@ export function Link({ href, prefetch = false, viewTransition = false, children,
     const handleMouseEnter = useCallback(() => {
         if (!prefetch) return
         const resolved = resolveHref(href)
-        const pathname = resolved.split('?')[0]
+        const pathname = resolved.split('?')[0].split('#')[0]
         const matched = matchClientRoute(pathname)
         if (matched) {
             matched.load().catch(() => {})

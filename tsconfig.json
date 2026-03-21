@@ -14,7 +14,7 @@
     "skipLibCheck": true,
     "noEmit": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "paths": {
       "@devlusoft/devix": [
         "./src/runtime/index.ts"

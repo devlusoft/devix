@@ -5,7 +5,7 @@ export async function collectCss(vite: ViteDevServer): Promise<string[]> {
 
     for (const [, mod] of vite.moduleGraph.idToModuleMap) {
         if (!mod.id) continue
-        if (mod.id.endsWith('.css') || mod.id.includes('.css?')) {
+        if ((mod.id.endsWith('.css') || mod.id.includes('.css?')) && mod.url.startsWith('/')) {
             cssUrls.add(mod.url)
         }
     }

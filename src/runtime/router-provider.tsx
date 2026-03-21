@@ -100,7 +100,7 @@ export function RouterProvider({
     const [isNavigating, setIsNavigating] = useState(false)
 
     const loadRoute = useCallback(async (to: string, controller: AbortController) => {
-        const pathname = to.split('?')[0]
+        const pathname = to.split('?')[0].split('#')[0] 
         const matched = matchClientRoute(pathname)
         if (!matched) {
             const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()

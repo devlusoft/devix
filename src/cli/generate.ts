@@ -1,4 +1,4 @@
-import {readFileSync, mkdirSync, writeFileSync} from 'node:fs'
+import {readFileSync, mkdirSync, writeFileSync, rmSync} from 'node:fs'
 import {resolve, join} from 'node:path'
 import type {Manifest} from 'vite'
 import type {DevixConfig} from '../config'
@@ -36,9 +36,23 @@ for (const url of urls) {
 
     mkdirSync(join(outPath, '..'), {recursive: true})
     writeFileSync(outPath, `<!DOCTYPE html>${html}`, 'utf-8')
+
+    const data = await renderModule.runLoader(fullUrl, new Request(fullUrl), {manifest})
+    const dataPath = url === '/'
+        ? join(process.cwd(), 'dist/client/_data/index.json')
+        : join(process.cwd(), 'dist/client/_data', `${url}.json`)
+    
+    mkdirSync(join(dataPath, '..'), {recursive: true})
+    writeFileSync(dataPath, JSON.stringify(data), 'utf-8')
+
     console.log(`  ✓ ${url}`)
 }
 
 console.log('[devix] Generation complete.')
+
+if (userConfig.output === 'static') {
+    rmSync(resolve(process.cwd(), 'dist/server'), { recursive: true, force: true })
+    console.log('[devix] Removed dist/server (not needed in static mode)')
+}
 
 export {}

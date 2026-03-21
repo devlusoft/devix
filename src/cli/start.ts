@@ -1,11 +1,11 @@
-import {readFileSync} from 'node:fs'
-import {serve} from '@hono/node-server'
-import {serveStatic} from '@hono/node-server/serve-static'
-import {Hono} from 'hono'
-import {resolve, join} from 'node:path'
-import type {Manifest} from 'vite'
-import {registerApiRoutes, registerSsrRoute} from '../server/routes'
-import {loadDotenv} from '../utils/env'
+import { readFileSync } from 'node:fs'
+import { serve } from '@hono/node-server'
+import { serveStatic } from '@hono/node-server/serve-static'
+import { Hono } from 'hono'
+import { resolve, join } from 'node:path'
+import type { Manifest } from 'vite'
+import { registerApiRoutes, registerSsrRoute } from '../server/routes'
+import { loadDotenv } from '../utils/env'
 
 loadDotenv('production')
 
@@ -35,6 +35,22 @@ const app = new Hono()
 
 const clientRoot = join(process.cwd(), 'dist/client')
 
+if (runtimeConfig!.output === 'static') {
+    app.get('/_data/*', (c) => {
+        const pathname = c.req.path.replace(/^\/_data/, '') || '/'
+        const filePath = pathname === '/'
+            ? join(clientRoot, '_data/index.json')
+            : join(clientRoot, '_data', `${pathname}.json`)
+
+        try {
+            const data = readFileSync(filePath, 'utf-8')
+            return c.json(JSON.parse(data))
+        } catch {
+            return c.json({ error: 'not found' }, 404)
+        }
+    })
+}
+
 app.use('/*', serveStatic({
     root: clientRoot,
     onFound: (_path, c) => {
@@ -47,10 +63,10 @@ app.use('/*', serveStatic({
 if (runtimeConfig!.output === 'static') {
     console.log('[devix] Static mode — serving pre-generated files from dist/client')
 } else {
-    registerApiRoutes(app, {renderModule, apiModule, manifest})
-    registerSsrRoute(app, {renderModule, apiModule, manifest, loaderTimeout: runtimeConfig!.loaderTimeout})
+    registerApiRoutes(app, { renderModule, apiModule, manifest })
+    registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig!.loaderTimeout })
 }
 
-serve({fetch: app.fetch, port, hostname: host}, (info) => console.log(`http://${info.address}:${info.port}`))
+serve({ fetch: app.fetch, port, hostname: host }, (info) => console.log(`http://${info.address}:${info.port}`))
 
-export {}
+export { }

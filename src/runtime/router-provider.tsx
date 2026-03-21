@@ -167,12 +167,13 @@ export function RouterProvider({
         })
 
         const hash = to.includes('#') ? to.split('#')[1] : null
+        const scrollBehavior = getComputedStyle(document.documentElement).scrollBehavior as ScrollBehavior
         if (hash) {
             requestAnimationFrame(() => {
-                document.getElementById(hash)?.scrollIntoView()
+                document.getElementById(hash)?.scrollIntoView({ behavior: scrollBehavior })
             })
         } else {
-            window.scrollTo(0, 0)
+            window.scrollTo({ top: 0, behavior: scrollBehavior })
         }
     }, [])
 

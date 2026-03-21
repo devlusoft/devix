@@ -44,12 +44,13 @@ if (!window.__DEVIX__) {
             })
         )
 
-        if (window.location.hash) {
-            const id = window.location.hash.slice(1)
-            requestAnimationFrame(() => {
-                document.getElementById(id)?.scrollIntoView()
-            })
-        }
+        if (window.location.hash) {                                                                                 
+            const id = window.location.hash.slice(1)                                                                
+            const scrollBehavior = getComputedStyle(document.documentElement).scrollBehavior                        
+            requestAnimationFrame(() => {                                                   
+                document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior })                           
+            })                                                                           
+        }    
     } else {
         const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
         createRoot(root).render(

@@ -16,12 +16,12 @@ let manifest: Manifest
 let runtimeConfig: { port: number, host: string | boolean, loaderTimeout: number, output: 'server' | 'static' }
 
 try {
-    runtimeConfig = JSON.parse(readFileSync(pathToFileURL(join(process.cwd(), 'dist/devix.config.jso')).href, 'utf-8'))
+    runtimeConfig = JSON.parse(readFileSync(join(process.cwd(), 'dist/devix.config.json'), 'utf-8'))
     if (runtimeConfig.output !== 'static') {
         renderModule = await import(pathToFileURL(resolve(process.cwd(), 'dist/server/render.js')).href)
         apiModule = await import(pathToFileURL(resolve(process.cwd(), 'dist/server/api.js')).href)
     }
-    manifest = JSON.parse(readFileSync(pathToFileURL(join(process.cwd(), 'dist/client/.vite/manifest.json')), 'utf-8'))
+    manifest = JSON.parse(readFileSync(join(process.cwd(), 'dist/client/.vite/manifest.json'), 'utf-8'))
 } catch {
     console.error('[devix] Build not found. Run "devix build" first.')
     process.exit(1)

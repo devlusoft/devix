@@ -1,13 +1,11 @@
 import {writeFileSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {build} from 'vite'
-import type {DevixConfig} from '../config'
 import {devix} from '../vite'
 import {parseDuration} from '../utils/duration'
-import {pathToFileURL} from "node:url"
-import {join} from "node:path"
+import {loadConfig} from "../utils/load-config";
 
-const config: DevixConfig = (await import(pathToFileURL(join(process.cwd(), 'devix.config.ts')).href)).default
+const config = await loadConfig(process.cwd())
 const baseConfig = devix(config)
 
 await build({

@@ -2,22 +2,20 @@ import { createServer } from 'node:http'
 import { createServer as createViteServer } from 'vite'
 import { getRequestListener } from '@hono/node-server'
 import { Hono } from 'hono'
-import type { DevixConfig } from '../config'
 import { devix } from '../vite'
 import { registerApiRoutes } from '../server/routes'
 import { printDevBanner } from "../utils/banner"
 import { collectCss } from "../server/collect-css"
 import { parseDuration } from "../utils/duration"
 import { loadDotenv } from "../utils/env"
-import { pathToFileURL } from "node:url"
-import { join } from "node:path"
+import {loadConfig} from "../utils/load-config";
 
 loadDotenv('development')
 
 const VIRTUAL_RENDER = 'virtual:devix/render'
 const VIRTUAL_API = 'virtual:devix/api'
 
-const config: DevixConfig = (await import(pathToFileURL(join(process.cwd(), 'devix.config.ts')).href)).default
+const config = await loadConfig(process.cwd())
 const port = Number(process.env.PORT) || config.port || 3000
 const host = typeof config.host === 'string' ? config.host : config.host ? '0.0.0.0' : 'localhost'
 

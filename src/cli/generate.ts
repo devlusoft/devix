@@ -1,10 +1,10 @@
 import {readFileSync, mkdirSync, writeFileSync, rmSync} from 'node:fs'
 import {resolve, join} from 'node:path'
 import type {Manifest} from 'vite'
-import type {DevixConfig} from '../config'
 import { pathToFileURL } from "node:url"
+import {loadConfig} from "../utils/load-config";
 
-const userConfig: DevixConfig = (await import(pathToFileURL(join(process.cwd(), 'devix.config.ts')).href)).default
+const userConfig = await loadConfig(process.cwd())
 if (userConfig.output !== 'static') {
     console.warn('[devix] Tip: set output: "static" in devix.config.ts to skip the SSR server at runtime.')
 }

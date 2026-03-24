@@ -9,13 +9,15 @@ import { printDevBanner } from "../utils/banner"
 import { collectCss } from "../server/collect-css"
 import { parseDuration } from "../utils/duration"
 import { loadDotenv } from "../utils/env"
+import { pathToFileURL } from "node:url"
+import { join } from "node:path"
 
 loadDotenv('development')
 
 const VIRTUAL_RENDER = 'virtual:devix/render'
 const VIRTUAL_API = 'virtual:devix/api'
 
-const config: DevixConfig = (await import(`${process.cwd()}/devix.config.ts`)).default
+const config: DevixConfig = (await import(pathToFileURL(join(process.cwd(), 'devix.config.ts')).href)).default
 const port = Number(process.env.PORT) || config.port || 3000
 const host = typeof config.host === 'string' ? config.host : config.host ? '0.0.0.0' : 'localhost'
 

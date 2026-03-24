@@ -2,7 +2,7 @@ export {useRouter, useNavigate, useRevalidate, useParams, useLoaderData, RouterP
 
 export {Link} from "./link"
 
-export type { Metadata, Viewport, LoaderContext, LoaderContextWithGuard, LoaderFunction, GuardFunction } from '../types'
+export type { Metadata, MetadataIcon, Viewport, LoaderContext, LoaderContextWithGuard, LoaderFunction, GuardFunction } from '../types'
 export type { NavigateOptions } from './context'
 export type { PageProps, LayoutProps, PageModule, LayoutModule, ErrorProps } from '../server/types'
 export type { RouteHandler, RouteResult } from './api-context'

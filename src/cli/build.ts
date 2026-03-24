@@ -4,8 +4,10 @@ import {build} from 'vite'
 import type {DevixConfig} from '../config'
 import {devix} from '../vite'
 import {parseDuration} from '../utils/duration'
+import {pathToFileURL} from "node:url"
+import {join} from "node:path"
 
-const config: DevixConfig = (await import(`${process.cwd()}/devix.config.ts`)).default
+const config: DevixConfig = (await import(pathToFileURL(join(process.cwd(), 'devix.config.ts')).href)).default
 const baseConfig = devix(config)
 
 await build({

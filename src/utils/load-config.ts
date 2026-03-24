@@ -1,7 +1,6 @@
 import {build} from 'esbuild'
 import type {DevixConfig} from "../config"
-import {join} from "node:path";
-import {tmpdir} from "node:os";
+import {join} from "node:path"
 import {unlinkSync, writeFileSync} from "node:fs";
 import {pathToFileURL} from "node:url";
 
@@ -15,7 +14,7 @@ export async function loadConfig(cwd: string): Promise<DevixConfig> {
         packages: 'external',
     })
 
-    const tmpFile = join(tmpdir(), `devix-config-${Date.now()}.mjs`)
+    const tmpFile = join(cwd, `.devix-config-${Date.now()}.mjs`)
     writeFileSync(tmpFile, result.outputFiles[0].text)
 
     try {

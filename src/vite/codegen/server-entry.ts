@@ -1,22 +1,25 @@
 interface ServerEntryOptions {
     routesPath: string
     envPath: string
+    honoServerPath: string
+    honoServerStaticPath: string
+    honoPath: string
 }
 
-export function generateServerEntry({ routesPath, envPath }: ServerEntryOptions): string {
+export function generateServerEntry({ routesPath, envPath, honoServerPath, honoServerStaticPath, honoPath }: ServerEntryOptions): string {
     return `
 import { readFileSync } from 'node:fs'
-  import { serve } from '@hono/node-server'                                                                   
-  import { serveStatic } from '@hono/node-server/serve-static'
-  import { Hono } from 'hono'                                                                                 
-  import { resolve, join, dirname } from 'node:path'                                                          
-  import { fileURLToPath, pathToFileURL } from 'node:url'
+  import { serve } from '${honoServerPath}'
+  import { serveStatic } from '${honoServerStaticPath}'
+  import { Hono } from '${honoPath}'
+  import { resolve, join, dirname } from 'node:path'
+  import { pathToFileURL } from 'node:url'
   import { registerApiRoutes, registerSsrRoute } from '${routesPath}'                                         
   import { loadDotenv } from '${envPath}'
                                                                                                               
   loadDotenv('production')
                                                                                                               
-  const __dir = dirname(fileURLToPath(import.meta.url))
+  const __dir = dirname(process.argv[1])
 
   let renderModule, apiModule, manifest, runtimeConfig                                                        
    

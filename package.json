@@ -1,6 +1,6 @@
 {
   "name": "@devlusoft/devix",
-  "version": "0.4.1-beta.11",
+  "version": "0.4.1-beta.12",
   "type": "module",
   "description": "A lightweight React SSR meta-framework — devix",
   "author": "devlusoft",

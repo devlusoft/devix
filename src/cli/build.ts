@@ -39,15 +39,13 @@ await build({
 await build({
     ...baseConfig,
     configFile: false,
-    ssr: {
-        noExternal: ['hono', '@hono/node-server', '@devlusoft/devix'],
-    },
     build: {
         ssr: true,
         outDir: 'dist/server',
+        emptyOutDir: false,
         copyPublicDir: false,
         rolldownOptions: {
-            input: {index: 'virtual:devix/server-entry'},
+            input: { index: 'virtual:devix/server-entry' },
         },
     },
 })

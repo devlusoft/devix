@@ -3,6 +3,7 @@ import type { DevixConfig } from '../config'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
+import { createRequire } from 'node:module'
 import { generateEntryClient } from './codegen/entry-client'
 import { generateClientRoutes } from './codegen/client-routes'
 import { generateRender } from './codegen/render'
@@ -38,6 +39,11 @@ export function devix(config: DevixConfig): UserConfig {
     const routesPath = resolve(__dirname, '../server/routes.js').replace(/\\/g, '/')
     const envPath = resolve(__dirname, '../utils/env.js').replace(/\\/g, '/')
 
+    const _require = createRequire(import.meta.url)
+    const honoServerPath = _require.resolve('@hono/node-server').replace(/\\/g, '/')
+    const honoServerStaticPath = _require.resolve('@hono/node-server/serve-static').replace(/\\/g, '/')
+    const honoPath = _require.resolve('hono').replace(/\\/g, '/')
+
     const virtualPlugin: Plugin = {
         name: 'devix',
         enforce: 'pre',
@@ -63,7 +69,7 @@ export function devix(config: DevixConfig): UserConfig {
             if (id === `\0${VIRTUAL_CONTEXT}`)
                 return generateContext()
             if (id === `\0${VIRTUAL_SERVER_ENTRY}`)
-                return generateServerEntry({ routesPath, envPath })
+                return generateServerEntry({ routesPath, envPath, honoServerPath, honoServerStaticPath, honoPath })
         },
 
 

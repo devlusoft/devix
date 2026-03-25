@@ -42,7 +42,7 @@ import { readFileSync } from 'node:fs'
                                                                                                               
   if (runtimeConfig.output === 'static') {
       app.get('/_data/*', (c) => {
-          const pathname = c.req.path.replace(/^\\\\/_data/, '') || '/'                                         
+          const pathname = c.req.path.replace(/^\\/_data/, '') || '/'                                         
           const filePath = pathname === '/'                                                                   
               ? join(clientRoot, '_data/index.json')                                                          
               : join(clientRoot, '_data', pathname + '.json')                                                 

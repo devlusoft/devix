@@ -36,6 +36,22 @@ await build({
     },
 })
 
+await build({
+    ...baseConfig,
+    configFile: false,
+    ssr: {
+        noExternal: ['hono', '@hono/node-server', '@devlusoft/devix'],
+    },
+    build: {
+        ssr: true,
+        outDir: 'dist/server',
+        copyPublicDir: false,
+        rolldownOptions: {
+            input: {index: 'virtual:devix/server-entry'},
+        },
+    },
+})
+
 const runtimeConfig = {
     port: config.port ?? 3000,
     host: config.host ?? false,

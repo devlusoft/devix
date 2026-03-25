@@ -14,6 +14,7 @@ import { scanApiFiles } from "./codegen/scan-api";
 import { generateRoutesDts } from "./codegen/routes-dts";
 import { writeRoutesDts } from "./codegen/write-routes-dts";
 import { parseSync } from 'oxc-parser'
+import {generateServerEntry} from "./codegen/server-entry";
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -22,6 +23,7 @@ const VIRTUAL_CLIENT_ROUTES = 'virtual:devix/client-routes'
 const VIRTUAL_RENDER = 'virtual:devix/render'
 const VIRTUAL_API = 'virtual:devix/api'
 const VIRTUAL_CONTEXT = 'virtual:devix/context'
+const VIRTUAL_SERVER_ENTRY = 'virtual:devix/server-entry'
 
 const SERVER_EXPORTS = new Set(['loader', 'guard', 'generateStaticParams', 'headers'])
 
@@ -33,6 +35,8 @@ export function devix(config: DevixConfig): UserConfig {
     const renderPath = resolve(__dirname, '../server/render.js').replace(/\\/g, '/')
     const apiPath = resolve(__dirname, '../server/api.js').replace(/\\/g, '/')
     const matcherPath = resolve(__dirname, '../runtime/client-router.js').replace(/\\/g, '/')
+    const routesPath = resolve(__dirname, '../server/routes.js').replace(/\\/g, '/')
+    const envPath = resolve(__dirname, '../utils/env.js').replace(/\\/g, '/')
 
     const virtualPlugin: Plugin = {
         name: 'devix',
@@ -44,6 +48,7 @@ export function devix(config: DevixConfig): UserConfig {
             if (id === VIRTUAL_RENDER) return `\0${VIRTUAL_RENDER}`
             if (id === VIRTUAL_API) return `\0${VIRTUAL_API}`
             if (id === VIRTUAL_CONTEXT) return `\0${VIRTUAL_CONTEXT}`
+            if (id === VIRTUAL_SERVER_ENTRY) return `\0${VIRTUAL_SERVER_ENTRY}`
         },
 
         load(id) {
@@ -57,6 +62,8 @@ export function devix(config: DevixConfig): UserConfig {
                 return generateApi({ apiPath, appDir })
             if (id === `\0${VIRTUAL_CONTEXT}`)
                 return generateContext()
+            if (id === `\0${VIRTUAL_SERVER_ENTRY}`)
+                return generateServerEntry({ routesPath, envPath })
         },
 
 

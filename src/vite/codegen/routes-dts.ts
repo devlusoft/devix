@@ -26,7 +26,7 @@ export function buildRouteEntry(filePath: string, apiDir: string, methods: HttpM
 
 export function generateRoutesDts(entries: RouteEntry[], apiDir: string): string {
     if (entries.length === 0) {
-        return `// auto-generado por devix — no editar\ndeclare module '@devlusoft/devix' {\n  interface ApiRoutes {}\n}\n`
+        return `// auto-generado por devix — no editar\nexport {}\ndeclare module '@devlusoft/devix' {\n  interface ApiRoutes {}\n}\n`
     }
 
     const imports = entries
@@ -45,18 +45,20 @@ export function generateRoutesDts(entries: RouteEntry[], apiDir: string): string
     return `// auto-generado por devix — no editar
 ${imports}
 
-type JsonResponse<T> = Response & { readonly __body: T }
-type UnwrapJson<T> = T extends JsonResponse<infer U> ? U : never
-type InferFnReturn<T> = T extends (...args: any[]) => any
-  ? UnwrapJson<Awaited<ReturnType<T>>> | Exclude<Awaited<ReturnType<T>>, JsonResponse<any> | null | void | undefined>
-  : never
+type JsonResponse<T, S extends number = number> = Response & { readonly __body: T; readonly __status: S }
+type Is2xx<S extends number> = [number] extends [S] ? boolean : S extends 200 | 201 | 202 | 203 | 204 | 205 | 206 ? true : false
+type UnwrapSuccessJson<T> = T extends JsonResponse<infer U, infer S> ? Is2xx<S> extends false ? never : U : never
+type UnwrapErrorJson<T> = T extends JsonResponse<infer U, infer S> ? Is2xx<S> extends true ? never : U : never
+type InferFnSuccess<T> = T extends (...args: any[]) => any ? UnwrapSuccessJson<Awaited<ReturnType<T>>> : never
+type InferFnErrors<T> = T extends (...args: any[]) => any ? UnwrapErrorJson<Awaited<ReturnType<T>>> : never
 type InferRoute<T> =
   T extends { readonly __return?: infer TReturn; readonly __body?: infer TBody }
     ? {
         __body: [TBody] extends [undefined] ? never : Exclude<TBody, undefined>
-        __response: InferFnReturn<() => TReturn>
+        __response: InferFnSuccess<() => TReturn>
+        __errors: InferFnErrors<() => TReturn>
       }
-    : InferFnReturn<T>
+    : InferFnSuccess<T>
 
 declare module '@devlusoft/devix' {
   interface ApiRoutes {

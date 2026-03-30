@@ -27,15 +27,7 @@ function keyToDir(key: string): string {
     return key.slice(0, key.lastIndexOf('/'))
 }
 
-let cache: ApiResult | null = null
-
-export function invalidateApiCache() {
-    cache = null
-}
-
 export function buildRoutes(routeKeys: string[], middlewareKeys: string[], apiDir: string): ApiResult {
-    if (cache) return cache
-
     const routes: ApiRoute[] = []
     const middlewares: ApiMiddleware[] = []
 
@@ -58,8 +50,7 @@ export function buildRoutes(routeKeys: string[], middlewareKeys: string[], apiDi
         return b.path.length - a.path.length
     })
 
-    cache = {routes, middlewares}
-    return cache
+    return {routes, middlewares}
 }
 
 export function collectMiddlewareChain(routeKey: string, middlewares: ApiMiddleware[]): ApiMiddleware[] {
@@ -73,7 +64,7 @@ export function collectMiddlewareChain(routeKey: string, middlewares: ApiMiddlew
 export function matchRoute(
     pathname: string,
     routes: ApiRoute[]
-): {route: ApiRoute; params: Record<string, string>} | null {
+): { route: ApiRoute; params: Record<string, string> } | null {
     for (const route of routes) {
         const match = pathname.match(route.regex)
         if (match) {

@@ -18,6 +18,7 @@ export interface RouterContextValue {
     viewport?: Viewport
     navigate: (to: string, options?: NavigateOptions) => Promise<void>
     revalidate: () => Promise<void>
+    prefetchRoute: (href: string) => void
     isNavigating: boolean
 }
 

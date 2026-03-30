@@ -1,21 +1,20 @@
-import { UserConfig, Plugin, mergeConfig } from 'vite'
-import type { DevixConfig } from '../config'
+import {UserConfig, Plugin, mergeConfig} from 'vite'
+import type {DevixConfig} from '../config'
 import react from '@vitejs/plugin-react'
-import { fileURLToPath } from 'node:url'
-import { dirname, resolve } from 'node:path'
-import { createRequire } from 'node:module'
-import { generateEntryClient } from './codegen/entry-client'
-import { generateClientRoutes } from './codegen/client-routes'
-import { generateRender } from './codegen/render'
-import { generateApi } from './codegen/api'
-import { invalidatePagesCache } from "../server/pages-router";
-import { invalidateApiCache } from "../server/api-router";
-import { generateContext } from "./codegen/context";
-import { scanApiFiles } from "./codegen/scan-api";
-import { generateRoutesDts } from "./codegen/routes-dts";
-import { writeRoutesDts } from "./codegen/write-routes-dts";
-import { parseSync } from 'oxc-parser'
+import {fileURLToPath} from 'node:url'
+import {dirname, relative, resolve} from 'node:path'
+import {createRequire} from 'node:module'
+import {generateEntryClient} from './codegen/entry-client'
+import {generateClientRoutes} from './codegen/client-routes'
+import {generateRender} from './codegen/render'
+import {generateApi} from './codegen/api'
+import {generateContext} from "./codegen/context";
+import {scanApiFiles} from "./codegen/scan-api";
+import {generateRoutesDts} from "./codegen/routes-dts";
+import {writeRoutesDts} from "./codegen/write-routes-dts";
+import {parseSync} from 'oxc-parser'
 import {generateServerEntry} from "./codegen/server-entry";
+import {deletePageTypes, scanAndWritePageTypes, writePageTypes} from "./codegen/page-types";
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -59,17 +58,17 @@ export function devix(config: DevixConfig): UserConfig {
 
         load(id) {
             if (id === `\0${VIRTUAL_ENTRY_CLIENT}`)
-                return generateEntryClient({ cssUrls })
+                return generateEntryClient({cssUrls})
             if (id === `\0${VIRTUAL_CLIENT_ROUTES}`)
-                return generateClientRoutes({ pagesDir, matcherPath })
+                return generateClientRoutes({pagesDir, matcherPath})
             if (id === `\0${VIRTUAL_RENDER}`)
-                return generateRender({ pagesDir, renderPath })
+                return generateRender({pagesDir, renderPath})
             if (id === `\0${VIRTUAL_API}`)
-                return generateApi({ apiPath, appDir })
+                return generateApi({apiPath, appDir})
             if (id === `\0${VIRTUAL_CONTEXT}`)
                 return generateContext()
             if (id === `\0${VIRTUAL_SERVER_ENTRY}`)
-                return generateServerEntry({ routesPath, envPath, honoServerPath, honoServerStaticPath, honoPath })
+                return generateServerEntry({routesPath, envPath, honoServerPath, honoServerStaticPath, honoPath})
         },
 
 
@@ -79,7 +78,7 @@ export function devix(config: DevixConfig): UserConfig {
             const resolvedPagesDir = resolve(process.cwd(), pagesDir)
             if (!id.startsWith(resolvedPagesDir)) return
 
-            const ast = parseSync(id, code, { sourceType: 'module' })
+            const ast = parseSync(id, code, {sourceType: 'module'})
 
             const replacements: { start: number; end: number; name: string }[] = []
 
@@ -89,7 +88,7 @@ export function devix(config: DevixConfig): UserConfig {
                 const decl = node.declaration
 
                 if (decl.type === 'FunctionDeclaration' && decl.id && SERVER_EXPORTS.has(decl.id.name)) {
-                    replacements.push({ start: node.start, end: node.end, name: decl.id.name })
+                    replacements.push({start: node.start, end: node.end, name: decl.id.name})
                 }
 
                 if (decl.type === 'VariableDeclaration') {
@@ -98,7 +97,7 @@ export function devix(config: DevixConfig): UserConfig {
                         if (declarator.id.type === 'Identifier' && SERVER_EXPORTS.has(declarator.id.name)) {
                             if (!seen.has(node.start)) {
                                 seen.add(node.start)
-                                replacements.push({ start: node.start, end: node.end, name: declarator.id.name })
+                                replacements.push({start: node.start, end: node.end, name: declarator.id.name})
                             }
                         }
                     }
@@ -110,25 +109,37 @@ export function devix(config: DevixConfig): UserConfig {
             replacements.sort((a, b) => b.start - a.start)
 
             let result = code
-            for (const { start, end, name } of replacements) {
+            for (const {start, end, name} of replacements) {
                 result = result.slice(0, start) + `export const ${name} = undefined` + result.slice(end)
             }
 
-            return { code: result, map: null }
+            return {code: result, map: null}
         },
 
         buildStart() {
             const root = process.cwd()
             const entries = scanApiFiles(appDir, root)
             writeRoutesDts(generateRoutesDts(entries, `${appDir}/api`), root)
+            scanAndWritePageTypes(appDir, root)
         },
 
         configureServer(server) {
             const root = process.cwd()
 
+            scanAndWritePageTypes(appDir, root)
+
             const regenerateDts = () => {
                 const entries = scanApiFiles(appDir, root)
                 writeRoutesDts(generateRoutesDts(entries, `${appDir}/api`), root)
+            }
+
+            const isPageFile = (file: string) => file.startsWith(resolve(root, pagesDir)) && !file.endsWith('layout.tsx') && !file.endsWith('error.tsx')
+
+            const pageRelPath = (file: string) => relative(root, file).replace(/\\/g, '/')
+
+            const invalidateVirtualModule = (id: string) => {
+                const mod = server.moduleGraph.getModuleById(`\0${id}`)
+                if (mod) server.moduleGraph.invalidateModule(mod)
             }
 
             server.watcher.add(resolve(root, 'devix.config.ts'))
@@ -140,14 +151,23 @@ export function devix(config: DevixConfig): UserConfig {
             })
 
             server.watcher.on('add', (file) => {
-                if (file.startsWith(resolve(root, pagesDir))) invalidatePagesCache()
-                if (file.includes(`${appDir}/api`)) { invalidateApiCache(); regenerateDts() }
+                if (file.startsWith(resolve(root, pagesDir))) invalidateVirtualModule(VIRTUAL_RENDER)
+                if (isPageFile(file)) writePageTypes(pageRelPath(file), root)
+                if (file.includes(`${appDir}/api`)) {
+                    invalidateVirtualModule(VIRTUAL_API)
+                    regenerateDts()
+                }
             })
             server.watcher.on('unlink', (file) => {
-                if (file.startsWith(resolve(root, pagesDir))) invalidatePagesCache()
-                if (file.includes(`${appDir}/api`)) { invalidateApiCache(); regenerateDts() }
+                if (file.startsWith(resolve(root, pagesDir))) invalidateVirtualModule(VIRTUAL_RENDER)
+                if (isPageFile(file)) deletePageTypes(pageRelPath(file), root)
+                if (file.includes(`${appDir}/api`)) {
+                    invalidateVirtualModule(VIRTUAL_API)
+                    regenerateDts()
+                }
             })
             server.watcher.on('change', (file) => {
+                if (isPageFile(file)) writePageTypes(pageRelPath(file), root)
                 if (file.includes(`${appDir}/api`) && !file.endsWith('middleware.ts')) {
                     regenerateDts()
                 }
@@ -158,8 +178,8 @@ export function devix(config: DevixConfig): UserConfig {
     const base: UserConfig = {
         plugins: [react(), virtualPlugin],
         publicDir: resolve(process.cwd(), config.publicDir ?? 'public'),
-        ssr: { noExternal: ['@devlusoft/devix'] },
-        ...(config.envPrefix ? { envPrefix: config.envPrefix } : {}),
+        ssr: {noExternal: ['@devlusoft/devix']},
+        ...(config.envPrefix ? {envPrefix: config.envPrefix} : {}),
     }
 
     return mergeConfig(base, config.vite ?? {})

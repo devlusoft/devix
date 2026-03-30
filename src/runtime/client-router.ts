@@ -43,9 +43,14 @@ export function createMatcher(pageFiles: GlobMap, layoutFiles: GlobMap) {
                     layoutFiles) }
         })
         .sort((a, b) => {
-            const aScore = (a.pattern.match(/:/g) || []).length
-            const bScore = (b.pattern.match(/:/g) || []).length
-            if (aScore !== bScore) return aScore - bScore
+            const aSegs = a.pattern.split('/').filter(Boolean)
+            const bSegs = b.pattern.split('/').filter(Boolean)
+            const len = Math.max(aSegs.length, bSegs.length)
+            for (let i = 0; i < len; i++) {
+                const aVal = i < aSegs.length ? (aSegs[i].startsWith(':') ? 1 : 2) : 0
+                const bVal = i < bSegs.length ? (bSegs[i].startsWith(':') ? 1 : 2) : 0
+                if (aVal !== bVal) return bVal - aVal
+            }
             return b.pattern.length - a.pattern.length
         })
 

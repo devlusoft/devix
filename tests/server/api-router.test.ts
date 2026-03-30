@@ -1,10 +1,5 @@
 import {describe, it, expect, beforeEach} from 'vitest'
 import {buildRoutes, matchRoute} from '../../src/server'
-import {invalidateApiCache} from '../../src/server/api-router'
-
-beforeEach(() => {
-    invalidateApiCache()
-})
 
 const API_DIR = 'app/api'
 

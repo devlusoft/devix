@@ -1,9 +1,4 @@
-import {describe, it, expect, beforeEach, vi} from 'vitest'
-import {invalidatePagesCache} from '../../src/server/pages-router'
-
-beforeEach(() => {
-    invalidatePagesCache()
-})
+import {describe, it, expect, vi} from 'vitest'
 
 describe('render', () => {
     it('wrappea la página dentro del layout', async () => {

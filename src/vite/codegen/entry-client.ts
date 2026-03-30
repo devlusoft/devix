@@ -25,7 +25,20 @@ if (!window.__DEVIX__) {
 
     const matched = matchClientRoute(window.location.pathname)
 
-    if (matched) {
+    if (window.__LOADER_ERROR__) {
+        const {statusCode, message, data} = window.__LOADER_ERROR__
+        const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
+        createRoot(root).render(
+            React.createElement(RouterProvider, {
+                clientEntry,
+                initialData: null,
+                initialParams: {},
+                initialPage: () => null,
+                initialError: {statusCode, message, data},
+                initialErrorPage: ErrorPage,
+            })
+        )
+    } else if (matched) {
         const [pageMod, ...layoutMods] = await Promise.all([
             matched.load(),
             ...matched.loadLayouts.map(l => l()),

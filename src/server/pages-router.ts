@@ -27,15 +27,7 @@ function keyToDir(key: string): string {
     return key.slice(0, key.lastIndexOf('/'))
 }
 
-let cache: PagesResult | null = null
-
-export function invalidatePagesCache() {
-    cache = null
-}
-
 export function buildPages(pageKeys: string[], layoutKeys: string[], pagesDir: string): PagesResult {
-    if (cache) return cache
-
     const pages: Page[] = []
     const layouts: Layout[] = []
 
@@ -53,14 +45,18 @@ export function buildPages(pageKeys: string[], layoutKeys: string[], pagesDir: s
     }
 
     pages.sort((a, b) => {
-        const aScore = (a.path.match(/:/g) || []).length
-        const bScore = (b.path.match(/:/g) || []).length
-        if (aScore !== bScore) return aScore - bScore
+        const aSegs = a.path.split('/').filter(Boolean)
+        const bSegs = b.path.split('/').filter(Boolean)
+        const len = Math.max(aSegs.length, bSegs.length)
+        for (let i = 0; i < len; i++) {
+            const aVal = i < aSegs.length ? (aSegs[i].startsWith(':') ? 1 : 2) : 0
+            const bVal = i < bSegs.length ? (bSegs[i].startsWith(':') ? 1 : 2) : 0
+            if (aVal !== bVal) return bVal - aVal
+        }
         return b.path.length - a.path.length
     })
 
-    cache = {pages, layouts}
-    return cache
+    return {pages, layouts}
 }
 
 export function collectLayoutChain(pageKey: string, layouts: Layout[]): Layout[] {

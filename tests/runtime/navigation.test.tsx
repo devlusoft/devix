@@ -3,7 +3,7 @@ import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 import {renderToString} from 'react-dom/server'
 import {createElement, act} from 'react'
 import {createRoot} from 'react-dom/client'
-import {useNavigate, useRevalidate} from '../../src/runtime/router-provider'
+import {useNavigate, useRevalidate} from '../../src/runtime'
 import {RouterContext} from '../../src/runtime/context'
 
 describe('useNavigate — SSR safety', () => {

@@ -7,6 +7,7 @@ import {Metadata, Viewport} from '../types'
 
 const noopNavigate = (_to: string, _opts?: NavigateOptions) => Promise.resolve()
 const noopRevalidate = () => Promise.resolve()
+const noopPrefetch = (_href: string) => {}
 
 export interface ServerAppProps {
     pathname: string
@@ -55,6 +56,7 @@ export function ServerApp({
                 isNavigating: false,
                 navigate: noopNavigate,
                 revalidate: noopRevalidate,
+                prefetchRoute: noopPrefetch,
             }}>
                 <DevixErrorBoundary key={pathname}>
                     {tree}

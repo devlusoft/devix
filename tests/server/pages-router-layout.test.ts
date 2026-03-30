@@ -1,10 +1,5 @@
-import {describe, it, expect, beforeEach} from 'vitest'
+import {describe, it, expect} from 'vitest'
 import {buildPages, collectLayoutChain} from '../../src/server'
-import {invalidatePagesCache} from '../../src/server/pages-router'
-
-beforeEach(() => {
-    invalidatePagesCache()
-})
 
 const PAGES_DIR = 'app/pages'
 

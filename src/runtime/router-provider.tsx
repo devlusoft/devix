@@ -56,6 +56,10 @@ export function useLoaderData<T>() {
     return ctx.loaderData as LoaderReturnType<T>
 }
 
+interface PrefetchEntry {
+    promise: Promise<{ pageMod: any; layoutMods: any[]; data: any } | null>
+    controller: AbortController
+}
 
 interface RouterProviderProps {
     initialData: unknown
@@ -99,6 +103,33 @@ export function RouterProvider({
     const navigatingRef = useRef<AbortController | null>(null)
     const [isNavigating, setIsNavigating] = useState(false)
 
+    const prefetchCacheRef = useRef<Map<string, PrefetchEntry>>(new Map())
+
+    const prefetchRoute = useCallback((href: string) => {
+        if (prefetchCacheRef.current.has(href)) return
+        const pathname = href.split('?')[0].split('#')[0]
+        const matched = matchClientRoute(pathname)
+        if (!matched) return
+
+        const controller = new AbortController()
+        const promise = Promise.all([
+            Promise.all([matched.load(), ...matched.loadLayouts.map(l => l())]),
+            fetch(`/_data${href}`, { headers: { Accept: 'application/json' }, signal: controller.signal })
+        ]).then(async ([[pageMod, ...layoutMods], dataRes]) => {
+            if (!dataRes.ok || !pageMod.default) return null
+            const data = await dataRes.json()
+            return { pageMod, layoutMods, data }
+        }).catch(() => null)
+
+        const expireTimer = setTimeout(() => {
+            controller.abort()
+            prefetchCacheRef.current.delete(href)
+        }, 3000)
+        promise.finally(() => clearTimeout(expireTimer))
+
+        prefetchCacheRef.current.set(href, { promise, controller })
+    }, [])
+
     const loadRoute = useCallback(async (to: string, controller: AbortController) => {
         const pathname = to.split('?')[0].split('#')[0]
         const matched = matchClientRoute(pathname)
@@ -113,37 +144,61 @@ export function RouterProvider({
             return
         }
 
-        const [pageMod, ...layoutMods] = await Promise.all([
-            matched.load(),
-            ...matched.loadLayouts.map(l => l()),
-        ])
-
-        if (controller.signal.aborted) return
-        if (!pageMod.default) return
-
-        const dataRes = await fetch(`/_data${to}`, {
-            headers: { Accept: 'application/json' },
-            signal: controller.signal,
-        })
+        const cached = prefetchCacheRef.current.get(to)
+        if (cached) prefetchCacheRef.current.delete(to)
+        const prefetched = cached ? await cached.promise : null
 
         if (controller.signal.aborted) return
 
-        if (!dataRes.ok) {
-            if (dataRes.status === 404) {
-                window.location.href = to
+        let pageMod: any, layoutMods: any[], data: any
+
+        if (prefetched) {
+            ;({ pageMod, layoutMods, data } = prefetched)
+        } else {
+            const [[pm, ...lm], dataRes] = await Promise.all([
+                Promise.all([
+                    matched.load(),
+                    ...matched.loadLayouts.map(l => l()),
+                ]),
+                fetch(`/_data${to}`, {
+                    headers: { Accept: 'application/json' },
+                    signal: controller.signal,
+                })
+            ])
+
+            if (controller.signal.aborted) return
+            if (!pm.default) return
+
+            if (!dataRes.ok) {
+                const ct = dataRes.headers.get('Content-Type') ?? ''
+                let errorBody: { statusCode?: number; message?: string; data?: unknown } | null = null
+                try {
+                    if (ct.includes('application/json')) errorBody = await dataRes.json()
+                    else if (ct.includes('text/plain')) errorBody = { message: await dataRes.text() }
+                } catch { /* ignorar errores de parsing */ }
+
+                const headers: Record<string, string> = {}
+                dataRes.headers.forEach((value, key) => { headers[key] = value })
+
+                const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
+                setState(prev => ({
+                    ...prev,
+                    pathname,
+                    pendingError: {
+                        statusCode: errorBody?.statusCode ?? dataRes.status,
+                        message: errorBody?.message ?? 'Server error',
+                        data: errorBody?.data,
+                        headers,
+                    },
+                    ErrorPage: ErrorPage ?? undefined,
+                }))
                 return
             }
-            const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
-            setState(prev => ({
-                ...prev,
-                pathname,
-                pendingError: { statusCode: dataRes.status, message: 'Server error' },
-                ErrorPage: ErrorPage ?? undefined,
-            }))
-            return
-        }
 
-        const data = await dataRes.json()
+            pageMod = pm
+            layoutMods = lm
+            data = await dataRes.json()
+        }
 
         if (data.redirect) {
             if (data.redirectReplace) {
@@ -273,7 +328,7 @@ export function RouterProvider({
             clientEntry,
         }}>
             <HeadSlot metadata={state.metadata} viewport={state.viewport} />
-            <RouterContext value={{ ...state, isNavigating, navigate, revalidate }}>
+            <RouterContext value={{ ...state, isNavigating, navigate, revalidate, prefetchRoute }}>
                 {content}
             </RouterContext>
         </PageMetaContext>

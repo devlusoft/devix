@@ -25,6 +25,6 @@ await build({
     minify: true,
 })
 
-execSync('tsc -p tsconfig.build.json', {stdio: 'inherit'})
+execSync('npx tsc -p tsconfig.build.json', {stdio: 'inherit'})
 
 console.log('✓ devix built')

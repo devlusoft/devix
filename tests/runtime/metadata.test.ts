@@ -32,14 +32,14 @@ describe('mergeMetadata', () => {
 describe('resolveMetadata', () => {
     it('usa metadata estático cuando no hay generateMetadata', async () => {
         const mod = { metadata: { title: 'Static' } }
-        const ctx = { params: {}, request: new Request('http://x'), loaderData: null }
+        const ctx = { params: {}, request: new Request('http://x'), loaderData: null, guardData: undefined }
         const result = await resolveMetadata(mod as any, ctx)
         expect(result.metadata.title).toBe('Static')
     })
     it('llama generateMetadata cuando existe', async () => {
         const generate = vi.fn().mockResolvedValue({ title: 'Dynamic' })
         const mod = { generateMetadata: generate }
-        const ctx = { params: {}, request: new Request('http://x'), loaderData: null }
+        const ctx = { params: {}, request: new Request('http://x'), loaderData: null, guardData: undefined }
         const result = await resolveMetadata(mod as any, ctx)
         expect(result.metadata.title).toBe('Dynamic')
         expect(generate).toHaveBeenCalledWith(ctx)

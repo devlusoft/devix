@@ -1,10 +1,16 @@
-export type JsonResponse<T = unknown> = Response & { readonly __body: T }
+export type JsonResponse<T = unknown, S extends number = number> = Response & {
+    readonly __body: T
+    readonly __status: S
+}
 
-export const json = <const T>(data: T, status = 200): JsonResponse<T> =>
-    new Response(JSON.stringify(data), {
+export function json<const T>(data: T): JsonResponse<T, 200>
+export function json<const T, const S extends number>(data: T, status: S): JsonResponse<T, S>
+export function json<const T>(data: T, status: number = 200): JsonResponse<T, any> {
+    return new Response(JSON.stringify(data), {
         status,
         headers: {'Content-Type': 'application/json'},
-    }) as JsonResponse<T>
+    }) as JsonResponse<T, any>
+}
 
 export const text = (body: string, status = 200): Response =>
     new Response(body, {status, headers: {'Content-Type': 'text/plain; charset=utf-8'}})
@@ -31,4 +37,21 @@ export function redirect(url: string, statusOrOptions?: number | RedirectOptions
 
 export function isRedirect(value: unknown): value is Redirect {
     return typeof value === 'object' && value !== null && REDIRECT_BRAND in value
+}
+
+const ERROR_BRAND = Symbol('devix.loaderError')
+
+export interface RouteError {
+    readonly [ERROR_BRAND]: true
+    readonly statusCode: number
+    readonly message: string
+    readonly data?: unknown
+}
+
+export function error(statusCode: number, message: string, data?: unknown): RouteError {
+    return { [ERROR_BRAND]: true, statusCode, message, data } as RouteError
+}
+
+export function isLoaderError(value: unknown): value is RouteError {
+    return typeof value === 'object' && value !== null && ERROR_BRAND in value
 }

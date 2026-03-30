@@ -51,11 +51,11 @@ describe('generateRoutesDts', () => {
         expect(result).toContain("'POST /api/posts'")
     })
 
-    it('incluye InferRoute y InferFnReturn type helpers', () => {
+    it('incluye InferRoute y InferFnSuccess type helpers', () => {
         const entries = [buildRouteEntry('app/api/me.ts', API_DIR, ['GET'])]
         const result = generateRoutesDts(entries, API_DIR)
         expect(result).toContain('type InferRoute')
-        expect(result).toContain('type InferFnReturn')
+        expect(result).toContain('type InferFnSuccess')
     })
 
     it('InferRoute maneja DevixHandler shape via __return/__body', () => {

@@ -1,11 +1,6 @@
-import {describe, it, expect, beforeEach, vi} from 'vitest'
+import {describe, it, expect, vi} from 'vitest'
 import {getStaticRoutes} from '../../src/server/render'
-import {invalidatePagesCache} from '../../src/server/pages-router'
 import type {PageGlob} from '../../src/server/types'
-
-beforeEach(() => {
-    invalidatePagesCache()
-})
 
 const PAGES_DIR = 'app/pages'
 

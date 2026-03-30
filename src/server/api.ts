@@ -1,10 +1,13 @@
-import {buildRoutes, matchRoute, collectMiddlewareChain} from './api-router'
+import {buildRoutes, matchRoute, collectMiddlewareChain, ApiResult} from './api-router'
 import {RouteContext} from '../runtime/api-context'
 import type {RouteModule, MiddlewareModule, RouteResult} from '../runtime/api-context'
 import type {ApiGlob} from './types'
 import {DevixError} from '../runtime/error-boundary'
 import {HANDLER_BRAND, type DevixHandler} from '../runtime/create-handler'
 import {withHandlerStore} from './handler-store'
+
+let apiCache: ApiResult | null = null
+let apiCacheKey: string | null = null
 
 function isDevixHandler(h: unknown): h is DevixHandler<any, any> {
     return typeof h === 'object' && h !== null && HANDLER_BRAND in h
@@ -34,11 +37,16 @@ export async function handleApiRequest(
 ): Promise<Response> {
     try {
         const {pathname} = new URL(url, 'http://localhost')
-        const {routes, middlewares} = buildRoutes(
-            Object.keys(glob.routes),
-            Object.keys(glob.middlewares),
-            glob.apiDir,
-        )
+        const cacheKey = Object.keys(glob.routes).sort().join('\0') + '|' + Object.keys(glob.middlewares).sort().join('\0')
+        if (!apiCache || apiCacheKey !== cacheKey) {
+            apiCache = buildRoutes(
+                Object.keys(glob.routes),
+                Object.keys(glob.middlewares),
+                glob.apiDir,
+            )
+            apiCacheKey = cacheKey
+        }
+        const {routes, middlewares} = apiCache
         const matched = matchRoute(pathname, routes)
 
         if (!matched) return new Response('Not Found', {status: 404})

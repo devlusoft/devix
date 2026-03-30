@@ -1,5 +1,6 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
-import {$fetch, FetchError} from '../../src/runtime/fetch'
+import {$fetch} from '../../src/runtime'
+import {FetchError} from '../../src/runtime'
 
 function mockFetch(body: unknown, options: {status?: number; contentType?: string} = {}) {
     const {status = 200, contentType = 'application/json'} = options
@@ -70,5 +71,30 @@ describe('$fetch', () => {
         mockFetch({ok: true})
         await $fetch('/api/test')
         expect((fetch as any).mock.calls[0][1].body).toBeUndefined()
+    })
+
+    it('pasa FormData directamente sin JSON.stringify', async () => {
+        mockFetch({ok: true}, {status: 200})
+        const form = new FormData()
+        form.append('name', 'Luis')
+        await $fetch('/api/upload', {method: 'POST', body: form as any})
+        const call = (fetch as any).mock.calls[0][1]
+        expect(call.body).toBe(form)
+    })
+
+    it('no sobreescribe Content-Type al enviar FormData', async () => {
+        mockFetch({ok: true})
+        const form = new FormData()
+        await $fetch('/api/upload', {method: 'POST', body: form as any})
+        const headers = (fetch as any).mock.calls[0][1].headers as Headers
+        expect(headers.get('Content-Type')).toBeNull()
+    })
+
+    it('pasa Blob directamente sin JSON.stringify', async () => {
+        mockFetch({ok: true})
+        const blob = new Blob(['data'], {type: 'text/plain'})
+        await $fetch('/api/upload', {method: 'POST', body: blob as any})
+        const call = (fetch as any).mock.calls[0][1]
+        expect(call.body).toBe(blob)
     })
 })

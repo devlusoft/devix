@@ -1,15 +1,10 @@
-import {describe, it, expect, beforeEach, vi} from 'vitest'
+import {describe, it, expect, vi} from 'vitest'
 import {handleApiRequest} from '../../src/server/api'
-import {invalidateApiCache} from '../../src/server/api-router'
 import {DevixError} from '../../src/runtime/error-boundary'
 import type {ApiGlob} from '../../src/server/types'
 import type {RouteHandler, MiddlewareModule} from '../../src/runtime/api-context'
 
 const API_DIR = 'app/api'
-
-beforeEach(() => {
-    invalidateApiCache()
-})
 
 function makeGlob(
     routes: Record<string, () => Promise<unknown>>,

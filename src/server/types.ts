@@ -1,6 +1,6 @@
 import type React from "react";
 import {LoaderContext, Metadata, Viewport} from "../types";
-import type {Redirect} from "../utils/response";
+import type {Redirect, RouteError} from "../utils/response";
 
 type InferLoaderData<T> = T extends (...args: any[]) => infer R
     ? [Awaited<R>] extends [void | undefined | Redirect] ? undefined : Exclude<Awaited<R>, Redirect>
@@ -27,6 +27,8 @@ export interface LayoutProps<TDataOrParams = unknown, TParams = Record<string, s
 export interface ErrorProps {
     statusCode: number
     message?: string
+    headers?: Record<string, string>
+    data?: unknown
 }
 
 export interface PageGlob {
@@ -43,7 +45,7 @@ export interface ApiGlob {
 
 interface BaseModule<TData, TParams> {
     loader?: (ctx: LoaderContext<TParams>) => Promise<TData | Redirect | void> | TData | Redirect | void
-    guard?: (ctx: LoaderContext<TParams>) => Promise<string | Redirect | Record<string, unknown> | null> | string | Redirect | Record<string, unknown> | null
+    guard?: (ctx: LoaderContext<TParams>) => Promise<string | Redirect | RouteError | Record<string, unknown> | null> | string | Redirect | RouteError | Record<string, unknown> | null
     metadata?: Metadata
     generateMetadata?: (ctx: LoaderContext<TParams> & { loaderData: TData }) => Promise<Metadata> | Metadata
     viewport?: Viewport

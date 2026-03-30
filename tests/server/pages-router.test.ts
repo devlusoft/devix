@@ -1,10 +1,5 @@
 import {describe, it, expect, beforeEach} from 'vitest'
 import {buildPages, matchPage} from '../../src/server'
-import {invalidatePagesCache} from '../../src/server/pages-router'
-
-beforeEach(() => {
-    invalidatePagesCache()
-})
 
 const PAGES_DIR = 'app/pages'
 
@@ -29,6 +24,24 @@ describe('buildPages', () => {
         const {pages} = buildPages(makeKeys(['blog/[slug].tsx', 'blog/new.tsx']), [], PAGES_DIR)
         const paths = pages.map(p => p.path)
         expect(paths.indexOf('/blog/new')).toBeLessThan(paths.indexOf('/blog/:slug'))
+    })
+
+    it('segmento estático gana sobre dinámico en la misma posición', () => {
+        const {pages} = buildPages(
+            makeKeys(['users/[id]/settings.tsx', 'users/new/settings.tsx']),
+            [], PAGES_DIR
+        )
+        const paths = pages.map(p => p.path)
+        expect(paths.indexOf('/users/new/settings')).toBeLessThan(paths.indexOf('/users/:id/settings'))
+    })
+
+    it('ruta estática+dinámica gana sobre dinámica+estática cuando el estático aparece antes', () => {
+        const {pages} = buildPages(
+            makeKeys(['users/[id]/settings.tsx', 'users/new/[section].tsx']),
+            [], PAGES_DIR
+        )
+        const paths = pages.map(p => p.path)
+        expect(paths.indexOf('/users/new/:section')).toBeLessThan(paths.indexOf('/users/:id/settings'))
     })
 
     it('separa layouts de páginas', () => {
@@ -79,5 +92,42 @@ describe('matchPage', () => {
 
     it('devuelve null si no hay match', () => {
         expect(matchPage('/nonexistent', pages)).toBeNull()
+    })
+})
+
+describe('matchPage — prioridad de rutas', () => {
+    it('segmento estático gana sobre dinámico para el mismo path', () => {
+        const {pages} = buildPages(
+            makeKeys(['users/[id].tsx', 'users/new.tsx']),
+            [], PAGES_DIR
+        )
+        expect(matchPage('/users/new', pages)?.page.path).toBe('/users/new')
+    })
+
+    it('dinámico no captura el segmento estático que tiene su propia ruta', () => {
+        const {pages} = buildPages(
+            makeKeys(['users/[id].tsx', 'users/new.tsx']),
+            [], PAGES_DIR
+        )
+        const result = matchPage('/users/new', pages)
+        expect(result?.params).toEqual({})
+    })
+
+    it('estático en posición intermedia gana sobre dinámico', () => {
+        const {pages} = buildPages(
+            makeKeys(['users/[id]/settings.tsx', 'users/new/[section].tsx']),
+            [], PAGES_DIR
+        )
+        expect(matchPage('/users/new/profile', pages)?.page.path).toBe('/users/new/:section')
+        expect(matchPage('/users/new/profile', pages)?.params).toEqual({section: 'profile'})
+    })
+
+    it('ruta totalmente dinámica sigue matcheando cuando no hay conflicto', () => {
+        const {pages} = buildPages(
+            makeKeys(['users/[id].tsx', 'users/new.tsx']),
+            [], PAGES_DIR
+        )
+        expect(matchPage('/users/123', pages)?.page.path).toBe('/users/:id')
+        expect(matchPage('/users/123', pages)?.params).toEqual({id: '123'})
     })
 })

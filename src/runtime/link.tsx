@@ -1,10 +1,10 @@
-import {AnchorHTMLAttributes, MouseEventHandler, useCallback, useContext} from "react";
-import {matchClientRoute} from "virtual:devix/client-routes";
-import {RouterContext} from 'virtual:devix/context'
+import { AnchorHTMLAttributes, MouseEventHandler, useCallback, useContext, useRef } from "react"
+import { NavigateOptions, RouterContext } from './context'
 
 interface LinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
     href: string
-    prefetch?: boolean
+    prefetch?: 'hover' | 'none'
+    replace?: boolean
     viewTransition?: boolean
 }
 
@@ -17,35 +17,55 @@ function resolveHref(href: string): string {
     return resolved.length > 1 ? resolved.replace(/\/$/, '') : resolved
 }
 
-export function Link({ href, prefetch = false, viewTransition = false, children, ...props }: LinkProps) {
+export function Link({ href, prefetch = 'hover', replace = false, viewTransition = false, children, ...props }: LinkProps) {
     const router = useContext(RouterContext)
+    const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    const cancelHoverTimer = useCallback(() => {
+        if (hoverTimerRef.current !== null) {
+            clearTimeout(hoverTimerRef.current)
+            hoverTimerRef.current = null
+        }
+    }, [])
+
+    const triggerPrefetch = useCallback(() => {
+        if (!router || prefetch === 'none') return
+        router.prefetchRoute(resolveHref(href))
+    }, [href, prefetch, router])
 
     const handleMouseEnter = useCallback(() => {
-        if (!prefetch) return
-        const resolved = resolveHref(href)
-        const pathname = resolved.split('?')[0].split('#')[0]
-        const matched = matchClientRoute(pathname)
-        if (matched) {
-            matched.load().catch(() => {})
-            fetch(`/_data${resolved}`, { headers: { Accept: 'application/json' } }).catch(() => {})
-        }
-    }, [href, prefetch])
+        if (prefetch === 'none') return
+        hoverTimerRef.current = setTimeout(triggerPrefetch, 50)
+    }, [prefetch, triggerPrefetch])
+
+    const handleMouseLeave = useCallback(() => {
+        cancelHoverTimer()
+    }, [cancelHoverTimer])
+
+    const handleTouchStart = useCallback(() => {
+        cancelHoverTimer()
+        triggerPrefetch()
+    }, [cancelHoverTimer, triggerPrefetch])
 
     const handleClick: MouseEventHandler<HTMLAnchorElement> = (e) => {
+        cancelHoverTimer()
         if (!router) return
         if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
             e.preventDefault()
-            const resolved = resolveHref(href)
-            if (viewTransition && typeof document.startViewTransition === 'function') {
-                document.startViewTransition(() => router.navigate(resolved))
-            } else {
-                router.navigate(resolved)
-            }
+            const options: NavigateOptions = { replace, viewTransition }
+            router.navigate(resolveHref(href), options)
         }
     }
 
     return (
-        <a href={href} onClick={handleClick} onMouseEnter={handleMouseEnter} {...props}>
+        <a
+            href={href}
+            onClick={handleClick}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onTouchStart={handleTouchStart}
+            {...props}
+        >
             {children}
         </a>
     )

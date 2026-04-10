@@ -9,6 +9,9 @@ import type {Manifest} from "vite";
 import {escapeAttr, safeJsonStringify} from "../utils/html";
 import {withTimeout} from "../utils/async";
 import {isRedirect, isLoaderError} from "../utils/response";
+import type {Viewport} from "../types";
+
+const DEFAULT_VIEWPORT: Viewport = { width: 'device-width', initialScale: 1 }
 
 let pagesCache: PagesResult | null = null
 let pagesCacheKey: string | null = null
@@ -89,7 +92,7 @@ async function resolvePageData(pathname: string, request: Request, glob: PageGlo
     )
 
     const metadata = mergeMetadata(...layoutsMeta.map(m => m.metadata), pageMeta.metadata)
-    const viewport = pageMeta.viewport ?? layoutsMeta.findLast(m => m.viewport)?.viewport
+    const viewport = pageMeta.viewport ?? layoutsMeta.findLast(m => m.viewport)?.viewport ?? DEFAULT_VIEWPORT
 
     const rootLayoutMod = layoutMods[0]
     const lang = rootLayoutMod?.generateLang

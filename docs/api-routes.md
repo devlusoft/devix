@@ -112,6 +112,25 @@ const res = await $fetch('/api/auth/login', {
 
 Si el body enviado no coincide con el tipo esperado, TypeScript lo detecta en tiempo de compilación. En runtime, si el parsing falla (JSON malformado) o el handler lanza, devix retorna automáticamente un `500`.
 
+Cuando el servidor responde con un status no-2xx, `$fetch` lanza `FetchError`:
+
+```ts
+import { $fetch, FetchError } from '@devlusoft/devix'
+
+try {
+  const res = await $fetch('/api/auth/login', {
+    method: 'POST',
+    body: { email: 'user@example.com', password: '1234' },
+  })
+} catch (err) {
+  if (err instanceof FetchError) {
+    console.error(err.status, err.body)  // ej. 401, { error: 'Credenciales inválidas' }
+  }
+}
+```
+
+`FetchError` expone: `status`, `statusText`, `response` (la `Response` original) y `body` (parseado si era JSON).
+
 ## Tipos de retorno
 
 | Retorno | Resultado |
@@ -176,7 +195,7 @@ export const GET: RouteHandler = async (ctx) => {
 
 ## Errores
 
-Lanza `DevixError` para retornar cualquier status HTTP de forma controlada:
+Lanza `DevixError` para retornar cualquier status HTTP de forma controlada desde un route handler:
 
 ```ts
 import { DevixError, type RouteHandler } from '@devlusoft/devix'
@@ -188,7 +207,7 @@ export const GET: RouteHandler = async (ctx) => {
 }
 ```
 
-Con `createHandler`, también puedes validar el body manualmente y lanzar un 400:
+Con `createHandler`, también puedes lanzar un `DevixError` manualmente:
 
 ```ts
 import { createHandler, json, DevixError } from '@devlusoft/devix'
@@ -198,6 +217,8 @@ export const POST = createHandler(async (body: { email: string }) => {
   return json({ ok: true })
 })
 ```
+
+> **Nota:** `DevixError` es para route handlers API. En loaders de página usa `return error(statusCode, message)` — ver [Carga de datos](./data-loading.md#errores).
 
 Los errores inesperados devuelven `500` automáticamente.
 

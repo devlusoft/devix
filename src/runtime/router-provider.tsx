@@ -2,6 +2,8 @@ import { ComponentType, ReactNode, useCallback, useContext, useEffect, useRef, u
 import { RouterContext } from 'virtual:devix/context'
 import { ErrorProps, LayoutProps, PageProps } from "../server/types";
 import { Metadata, Viewport } from "../types";
+
+const DEFAULT_VIEWPORT: Viewport = { width: 'device-width', initialScale: 1 }
 import { getDefaultErrorPage, loadErrorPage, matchClientRoute } from "virtual:devix/client-routes";
 import { HeadSlot } from "./head";
 import { NavigateOptions, PageMetaContext, RouteDataContext } from "./context";
@@ -218,7 +220,7 @@ export function RouterProvider({
             Page: pageMod.default,
             layouts: layoutMods.map(m => m.default),
             metadata: data.metadata ?? null,
-            viewport: data.viewport,
+            viewport: data.viewport ?? DEFAULT_VIEWPORT,
         })
 
         const hash = to.includes('#') ? to.split('#')[1] : null

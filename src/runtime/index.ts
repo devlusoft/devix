@@ -5,7 +5,7 @@ export {Link} from "./link"
 export type { Metadata, MetadataIcon, Viewport, LoaderContext, LoaderContextWithGuard, LoaderFunction, GuardFunction } from '../types'
 export type { NavigateOptions } from './context'
 export type { PageProps, LayoutProps, PageModule, LayoutModule, ErrorProps } from '../server/types'
-export type { RouteHandler, RouteResult } from './api-context'
+export type { RouteHandler, RouteResult, MiddlewareModule } from './api-context'
 export {getCookie, setCookie, deleteCookie} from '../utils/cookies'
 export type {CookieOptions} from '../utils/cookies'
 export {json, text, redirect, error} from '../utils/response'
@@ -13,6 +13,7 @@ export type {JsonResponse, Redirect, RedirectOptions, RouteError} from '../utils
 export {createHandler} from './create-handler'
 export type {DevixHandler} from './create-handler'
 export {FetchError} from './fetch'
+export {DevixError} from './error-boundary'
 export type {HttpMethod} from './fetch'
 
 import {FetchError, type HttpMethod} from './fetch'

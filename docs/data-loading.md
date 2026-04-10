@@ -49,6 +49,27 @@ export async function guard({ request }: LoaderContext) {
 }
 ```
 
+### guardData
+
+Si `guard` retorna un **objeto** (en lugar de un string o `null`), ese valor queda disponible en el loader como `guardData`. Útil para pasar datos de autenticación sin volver a consultar:
+
+```ts
+import type { LoaderContextWithGuard, GuardFunction } from '@devlusoft/devix'
+
+export const guard: GuardFunction = async ({ request }) => {
+  const session = await getSession(request)
+  if (!session) return '/login'
+  return session  // ← se convierte en guardData
+}
+
+export async function loader({ params, guardData }: LoaderContextWithGuard<typeof guard>) {
+  // guardData tiene el tipo inferido de lo que retorna guard
+  return db.posts.findByUser(guardData.userId, params.slug)
+}
+```
+
+`LoaderContextWithGuard<TGuard>` extiende `LoaderContext` añadiendo `guardData` con el tipo correcto inferido del guard.
+
 ## Timeout
 
 ```ts
@@ -65,14 +86,16 @@ Al navegar con `<Link>` o `useNavigate`, devix obtiene los datos vía `/_data` y
 
 ## Errores
 
+Usa `error()` para retornar un error HTTP controlado desde un loader o guard. **Retorna** el valor — no lo lances:
+
 ```ts
-import { DevixError } from '@devlusoft/devix'
+import { error } from '@devlusoft/devix'
 
 export async function loader({ params }: LoaderContext) {
   const post = await db.posts.find(params.id)
-  if (!post) throw new DevixError(404, 'Post no encontrado')
+  if (!post) return error(404, 'Post no encontrado')
   return post
 }
 ```
 
-Un error no controlado devuelve 500.
+devix detecta el `error()` y renderiza la página `error.tsx` correspondiente con el `statusCode` y `message` indicados. Un error lanzado sin usar `error()` devuelve 500.

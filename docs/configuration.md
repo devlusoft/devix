@@ -13,6 +13,7 @@ export default defineConfig({
     loaderTimeout: '10s',
     css: ['./app/styles/global.css'],
     envPrefix: 'PUBLIC_',
+    html: { lang: 'es' },
     vite: {},
 })
 ```
@@ -53,7 +54,19 @@ Archivos CSS globales inyectados en cada página. Rutas relativas a la raíz del
 
 ### `envPrefix`
 
-Variables de entorno con este prefijo se exponen al cliente vía `import.meta.env`. Default: `'VITE_'`.
+Variables de entorno con este prefijo se exponen al cliente vía `import.meta.env`. Acepta `string` o `string[]`. Default: `'VITE_'`.
+
+### `html`
+
+Opciones del documento HTML raíz:
+
+```ts
+export default defineConfig({
+  html: { lang: 'es' },
+})
+```
+
+- `lang` — atributo `lang` del `<html>`. Equivalente a `export const lang = 'es'` en el layout raíz, pero aplica como valor por defecto global cuando no hay layout.
 
 ### `vite`
 

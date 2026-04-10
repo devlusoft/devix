@@ -78,9 +78,52 @@ const { pathname } = useRouter()
 const { slug } = useParams<{ slug: string }>()
 ```
 
+## useRevalidate
+
+Vuelve a ejecutar el loader de la página actual sin navegar:
+
+```tsx
+import { useRevalidate } from '@devlusoft/devix'
+
+const revalidate = useRevalidate()
+
+// después de una mutación:
+await fetch('/api/posts', { method: 'POST', body: JSON.stringify(data) })
+await revalidate()
+```
+
 ## Archivos reservados
 
 | Archivo | Uso |
 |---|---|
 | `layout.tsx` | Layout que envuelve las páginas del mismo directorio |
-| `error.tsx` | Límite de error _(próximamente)_ |
+| `error.tsx` | Página de error para esa ruta y sus subrutas |
+
+## error.tsx
+
+Un archivo `error.tsx` captura errores del loader y del renderizado en el mismo directorio y sus subdirectorios.
+
+```tsx
+// app/pages/error.tsx  ← captura errores globales
+import type { ErrorProps } from '@devlusoft/devix'
+
+export default function ErrorPage({ statusCode, message }: ErrorProps) {
+  return (
+    <div>
+      <h1>{statusCode}</h1>
+      <p>{message}</p>
+    </div>
+  )
+}
+```
+
+```tsx
+// app/pages/blog/error.tsx  ← solo errores bajo /blog
+import type { ErrorProps } from '@devlusoft/devix'
+
+export default function BlogError({ statusCode, message }: ErrorProps) {
+  return <p>Error en el blog: {statusCode} — {message}</p>
+}
+```
+
+`ErrorProps` tiene tres campos: `statusCode: number`, `message?: string`, `data?: unknown`.

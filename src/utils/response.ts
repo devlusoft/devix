@@ -15,7 +15,7 @@ export function json<const T>(data: T, status: number = 200): JsonResponse<T, an
 export const text = (body: string, status = 200): Response =>
     new Response(body, {status, headers: {'Content-Type': 'text/plain; charset=utf-8'}})
 
-const REDIRECT_BRAND = Symbol('devix.redirect')
+const REDIRECT_BRAND = Symbol.for('devix.redirect')
 
 export interface RedirectOptions {
     status?: number
@@ -39,7 +39,7 @@ export function isRedirect(value: unknown): value is Redirect {
     return typeof value === 'object' && value !== null && REDIRECT_BRAND in value
 }
 
-const ERROR_BRAND = Symbol('devix.loaderError')
+const ERROR_BRAND = Symbol.for('devix.loaderError')
 
 export interface RouteError {
     readonly [ERROR_BRAND]: true

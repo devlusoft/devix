@@ -42,7 +42,7 @@ export interface FetchOptions<M extends HttpMethod = 'GET', P extends string = s
 }
 
 export async function $fetch<P extends ApiPath = ApiPath, M extends HttpMethod = 'GET'>(
-    path: P & string,
+    path: P,
     options?: FetchOptions<M, P>
 ): Promise<InferResult<M, P>> {
     const method = options?.method ?? 'GET'

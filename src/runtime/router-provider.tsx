@@ -8,6 +8,7 @@ import { getDefaultErrorPage, loadErrorPage, matchClientRoute } from "virtual:de
 import { HeadSlot } from "./head";
 import { NavigateOptions, PageMetaContext, RouteDataContext } from "./context";
 import { DevixErrorBoundary } from "./error-boundary";
+import { resolveTo } from "./url";
 import type { Redirect } from "../utils/response";
 
 interface RouteState {
@@ -108,15 +109,18 @@ export function RouterProvider({
     const prefetchCacheRef = useRef<Map<string, PrefetchEntry>>(new Map())
 
     const prefetchRoute = useCallback((href: string) => {
-        if (prefetchCacheRef.current.has(href)) return
-        const pathname = href.split('?')[0].split('#')[0]
-        const matched = matchClientRoute(pathname)
+        const resolved = resolveTo(href)
+        if (resolved.kind === 'external') return
+
+        const key = resolved.href
+        if (prefetchCacheRef.current.has(key)) return
+        const matched = matchClientRoute(resolved.pathname)
         if (!matched) return
 
         const controller = new AbortController()
         const promise = Promise.all([
             Promise.all([matched.load(), ...matched.loadLayouts.map(l => l())]),
-            fetch(`/_data${href}`, { headers: { Accept: 'application/json' }, signal: controller.signal })
+            fetch(`/_data${key}`, { headers: { Accept: 'application/json' }, signal: controller.signal })
         ]).then(async ([[pageMod, ...layoutMods], dataRes]) => {
             if (!dataRes.ok || !pageMod.default) return null
             const data = await dataRes.json()
@@ -125,11 +129,11 @@ export function RouterProvider({
 
         const expireTimer = setTimeout(() => {
             controller.abort()
-            prefetchCacheRef.current.delete(href)
+            prefetchCacheRef.current.delete(key)
         }, 3000)
         promise.finally(() => clearTimeout(expireTimer))
 
-        prefetchCacheRef.current.set(href, { promise, controller })
+        prefetchCacheRef.current.set(key, { promise, controller })
     }, [])
 
     const loadRoute = useCallback(async (to: string, controller: AbortController) => {
@@ -235,14 +239,21 @@ export function RouterProvider({
     }, [])
 
     const navigate = useCallback(async (to: string, options?: NavigateOptions) => {
+        const resolved = resolveTo(to)
+        if (resolved.kind === 'external') {
+            window.location.href = resolved.url.href
+            return
+        }
+        const href = resolved.href
+
         navigatingRef.current?.abort()
         const controller = new AbortController()
         navigatingRef.current = controller
 
         setIsNavigating(true)
         const run = async () => {
-            window.history[options?.replace ? 'replaceState' : 'pushState'](null, '', to)
-            await loadRoute(to, controller)
+            window.history[options?.replace ? 'replaceState' : 'pushState'](null, '', href)
+            await loadRoute(href, controller)
         }
         try {
             if (options?.viewTransition && 'startViewTransition' in document) {

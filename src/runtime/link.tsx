@@ -1,20 +1,12 @@
 import { AnchorHTMLAttributes, MouseEventHandler, useCallback, useContext, useRef } from "react"
 import { NavigateOptions, RouterContext } from './context'
+import { resolveTo } from './url'
 
 interface LinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
     href: string
     prefetch?: 'hover' | 'none'
     replace?: boolean
     viewTransition?: boolean
-}
-
-function resolveHref(href: string): string {
-    if (href.startsWith('/') || href.startsWith('http')) return href
-    const base = window.location.pathname.endsWith('/')
-        ? window.location.href
-        : window.location.href + '/'
-    const resolved = new URL(href, base).pathname
-    return resolved.length > 1 ? resolved.replace(/\/$/, '') : resolved
 }
 
 export function Link({ href, prefetch = 'hover', replace = false, viewTransition = false, children, ...props }: LinkProps) {
@@ -30,7 +22,7 @@ export function Link({ href, prefetch = 'hover', replace = false, viewTransition
 
     const triggerPrefetch = useCallback(() => {
         if (!router || prefetch === 'none') return
-        router.prefetchRoute(resolveHref(href))
+        router.prefetchRoute(href)
     }, [href, prefetch, router])
 
     const handleMouseEnter = useCallback(() => {
@@ -50,11 +42,11 @@ export function Link({ href, prefetch = 'hover', replace = false, viewTransition
     const handleClick: MouseEventHandler<HTMLAnchorElement> = (e) => {
         cancelHoverTimer()
         if (!router) return
-        if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
-            e.preventDefault()
-            const options: NavigateOptions = { replace, viewTransition }
-            router.navigate(resolveHref(href), options)
-        }
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return
+        if (resolveTo(href).kind === 'external') return
+        e.preventDefault()
+        const options: NavigateOptions = { replace, viewTransition }
+        router.navigate(href, options)
     }
 
     return (

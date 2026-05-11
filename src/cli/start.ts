@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { resolve, join } from 'node:path'
 import type { Manifest } from 'vite'
 import { registerApiRoutes, registerSsrRoute } from '../server/routes'
@@ -38,7 +38,7 @@ const app = new Hono()
 const clientRoot = join(process.cwd(), 'dist/client')
 
 if (runtimeConfig!.output === 'static') {
-    app.get('/_data/*', (c) => {
+    app.get('/_data/*', (c: Context) => {
         const pathname = c.req.path.replace(/^\/_data/, '') || '/'
         const filePath = pathname === '/'
             ? join(clientRoot, '_data/index.json')
@@ -70,6 +70,6 @@ if (runtimeConfig!.output === 'static') {
     registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig!.loaderTimeout })
 }
 
-serve({ fetch: app.fetch, port, hostname: host }, (info) => console.log(`http://${info.address}:${info.port}`))
+serve({ fetch: app.fetch, port, hostname: host }, (info: {address: string; port: number}) => console.log(`http://${info.address}:${info.port}`))
 
 export { }

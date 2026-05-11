@@ -1,4 +1,4 @@
-import type {Hono} from 'hono'
+import type {Context, Hono} from 'hono'
 import type {ContentfulStatusCode} from 'hono/utils/http-status'
 import type {Manifest} from 'vite'
 import {errorToBody} from "../utils/response"
@@ -15,7 +15,7 @@ interface ServerOptions {
 
 export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTimeout, server}: ServerOptions) {
     if (server) {
-        app.all('/_devix/server/*', async (c) => {
+        app.all('/_devix/server/*', async (c: Context) => {
             try {
                 return await handleProxyRequest(c.req.raw, server)
             } catch (e) {
@@ -25,7 +25,7 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTim
         })
     }
 
-    app.all('/api/*', async (c) => {
+    app.all('/api/*', async (c: Context) => {
         try {
             return await apiModule.handleApiRequest(c.req.url, c.req.raw, server)
         } catch (e) {
@@ -34,7 +34,7 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTim
         }
     })
 
-    app.get('/_data/*', async (c) => {
+    app.get('/_data/*', async (c: Context) => {
         try {
             const {pathname, search} = new URL(c.req.url, 'http://localhost')
             const url = pathname.replace(/^\/_data/, '') + search
@@ -54,7 +54,7 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTim
 }
 
 export function registerSsrRoute(app: Hono, {renderModule, manifest, loaderTimeout, server}: ServerOptions) {
-    app.get('*', async (c) => {
+    app.get('*', async (c: Context) => {
         try {
             const {html, statusCode, headers} = await renderModule.render(c.req.url, c.req.raw, {manifest, loaderTimeout, server})
             const res = c.html(`<!DOCTYPE html>${html}`, statusCode)

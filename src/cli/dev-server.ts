@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
 import { createServer as createViteServer } from 'vite'
 import { getRequestListener } from '@hono/node-server'
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { devix } from '../vite'
 import { registerApiRoutes } from '../server/routes'
 import { printDevBanner } from "../utils/banner"
@@ -38,7 +38,7 @@ const apiModule = {
 const app = new Hono()
 registerApiRoutes(app, { renderModule, apiModule, server: config.server })
 
-app.get('*', async (c) => {
+app.get('*', async (c: Context) => {
   try {
     const { html, statusCode, headers } = await renderModule.render(c.req.url, c.req.raw, {
       loaderTimeout: parseDuration(config.loaderTimeout ?? 10_000),

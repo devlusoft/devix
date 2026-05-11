@@ -16,8 +16,8 @@ const _glob = {
     apiDir: '/${appDir}/api',
 }
 
-export function handleApiRequest(url, request) {
-    return _handleApiRequest(url, request, _glob)
+export function handleApiRequest(url, request, serverConfig) {
+    return _handleApiRequest(url, request, _glob, serverConfig)
 }
 `
 }

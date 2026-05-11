@@ -48,7 +48,7 @@ export interface LoaderContext<TParams = Record<string, string>> {
      * Bound al request actual — `prepare` recibe el `Request` del usuario para
      * leer cookies, sesión, etc.
      */
-    $server: Record<string, BackendClient<string>>
+    $server: Record<string, BackendClient>
 }
 
 import type { Redirect } from './utils/response'

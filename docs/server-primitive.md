@@ -1,4 +1,4 @@
-# `$server` — proxy tipado a backends remotos
+# `$server` — proxy a backends remotos
 
 `$server` te deja llamar a backends remotos (tu API en Go/Rails/etc., microservicios internos) **directamente desde loaders, handlers y componentes** sin tener que escribir un handler proxy en `app/api/` para cada endpoint.
 
@@ -24,12 +24,12 @@ export default defineConfig({
 ```ts
 // Loader o guard — $server viene del ctx, bound al request del usuario
 export async function loader({ $server, params }: LoaderContext) {
-  return await $server.api.get(`/v1/posts/${params.id}`)
+  return await $server.api.get<Post>(`/v1/posts/${params.id}`)
 }
 
 // Handler API
-export const POST = createHandler(async (body, ctx) => {
-  return await ctx.$server.api.post('/v1/posts', body)
+export const POST = createHandler(async (body: CreatePostInput, ctx) => {
+  return await ctx.$server.api.post<Post>('/v1/posts', body)
 })
 
 // Componente cliente — $server se importa
@@ -37,7 +37,7 @@ import { $server } from '@devlusoft/devix'
 
 function ProfileButton() {
   const onClick = async () => {
-    const me = await $server.api.get('/v1/me')
+    const me = await $server.api.get<User>('/v1/me')
     console.log(me)
   }
   return <button onClick={onClick}>Cargar</button>
@@ -150,40 +150,55 @@ deniedPaths: ['/v1/admin/internal/**'],
 
 ---
 
-## Tipado end-to-end
+## Tipado
 
-Declara las rutas de cada backend para que `$server` infiera body y respuesta:
-
-```ts
-// app/types/server-routes.ts
-import type { User, Post } from './models'
-
-declare module '@devlusoft/devix' {
-  interface BackendRoutes {
-    'api GET /v1/me': { __response: User }
-    'api GET /v1/posts/:id': { __response: Post }
-    'api POST /v1/posts': { __body: { title: string; content: string }; __response: Post }
-    'api DELETE /v1/posts/:id': { __response: null }
-  }
-}
-```
-
-Formato de clave: `'<namespace> <METHOD> <path>'`. Con esto:
+`$server` no infiere tipos del backend remoto — vive fuera del repo y no hay forma honesta de descubrir su shape sin un contrato externo. El tipo se declara en cada call site con un generic:
 
 ```ts
-const me = await $server.api.get('/v1/me')              // me: User
-const post = await $server.api.get('/v1/posts/123')     // post: Post
-const created = await $server.api.post('/v1/posts', {   // body tipado a { title; content }
-  title: 'Hola',
-  content: 'mundo',
-})                                                       // created: Post
+import type { User, Post } from '~/models'
+
+const me = await $server.api.get<User>('/v1/me')
+const post = await $server.api.get<Post>('/v1/posts/123')
+
+const input: { title: string; content: string } = { title: 'Hola', content: 'mundo' }
+const created = await $server.api.post<Post>('/v1/posts', input)
 ```
 
-Las rutas no declaradas siguen funcionando pero sin inferencia (body `unknown`, response `unknown`).
+Si no pasas el generic, el retorno es `unknown`:
 
-### Generación desde OpenAPI
+```ts
+const me = await $server.api.get('/v1/me')              // me: unknown
+```
 
-Si tu backend expone OpenAPI/Swagger, un script puede generar el `BackendRoutes` automáticamente. devix no incluye este generador todavía — está en el roadmap.
+### ¿Por qué no un registry global?
+
+Considerada y descartada. Un registry tipo `declare module BackendRoutes { ... }` te obliga a:
+
+- Escribirlo a mano sin garantía de que coincida con la realidad del backend
+- Mantenerlo sincronizado cada vez que el backend cambia
+- Vivir en un archivo separado del call site
+
+A cambio ganas autocompletado de paths — pero ese autocompletado puede mentir si el archivo no está actualizado. Cast en el call site es honesto: el contrato vive donde se usa, y si está mal lo ves al instante.
+
+### Generación automática
+
+Si tu backend expone OpenAPI/Swagger, usa [`openapi-typescript`](https://github.com/openapi-ts/openapi-typescript) para generar los tipos:
+
+```bash
+npx openapi-typescript http://localhost:8080/openapi.json -o ./types/backend.ts
+```
+
+Luego importas y casteas:
+
+```ts
+import type { paths } from './types/backend'
+
+type User = paths['/v1/me']['get']['responses']['200']['content']['application/json']
+
+const me = await $server.api.get<User>('/v1/me')
+```
+
+Si querés un wrapper que extraiga response type automáticamente desde una path, podés definirte un helper local. devix no impone una forma.
 
 ---
 
@@ -237,13 +252,13 @@ try {
 
 Errores del proxy mismo (path no permitido, prepare fallido, backend inalcanzable) también devuelven el shape `ErrorBody`:
 
-| Status | Code | Cuándo |
-|---|---|---|
-| 403 | `PATH_NOT_ALLOWED` | Path no matchea `allowedPaths` |
-| 403 | `PATH_DENIED` | Path matchea `deniedPaths` |
-| 404 | `BACKEND_NOT_FOUND` | Namespace no configurado |
-| 500 | `PREPARE_ERROR` | `prepare` lanzó una excepción |
-| 502 | `BACKEND_UNREACHABLE` | Fetch al backend falló |
+| Status | Code                  | Cuándo                         |
+|--------|-----------------------|--------------------------------|
+| 403    | `PATH_NOT_ALLOWED`    | Path no matchea `allowedPaths` |
+| 403    | `PATH_DENIED`         | Path matchea `deniedPaths`     |
+| 404    | `BACKEND_NOT_FOUND`   | Namespace no configurado       |
+| 500    | `PREPARE_ERROR`       | `prepare` lanzó una excepción  |
+| 502    | `BACKEND_UNREACHABLE` | Fetch al backend falló         |
 
 ---
 

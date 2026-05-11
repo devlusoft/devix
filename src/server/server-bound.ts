@@ -14,14 +14,14 @@ import type {BackendClient} from '../runtime/server-client'
 export function makeBoundServer(
     request: Request,
     config: Record<string, ServerBackendConfig> | undefined,
-): Record<string, BackendClient<string>> {
+): Record<string, BackendClient> {
     if (!config) return new Proxy({} as any, {
         get(_t, namespace: string) {
             throw new Error(`[devix] ctx.$server.${String(namespace)} called but no 'server' config is defined in devix.config.ts`)
         },
     })
 
-    const cache = new Map<string, BackendClient<string>>()
+    const cache = new Map<string, BackendClient>()
     return new Proxy({} as any, {
         get(_t, namespace: string) {
             if (typeof namespace !== 'string') return undefined
@@ -43,7 +43,7 @@ function makeBackendClientBound(
     _namespace: string,
     backend: ServerBackendConfig,
     userRequest: Request,
-): BackendClient<string> {
+): BackendClient {
     async function call<TResult>(method: HttpMethod, path: string, body?: unknown, options?: {headers?: HeadersInit; signal?: AbortSignal}): Promise<TResult> {
         if (!matchesAnyGlob(path, backend.allowedPaths)) {
             throw new FetchError(403, 'Path not allowed', new Response(null, {status: 403}), {
@@ -101,11 +101,11 @@ function makeBackendClientBound(
     }
 
     return {
-        get: ((path: string, options?: any) => call('GET', path, undefined, options)) as BackendClient<string>['get'],
-        post: ((path: string, body?: any, options?: any) => call('POST', path, body, options)) as BackendClient<string>['post'],
-        put: ((path: string, body?: any, options?: any) => call('PUT', path, body, options)) as BackendClient<string>['put'],
-        patch: ((path: string, body?: any, options?: any) => call('PATCH', path, body, options)) as BackendClient<string>['patch'],
-        delete: ((path: string, options?: any) => call('DELETE', path, undefined, options)) as BackendClient<string>['delete'],
+        get: ((path: string, options?: any) => call('GET', path, undefined, options)) as BackendClient['get'],
+        post: ((path: string, body?: any, options?: any) => call('POST', path, body, options)) as BackendClient['post'],
+        put: ((path: string, body?: any, options?: any) => call('PUT', path, body, options)) as BackendClient['put'],
+        patch: ((path: string, body?: any, options?: any) => call('PATCH', path, body, options)) as BackendClient['patch'],
+        delete: ((path: string, options?: any) => call('DELETE', path, undefined, options)) as BackendClient['delete'],
     }
 }
 

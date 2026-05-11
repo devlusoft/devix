@@ -6,14 +6,14 @@ export class RouteContext {
     readonly params: Record<string, string>
     readonly request: Request
     readonly url: URL
-    readonly $server: Record<string, BackendClient<string>>
+    readonly $server: Record<string, BackendClient>
     private _state = new Map<string, unknown>()
 
     constructor(
         params: Record<string, string>,
         request: Request,
         url: URL,
-        $server: Record<string, BackendClient<string>> = {},
+        $server: Record<string, BackendClient> = {},
     ) {
         this.params = params
         this.request = request

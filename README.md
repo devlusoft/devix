@@ -13,7 +13,7 @@ Construye aplicaciones React full-stack con enrutamiento basado en archivos, ren
 - **SSG** — genera HTML estático con `generateStaticParams`
 - **Rutas API** — basadas en archivos, con `createHandler` para tipado de extremo a extremo
 - **$fetch** — cliente HTTP con body y respuesta tipados, con autocompletado de rutas
-- **$server** — proxy tipado a backends remotos con auth pass-through y allowlist (multi-backend)
+- **$server** — proxy a backends remotos con auth pass-through y allowlist (multi-backend, tipo via generic en el call site)
 - **Validación de body** — soporte de [Standard Schema](https://standardschema.dev) (Zod, Valibot, ArkType) en `createHandler` con error shape automático
 - **Error shape unificado** — `error()` y `DevixError` producen el mismo `{ statusCode, code, message }` en loaders, guards y handlers
 - **Carga de datos** — funciones `loader` con hidratación automática en el cliente
@@ -250,13 +250,15 @@ export default defineConfig({
 ```ts
 // Loader/handler — $server bound al request del usuario
 export async function loader({ $server, params }: LoaderContext) {
-  return await $server.api.get(`/v1/posts/${params.id}`)
+  return await $server.api.get<Post>(`/v1/posts/${params.id}`)
 }
 
 // Cliente — pasa por el proxy interno con el mismo prepare
 import { $server } from '@devlusoft/devix'
-const me = await $server.api.get('/v1/me')
+const me = await $server.api.get<User>('/v1/me')
 ```
+
+El tipo de respuesta se declara con un generic en el call site (`<User>`). El backend remoto vive fuera del repo — devix no puede inferir tipos automáticamente.
 
 > ⚠️ `$server` reenvía credenciales del usuario al backend (el backend valida). **No lo uses para APIs de terceros con keys del server (Stripe, etc.)** — eso expone esa key. Para terceros, escribe un handler explícito con autorización propia. Ver [Server primitive](./docs/server-primitive.md).
 

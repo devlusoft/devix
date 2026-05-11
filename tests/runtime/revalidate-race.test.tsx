@@ -39,6 +39,9 @@ async function renderProvider(initialData: unknown = {n: 0}) {
     await act(async () => {
         root = createRoot(container)
         root.render(createElement(RouterProvider, {
+            matchClientRoute: matchClientRoute as any,
+            loadErrorPage: loadErrorPage as any,
+            getDefaultErrorPage: getDefaultErrorPage as any,
             initialData,
             initialParams: {},
             initialPage: TestPage,

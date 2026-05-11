@@ -1,6 +1,6 @@
 {
   "name": "@devlusoft/devix",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "type": "module",
   "description": "A lightweight React SSR meta-framework — devix",
   "author": "devlusoft",
@@ -68,6 +68,11 @@
     "oxc-parser": "0.121.0"
   },
   "packageManager": "pnpm@10.31.0",
+  "pnpm": {
+    "overrides": {
+      "picomatch": ">=4.0.4"
+    }
+  },
   "devDependencies": {
     "@types/node": "25.5.0",
     "@types/react": "19.2.14",

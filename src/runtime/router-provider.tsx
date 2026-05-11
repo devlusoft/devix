@@ -1,15 +1,23 @@
 import { ComponentType, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { RouterContext } from 'virtual:devix/context'
 import { ErrorProps, LayoutProps, PageProps } from "../server/types";
 import { Metadata, Viewport } from "../types";
 
 const DEFAULT_VIEWPORT: Viewport = { width: 'device-width', initialScale: 1 }
-import { getDefaultErrorPage, loadErrorPage, matchClientRoute } from "virtual:devix/client-routes";
 import { HeadSlot } from "./head";
-import { NavigateOptions, PageMetaContext, RouteDataContext } from "./context";
+import { NavigateOptions, PageMetaContext, RouteDataContext, RouterContext } from "./context";
 import { DevixErrorBoundary } from "./error-boundary";
 import { resolveTo } from "./url";
 import type { Redirect } from "../utils/response";
+
+export interface ClientRouteMatcher {
+    matchClientRoute: (pathname: string) => {
+        load: () => Promise<any>
+        loadLayouts: (() => Promise<any>)[]
+        params: Record<string, string>
+    } | null
+    loadErrorPage: () => Promise<ComponentType<ErrorProps> | null>
+    getDefaultErrorPage: () => ComponentType<ErrorProps> | null
+}
 
 interface RouteState {
     pathname: string
@@ -93,7 +101,7 @@ interface PrefetchEntry {
     controller: AbortController
 }
 
-interface RouterProviderProps {
+interface RouterProviderProps extends ClientRouteMatcher {
     initialData: unknown
     initialParams: Record<string, string>
     initialPage: ComponentType<PageProps>
@@ -119,6 +127,9 @@ export function RouterProvider({
     initialError,
     initialErrorPage,
     clientEntry,
+    matchClientRoute,
+    loadErrorPage,
+    getDefaultErrorPage,
 }: RouterProviderProps) {
 
     const [state, setState] = useState<RouteState>({

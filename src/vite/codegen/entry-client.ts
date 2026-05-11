@@ -31,6 +31,9 @@ if (!window.__DEVIX__) {
         const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
         createRoot(root).render(
             React.createElement(RouterProvider, {
+                matchClientRoute,
+                loadErrorPage,
+                getDefaultErrorPage,
                 clientEntry,
                 initialData: null,
                 initialParams: {},
@@ -47,6 +50,9 @@ if (!window.__DEVIX__) {
         hydrateRoot(
             root,
             React.createElement(RouterProvider, {
+                matchClientRoute,
+                loadErrorPage,
+                getDefaultErrorPage,
                 clientEntry,
                 initialData: loaderData,
                 initialParams: matched.params,
@@ -70,6 +76,9 @@ if (!window.__DEVIX__) {
         const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
         createRoot(root).render(
             React.createElement(RouterProvider, {
+                matchClientRoute,
+                loadErrorPage,
+                getDefaultErrorPage,
                 clientEntry,
                 initialData: null,
                 initialParams: {},

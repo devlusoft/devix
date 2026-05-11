@@ -40,7 +40,17 @@ export interface DevixErrorOptions {
     data?: unknown
 }
 
+const DEVIX_ERROR_BRAND = Symbol.for('@devlusoft/devix.DevixError')
+
 export class DevixError extends Error {
+    /**
+     * Custom `instanceof` que matchea por brand cross-bundle. Ver nota en
+     * `FetchError` para el detalle del dual package hazard.
+     */
+    static [Symbol.hasInstance](value: unknown): boolean {
+        return value !== null && typeof value === 'object' && (value as any)[DEVIX_ERROR_BRAND] === true
+    }
+
     statusCode: number
     code?: string
     data?: unknown
@@ -50,5 +60,6 @@ export class DevixError extends Error {
         this.statusCode = statusCode
         this.code = options?.code
         this.data = options?.data
+        ;(this as any)[DEVIX_ERROR_BRAND] = true
     }
 }

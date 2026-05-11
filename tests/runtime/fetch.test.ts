@@ -164,4 +164,34 @@ describe('$fetch', () => {
             expect(result).toBeNull()
         })
     })
+
+    describe('FetchError instanceof cross-bundle', () => {
+        it('instanceof reconoce error con el mismo brand pero distinta clase', () => {
+            const BRAND = Symbol.for('@devlusoft/devix.FetchError')
+            const fakeError = Object.assign(new Error('cross-bundle'), {
+                status: 404,
+                statusText: 'Not Found',
+                response: new Response(null, {status: 404}),
+                body: undefined,
+                [BRAND]: true,
+            })
+            expect(fakeError instanceof FetchError).toBe(true)
+        })
+
+        it('instanceof NO reconoce errores sin el brand', () => {
+            const plainError = new Error('not a FetchError')
+            expect(plainError instanceof FetchError).toBe(false)
+
+            const wronglyMarked = Object.assign(new Error('wrong brand'), {
+                [Symbol.for('@devlusoft/other.Error')]: true,
+            })
+            expect(wronglyMarked instanceof FetchError).toBe(false)
+        })
+
+        it('instancia real sigue siendo instanceof', () => {
+            const err = new FetchError(404, 'Not Found', new Response(null, {status: 404}))
+            expect(err instanceof FetchError).toBe(true)
+            expect(err instanceof Error).toBe(true)
+        })
+    })
 })

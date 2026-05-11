@@ -8,7 +8,13 @@ function extractMessage(body: unknown): string | null {
     return null
 }
 
+const FETCH_ERROR_BRAND = Symbol.for('@devlusoft/devix.FetchError')
+
 export class FetchError<E = unknown> extends Error {
+    static [Symbol.hasInstance](value: unknown): boolean {
+        return value !== null && typeof value === 'object' && (value as any)[FETCH_ERROR_BRAND] === true
+    }
+
     constructor(
         public readonly status: number,
         public readonly statusText: string,
@@ -17,6 +23,7 @@ export class FetchError<E = unknown> extends Error {
     ) {
         super(extractMessage(body) ?? `HTTP ${status}: ${statusText}`)
         this.name = 'FetchError'
+        ;(this as any)[FETCH_ERROR_BRAND] = true
     }
 
     get code(): string | undefined {

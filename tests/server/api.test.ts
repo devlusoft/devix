@@ -178,6 +178,22 @@ describe('handleApiRequest', () => {
         expect(await res.json()).toEqual({statusCode: 403, message: 'Forbidden'})
     })
 
+    it('DevixError cross-bundle: instanceof reconoce por brand', () => {
+        const BRAND = Symbol.for('@devlusoft/devix.DevixError')
+        const fakeError = Object.assign(new Error('cross-bundle'), {
+            statusCode: 500,
+            [BRAND]: true,
+        })
+        expect(fakeError instanceof DevixError).toBe(true)
+
+        const plainError = new Error('not a DevixError')
+        expect(plainError instanceof DevixError).toBe(false)
+
+        const realError = new DevixError(403, 'Forbidden')
+        expect(realError instanceof DevixError).toBe(true)
+        expect(realError instanceof Error).toBe(true)
+    })
+
     it('DevixError con code y data se serializa al shape estandarizado', async () => {
         const glob = makeGlob({
             [`${API_DIR}/guarded.ts`]: vi.fn().mockResolvedValue({

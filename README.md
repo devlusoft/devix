@@ -13,12 +13,14 @@ Construye aplicaciones React full-stack con enrutamiento basado en archivos, ren
 - **SSG** — genera HTML estático con `generateStaticParams`
 - **Rutas API** — basadas en archivos, con `createHandler` para tipado de extremo a extremo
 - **$fetch** — cliente HTTP con body y respuesta tipados, con autocompletado de rutas
+- **$server** — proxy tipado a backends remotos con auth pass-through y allowlist (multi-backend)
+- **Validación de body** — soporte de [Standard Schema](https://standardschema.dev) (Zod, Valibot, ArkType) en `createHandler` con error shape automático
+- **Error shape unificado** — `error()` y `DevixError` producen el mismo `{ statusCode, code, message }` en loaders, guards y handlers
 - **Carga de datos** — funciones `loader` con hidratación automática en el cliente
+- **Guards de ruta** — redirecciones del lado del servidor antes del renderizado, con `useGuardData()` para leer datos del guard sin loader
 - **Navegación programática** — `useNavigate()` con soporte de `replace` y View Transitions API
-- **Revalidación de datos** — `useRevalidate()` para refrescar datos sin recargar la página
-- **Guards de ruta** — redirecciones del lado del servidor antes del renderizado
+- **Revalidación de datos** — `useRevalidate()` para refrescar guards y loaders sin recargar la página
 - **SEO** — `metadata` y `generateMetadata` por página, con soporte de Open Graph y Twitter
-- **Hooks de contexto** — `useRequest()`, `useCtx()`, `useParams()` accesibles desde cualquier función del handler
 - **TypeScript primero** — inferencia de tipos completa en todo el framework
 
 ## Instalación
@@ -182,29 +184,81 @@ export async function loader({ request }: LoaderContext) {
 
 ### Rutas API
 
-`createHandler` da tipado de extremo a extremo — el body y el retorno se infieren automáticamente para `$fetch`:
+`createHandler` da tipado de extremo a extremo — el body y el retorno se infieren automáticamente para `$fetch`. El segundo argumento `ctx` expone `request`, `url`, `params`, `$server` y state heredado de middleware:
 
 ```ts
-import { createHandler, json } from '@devlusoft/devix'
+import { createHandler, json, error } from '@devlusoft/devix'
 
-export const GET = createHandler(async () => {
-  return json({ hello: 'world' })
+export const GET = createHandler(async (_body, ctx) => {
+  const filter = ctx.url.searchParams.get('filter')
+  return await db.items.find({ filter })
 })
 
-export const POST = createHandler(async (body: { name: string }) => {
-  const item = await db.items.create(body)
+export const POST = createHandler(async (body: { name: string }, ctx) => {
+  const user = ctx.get<User>('user')  // del middleware
+  if (!user) return error(401, 'No autenticado')
+  const item = await db.items.create({ ...body, ownerId: user.id })
   return json(item, 201)
 })
 
 export const DELETE = createHandler(async () => null)  // 204
 ```
 
+Con [Standard Schema](https://standardschema.dev) la validación es automática — si el body no cumple, devix responde `400` con el shape `{ statusCode, code, message, data: { issues } }`:
+
 ```ts
+import { z } from 'zod'
+
+const Input = z.object({ name: z.string().min(1) })
+
+export const POST = createHandler(Input, async (body, ctx) => {
+  return await db.items.create(body)
+})
+```
+
+```ts
+// Cliente — tipado completo
 const res = await $fetch('/api/items', {
   method: 'POST',
   body: { name: 'nuevo item' },
 })
 ```
+
+### Backend remoto con `$server`
+
+Llama a tu API (Go, Rails, microservicios) directamente desde loaders, handlers y componentes — devix se encarga del proxy y del auth pass-through. Multi-backend soportado.
+
+```ts
+// devix.config.ts
+import { defineConfig } from '@devlusoft/devix/config'
+import { getCookie } from '@devlusoft/devix'
+
+export default defineConfig({
+  server: {
+    api: {
+      url: process.env.API_URL!,
+      prepare: ({ request, headers }) => {
+        const sid = getCookie(request, 'sid')
+        if (sid) headers.set('Authorization', `Bearer ${sid}`)
+      },
+      allowedPaths: ['/v1/**'],
+    },
+  },
+})
+```
+
+```ts
+// Loader/handler — $server bound al request del usuario
+export async function loader({ $server, params }: LoaderContext) {
+  return await $server.api.get(`/v1/posts/${params.id}`)
+}
+
+// Cliente — pasa por el proxy interno con el mismo prepare
+import { $server } from '@devlusoft/devix'
+const me = await $server.api.get('/v1/me')
+```
+
+> ⚠️ `$server` reenvía credenciales del usuario al backend (el backend valida). **No lo uses para APIs de terceros con keys del server (Stripe, etc.)** — eso expone esa key. Para terceros, escribe un handler explícito con autorización propia. Ver [Server primitive](./docs/server-primitive.md).
 
 ### Generación estática (SSG)
 
@@ -265,6 +319,7 @@ La documentación completa está en la carpeta [`docs/`](./docs):
 - [Layouts](./docs/layouts.md)
 - [Carga de datos](./docs/data-loading.md)
 - [Rutas API](./docs/api-routes.md)
+- [Backend remoto con `$server`](./docs/server-primitive.md)
 - [Metadata y SEO](./docs/metadata.md)
 - [Generación estática (SSG)](./docs/ssg.md)
 - [Configuración](./docs/configuration.md)

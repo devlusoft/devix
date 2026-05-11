@@ -36,13 +36,13 @@ const apiModule = {
 }
 
 const app = new Hono()
-registerApiRoutes(app, { renderModule, apiModule })
+registerApiRoutes(app, { renderModule, apiModule, server: config.server })
 
 app.get('*', async (c) => {
   try {
     const { html, statusCode, headers } = await renderModule.render(c.req.url, c.req.raw, {
-      loaderTimeout:
-        parseDuration(config.loaderTimeout ?? 10_000)
+      loaderTimeout: parseDuration(config.loaderTimeout ?? 10_000),
+      server: config.server,
     })
     const cssUrls = await collectCss(vite)
     const cssLinks = cssUrls.map(url => `<link rel="stylesheet" href="${url}">`).join('\n')

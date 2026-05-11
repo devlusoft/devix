@@ -80,7 +80,7 @@ const { slug } = useParams<{ slug: string }>()
 
 ## useRevalidate
 
-Vuelve a ejecutar el loader de la página actual sin navegar:
+Vuelve a ejecutar guards y loaders de la ruta actual sin navegar:
 
 ```tsx
 import { useRevalidate } from '@devlusoft/devix'
@@ -91,6 +91,51 @@ const revalidate = useRevalidate()
 await fetch('/api/posts', { method: 'POST', body: JSON.stringify(data) })
 await revalidate()
 ```
+
+### Qué se re-ejecuta
+
+`revalidate()` reproduce el mismo flujo de carga que una navegación entrante:
+
+1. Los **guards** de layouts y de la página actual corren de nuevo (en orden — root layout primero, página al final)
+2. Los **loaders** corren después en paralelo (layouts + página)
+3. La metadata se vuelve a resolver
+
+Esto significa que:
+
+- Un **redirect** retornado por un guard durante revalidate funciona automáticamente — el router navega al destino sin trabajo extra.
+- Una **sesión que expiró** entre la primera carga y la revalidación es detectada en el siguiente `revalidate()`: el guard de auth retorna `/login` y el usuario es redirigido.
+- Un **`error()` retornado** por un guard o loader durante revalidate muestra la `error.tsx` correspondiente.
+
+### Caso típico — mutación con re-fetch de datos
+
+```tsx
+import { $fetch, useRevalidate } from '@devlusoft/devix'
+
+function DeleteButton({ id }: { id: string }) {
+    const revalidate = useRevalidate()
+
+    return (
+        <button onClick={async () => {
+            await $fetch(`/api/posts/${id}`, { method: 'DELETE' })
+            await revalidate()  // re-fetch del listado
+        }}>
+            Eliminar
+        </button>
+    )
+}
+```
+
+### Caso típico — login/logout que invalida la sesión
+
+```tsx
+async function logout() {
+    await $fetch('/api/auth/logout', { method: 'POST' })
+    await revalidate()
+    // el guard de la ruta actual detecta que no hay sesión y redirige a /login
+}
+```
+
+> ⚠️ Múltiples llamadas concurrentes a `revalidate()` no se cancelan entre sí — la última en resolver gana. Si encadenas mutaciones rápidas, `await` la revalidación anterior antes de disparar la siguiente.
 
 ## Archivos reservados
 

@@ -3,8 +3,8 @@ import {withHandlerStore, useRequest, useCtx, useParams} from '../../src/server/
 import {RouteContext} from '../../src/runtime/api-context'
 
 function makeStore(params: Record<string, string> = {}) {
-    const ctx = new RouteContext(params)
     const request = new Request('http://localhost/api/test')
+    const ctx = new RouteContext(params, request, new URL(request.url))
     return {ctx, request}
 }
 

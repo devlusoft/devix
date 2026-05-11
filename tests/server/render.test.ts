@@ -158,6 +158,27 @@ describe('guardData — guard pasa datos al loader', () => {
         await runLoader('http://localhost/', req, glob)
         expect(received).toBeUndefined()
     })
+
+    it('runLoader expone guardData en su respuesta', async () => {
+        const glob = makeGlob({
+            [`${PAGES_DIR}/index.tsx`]: pageEntry({
+                guard: async () => ({user: 'ana'}),
+            }),
+        })
+        const result = await runLoader('http://localhost/', req, glob) as any
+        expect(result.guardData).toEqual({user: 'ana'})
+    })
+
+    it('render incluye __GUARD_DATA__ en el script SSR', async () => {
+        const glob = makeGlob({
+            [`${PAGES_DIR}/index.tsx`]: pageEntry({
+                guard: async () => ({user: 'ana'}),
+            }),
+        })
+        const result = await render('http://localhost/', req, glob)
+        expect(result.html).toContain('__GUARD_DATA__')
+        expect(result.html).toContain('"user":"ana"')
+    })
 })
 
 describe('loader sin return (void)', () => {

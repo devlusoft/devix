@@ -67,6 +67,27 @@ describe('$fetch', () => {
         }
     })
 
+    it('FetchError.message viene del body cuando tiene .message string', async () => {
+        mockFetch({statusCode: 404, message: 'Post no encontrado', code: 'POST_NOT_FOUND'}, {status: 404})
+        try {
+            await $fetch('/api/posts/x')
+        } catch (e) {
+            expect(e).toBeInstanceOf(FetchError)
+            expect((e as Error).message).toBe('Post no encontrado')
+            expect((e as FetchError).code).toBe('POST_NOT_FOUND')
+        }
+    })
+
+    it('FetchError.message cae a HTTP status si body no tiene .message', async () => {
+        mockFetch({something: 'else'}, {status: 500})
+        try {
+            await $fetch('/api/something')
+        } catch (e) {
+            expect((e as Error).message).toMatch(/^HTTP 500:/)
+            expect((e as FetchError).code).toBeUndefined()
+        }
+    })
+
     it('no envía body si no se pasa', async () => {
         mockFetch({ok: true})
         await $fetch('/api/test')
@@ -96,5 +117,51 @@ describe('$fetch', () => {
         await $fetch('/api/upload', {method: 'POST', body: blob as any})
         const call = (fetch as any).mock.calls[0][1]
         expect(call.body).toBe(blob)
+    })
+
+    describe('respuesta sin body', () => {
+        it('devuelve null en 204 No Content', async () => {
+            vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+                new Response(null, {status: 204})
+            )
+            const result = await $fetch('/api/empty')
+            expect(result).toBeNull()
+        })
+
+        it('devuelve null cuando Content-Length es 0 incluso si Content-Type es JSON', async () => {
+            vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+                new Response(null, {
+                    status: 200,
+                    headers: {'Content-Type': 'application/json', 'Content-Length': '0'},
+                })
+            )
+            const result = await $fetch('/api/empty-json')
+            expect(result).toBeNull()
+        })
+
+        it('FetchError sin body JSON parseable no truena, errorBody queda undefined', async () => {
+            vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+                new Response('', {
+                    status: 500,
+                    headers: {'Content-Type': 'application/json'},
+                })
+            )
+            try {
+                await $fetch('/api/broken')
+                throw new Error('should have thrown')
+            } catch (e) {
+                expect(e).toBeInstanceOf(FetchError)
+                expect((e as FetchError).status).toBe(500)
+                expect((e as FetchError<unknown>).body).toBeUndefined()
+            }
+        })
+
+        it('FetchError en 204 (edge case) no intenta parsear body', async () => {
+            vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+                new Response(null, {status: 204, headers: {'Content-Type': 'application/json'}})
+            )
+            const result = await $fetch('/api/empty')
+            expect(result).toBeNull()
+        })
     })
 })

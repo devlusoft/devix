@@ -41,7 +41,7 @@ describe('error() en loader de página', () => {
     it('render incluye window.__LOADER_ERROR__ en el HTML', async () => {
         const glob = makeGlob({
             [`${PAGES_DIR}/index.tsx`]: pageEntry({
-                loader: async () => error(401, 'Unauthorized', {reason: 'token_expired'}),
+                loader: async () => error(401, 'Unauthorized', {data: {reason: 'token_expired'}}),
             }),
         })
         const result = await render('http://localhost/', req, glob)
@@ -145,7 +145,7 @@ describe('error() con data estructurada', () => {
     it('el data llega en el loaderError', async () => {
         const glob = makeGlob({
             [`${PAGES_DIR}/index.tsx`]: pageEntry({
-                loader: async () => error(422, 'Validation error', {fields: {email: 'Invalid format'}}),
+                loader: async () => error(422, 'Validation error', {data: {fields: {email: 'Invalid format'}}}),
             }),
         })
         const result = await runLoader('http://localhost/', req, glob) as any
@@ -155,12 +155,32 @@ describe('error() con data estructurada', () => {
     it('render incluye el data en el HTML', async () => {
         const glob = makeGlob({
             [`${PAGES_DIR}/index.tsx`]: pageEntry({
-                loader: async () => error(422, 'Validation error', {fields: {email: 'Invalid format'}}),
+                loader: async () => error(422, 'Validation error', {data: {fields: {email: 'Invalid format'}}}),
             }),
         })
         const result = await render('http://localhost/', req, glob)
         expect(result.html).toContain('"fields"')
         expect(result.html).toContain('Invalid format')
+    })
+
+    it('error() con code se serializa al body', async () => {
+        const glob = makeGlob({
+            [`${PAGES_DIR}/index.tsx`]: pageEntry({
+                loader: async () => error(404, 'Post no encontrado', {code: 'POST_NOT_FOUND'}),
+            }),
+        })
+        const result = await runLoader('http://localhost/', req, glob) as any
+        expect(result.loaderError.code).toBe('POST_NOT_FOUND')
+    })
+
+    it('render incluye el code en el HTML', async () => {
+        const glob = makeGlob({
+            [`${PAGES_DIR}/index.tsx`]: pageEntry({
+                loader: async () => error(404, 'Post no encontrado', {code: 'POST_NOT_FOUND'}),
+            }),
+        })
+        const result = await render('http://localhost/', req, glob)
+        expect(result.html).toContain('"code":"POST_NOT_FOUND"')
     })
 })
 

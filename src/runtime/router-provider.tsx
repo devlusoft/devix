@@ -16,6 +16,7 @@ interface RouteState {
     params: Record<string, string>
     loaderData: unknown
     layoutsData: unknown[]
+    guardData: unknown
     Page: ComponentType<PageProps>
     layouts: ComponentType<LayoutProps>[]
     metadata: Metadata | null
@@ -59,6 +60,34 @@ export function useLoaderData<T>() {
     return ctx.loaderData as LoaderReturnType<T>
 }
 
+type GuardDataReturn<TGuard> =
+    TGuard extends (...args: any[]) => infer R
+    ? Exclude<Awaited<R>, string | Redirect | null | undefined | { readonly statusCode: number; readonly message: string }>
+    : unknown
+
+/**
+ * Devuelve el `guardData` resuelto en el último guard que retornó un objeto
+ * (layout → page, en orden). Tipado al retorno del guard si pasas `typeof guard`.
+ *
+ * ```ts
+ * export async function guard({ request }: LoaderContext) {
+ *   const session = await getSession(request)
+ *   if (!session) return '/login'
+ *   return session
+ * }
+ *
+ * function Header() {
+ *   const session = useGuardData<typeof guard>()
+ *   return <span>{session.user.name}</span>
+ * }
+ * ```
+ */
+export function useGuardData<TGuard = unknown>(): GuardDataReturn<TGuard> {
+    const ctx = useContext(RouterContext)
+    if (!ctx) throw new Error("useGuardData must be used within a route or layout")
+    return ctx.guardData as GuardDataReturn<TGuard>
+}
+
 interface PrefetchEntry {
     promise: Promise<{ pageMod: any; layoutMods: any[]; data: any } | null>
     controller: AbortController
@@ -70,6 +99,7 @@ interface RouterProviderProps {
     initialPage: ComponentType<PageProps>
     initialLayouts?: ComponentType<LayoutProps>[]
     initialLayoutsData?: unknown[]
+    initialGuardData?: unknown
     initialMeta?: Metadata | null
     initialViewport?: Viewport
     initialError?: ErrorProps
@@ -83,6 +113,7 @@ export function RouterProvider({
     initialPage,
     initialLayouts = [],
     initialLayoutsData = [],
+    initialGuardData = null,
     initialMeta,
     initialViewport,
     initialError,
@@ -95,6 +126,7 @@ export function RouterProvider({
         params: initialParams,
         loaderData: initialData,
         layoutsData: initialLayoutsData,
+        guardData: initialGuardData,
         Page: initialPage,
         layouts: initialLayouts,
         metadata: initialMeta ?? null,
@@ -177,7 +209,7 @@ export function RouterProvider({
 
             if (!dataRes.ok) {
                 const ct = dataRes.headers.get('Content-Type') ?? ''
-                let errorBody: { statusCode?: number; message?: string; data?: unknown } | null = null
+                let errorBody: { statusCode?: number; message?: string; code?: string; data?: unknown } | null = null
                 try {
                     if (ct.includes('application/json')) errorBody = await dataRes.json()
                     else if (ct.includes('text/plain')) errorBody = { message: await dataRes.text() }
@@ -193,6 +225,7 @@ export function RouterProvider({
                     pendingError: {
                         statusCode: errorBody?.statusCode ?? dataRes.status,
                         message: errorBody?.message ?? 'Server error',
+                        code: errorBody?.code,
                         data: errorBody?.data,
                         headers,
                     },
@@ -221,6 +254,7 @@ export function RouterProvider({
             params: data.params ?? {},
             loaderData: data.loaderData,
             layoutsData: (data.layouts ?? []).map((l: any) => l.loaderData),
+            guardData: data.guardData ?? null,
             Page: pageMod.default,
             layouts: layoutMods.map(m => m.default),
             metadata: data.metadata ?? null,
@@ -266,15 +300,31 @@ export function RouterProvider({
         }
     }, [loadRoute])
 
+    const revalidatingRef = useRef<AbortController | null>(null)
+
     const revalidate = useCallback(async () => {
-        const to = window.location.pathname + window.location.search
+        revalidatingRef.current?.abort()
         const controller = new AbortController()
-        const dataRes = await fetch(`/_data${to}`, {
-            headers: { Accept: 'application/json' },
-            signal: controller.signal,
-        })
+        revalidatingRef.current = controller
+
+        const to = window.location.pathname + window.location.search
+        let dataRes: Response
+        try {
+            dataRes = await fetch(`/_data${to}`, {
+                headers: { Accept: 'application/json' },
+                signal: controller.signal,
+            })
+        } catch (err) {
+            if ((err as Error).name === 'AbortError') return
+            throw err
+        }
+
+        if (controller.signal.aborted) return
         if (!dataRes.ok) return
+
         const data = await dataRes.json()
+        if (controller.signal.aborted) return
+
         if (data.redirect) {
             await navigate(data.redirect, { replace: data.redirectReplace })
             return
@@ -283,6 +333,7 @@ export function RouterProvider({
             ...prev,
             loaderData: data.loaderData,
             layoutsData: (data.layouts ?? []).map((l: any) => l.loaderData),
+            guardData: data.guardData ?? null,
             params: data.params ?? prev.params,
             metadata: data.metadata ?? prev.metadata,
             viewport: data.viewport ?? prev.viewport,

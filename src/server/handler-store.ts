@@ -21,14 +21,26 @@ function getStore(hookName: string): HandlerStore {
     return store
 }
 
+/**
+ * @deprecated Usa el `ctx` que recibe tu handler como segundo argumento:
+ * `createHandler(async (body, ctx) => ctx.request)`. Será eliminado en v0.6.
+ */
 export function useRequest(): Request {
     return getStore('useRequest').request
 }
 
+/**
+ * @deprecated Usa el `ctx` que recibe tu handler como segundo argumento.
+ * Será eliminado en v0.6.
+ */
 export function useCtx(): RouteContext {
     return getStore('useCtx').ctx
 }
 
+/**
+ * @deprecated Usa `ctx.params` desde el segundo argumento de tu handler.
+ * Será eliminado en v0.6.
+ */
 export function useParams(): Record<string, string> {
     return getStore('useParams').ctx.params
 }

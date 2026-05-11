@@ -27,6 +27,7 @@ export interface LayoutProps<TDataOrParams = unknown, TParams = Record<string, s
 export interface ErrorProps {
     statusCode: number
     message?: string
+    code?: string
     headers?: Record<string, string>
     data?: unknown
 }

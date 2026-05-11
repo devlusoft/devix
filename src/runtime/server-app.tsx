@@ -14,6 +14,7 @@ export interface ServerAppProps {
     params: Record<string, string>
     loaderData: unknown
     layoutsData: unknown[]
+    guardData: unknown
     Page: ComponentType<PageProps>
     layouts: ComponentType<LayoutProps>[]
     metadata: Metadata | null
@@ -22,7 +23,7 @@ export interface ServerAppProps {
 }
 
 export function ServerApp({
-    pathname, params, loaderData, layoutsData,
+    pathname, params, loaderData, layoutsData, guardData,
     Page, layouts, metadata, viewport, clientEntry,
 }: ServerAppProps) {
     let tree: ReactNode = (
@@ -49,6 +50,7 @@ export function ServerApp({
                 params,
                 loaderData,
                 layoutsData,
+                guardData,
                 Page,
                 layouts,
                 metadata,

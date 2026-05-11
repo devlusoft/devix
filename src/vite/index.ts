@@ -120,13 +120,15 @@ export function devix(config: DevixConfig): UserConfig {
             const root = process.cwd()
             const entries = scanApiFiles(appDir, root)
             writeRoutesDts(generateRoutesDts(entries, `${appDir}/api`), root)
-            scanAndWritePageTypes(appDir, root)
+            const {warnings} = scanAndWritePageTypes(appDir, root)
+            for (const w of warnings) console.warn(w)
         },
 
         configureServer(server) {
             const root = process.cwd()
 
-            scanAndWritePageTypes(appDir, root)
+            const initial = scanAndWritePageTypes(appDir, root)
+            for (const w of initial.warnings) console.warn(w)
 
             const regenerateDts = () => {
                 const entries = scanApiFiles(appDir, root)
@@ -150,9 +152,18 @@ export function devix(config: DevixConfig): UserConfig {
                 }
             })
 
+            const writePageTypesAndLog = (file: string) => {
+                try {
+                    const {warnings} = writePageTypes(pageRelPath(file), root)
+                    for (const w of warnings) console.warn(w)
+                } catch {
+                    /* ignorar archivos no procesables */
+                }
+            }
+
             server.watcher.on('add', (file) => {
                 if (file.startsWith(resolve(root, pagesDir))) invalidateVirtualModule(VIRTUAL_RENDER)
-                if (isPageFile(file)) writePageTypes(pageRelPath(file), root)
+                if (isPageFile(file)) writePageTypesAndLog(file)
                 if (file.includes(`${appDir}/api`)) {
                     invalidateVirtualModule(VIRTUAL_API)
                     regenerateDts()
@@ -167,7 +178,7 @@ export function devix(config: DevixConfig): UserConfig {
                 }
             })
             server.watcher.on('change', (file) => {
-                if (isPageFile(file)) writePageTypes(pageRelPath(file), root)
+                if (isPageFile(file)) writePageTypesAndLog(file)
                 if (file.includes(`${appDir}/api`) && !file.endsWith('middleware.ts')) {
                     regenerateDts()
                 }

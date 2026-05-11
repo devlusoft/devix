@@ -5,6 +5,9 @@ import type {ApiGlob} from './types'
 import {DevixError} from '../runtime/error-boundary'
 import {HANDLER_BRAND, type DevixHandler} from '../runtime/create-handler'
 import {withHandlerStore} from './handler-store'
+import {error, errorToBody, isLoaderError} from '../utils/response'
+import type {ServerBackendConfig} from '../config'
+import {makeBoundServer} from './server-bound'
 
 let apiCache: ApiResult | null = null
 let apiCacheKey: string | null = null
@@ -22,8 +25,16 @@ async function parseBody(request: Request): Promise<unknown> {
     return request.text()
 }
 
+function jsonResponse(body: unknown, status: number): Response {
+    return new Response(JSON.stringify(body), {
+        status,
+        headers: {'Content-Type': 'application/json'},
+    })
+}
+
 function resultToResponse(result: RouteResult): Response {
     if (result instanceof Response) return result
+    if (isLoaderError(result)) return jsonResponse(errorToBody(result), result.statusCode)
     if (result == null) return new Response(null, {status: 204})
     return new Response(JSON.stringify(result), {
         headers: {'Content-Type': 'application/json'},
@@ -34,6 +45,7 @@ export async function handleApiRequest(
     url: string,
     request: Request,
     glob: ApiGlob,
+    serverConfig?: Record<string, ServerBackendConfig>,
 ): Promise<Response> {
     try {
         const {pathname} = new URL(url, 'http://localhost')
@@ -52,14 +64,15 @@ export async function handleApiRequest(
         if (!matched) return new Response('Not Found', {status: 404})
 
         const {route, params} = matched
-        const ctx = new RouteContext(params)
+        const $server = makeBoundServer(request, serverConfig)
+        const ctx = new RouteContext(params, request, new URL(url, 'http://localhost'), $server)
 
         const result = await withHandlerStore({request, ctx}, async () => {
             const middlewareChain = collectMiddlewareChain(route.key, middlewares)
             for (const mw of middlewareChain) {
                 const mod = await glob.middlewares[mw.key]() as MiddlewareModule
                 if (mod.middleware) {
-                    const mwResult = await mod.middleware(ctx, request)
+                    const mwResult = await mod.middleware(ctx)
                     if (mwResult instanceof Response) return mwResult
                 }
             }
@@ -74,19 +87,29 @@ export async function handleApiRequest(
                 if (handler.fn.length === 0) {
                     return handler.fn() as Promise<RouteResult>
                 }
-                const body = await parseBody(request)
-                return handler.fn(body) as Promise<RouteResult>
+                const rawBody = await parseBody(request)
+                if (handler.schema) {
+                    const result = await handler.schema['~standard'].validate(rawBody)
+                    if (result.issues) {
+                        return error(400, 'Validation failed', {
+                            code: 'VALIDATION_ERROR',
+                            data: {issues: result.issues},
+                        })
+                    }
+                    return handler.fn(result.value, ctx) as Promise<RouteResult>
+                }
+                return handler.fn(rawBody, ctx) as Promise<RouteResult>
             }
 
-            return handler(ctx, request)
+            return handler(ctx)
         })
 
         return resultToResponse(result)
     } catch (err) {
-        console.error('[devix] api error:', err)
         if (err instanceof DevixError) {
-            return new Response(err.message, {status: err.statusCode})
+            return jsonResponse(errorToBody(err), err.statusCode)
         }
-        return new Response('Internal Server Error', {status: 500})
+        console.error('[devix] api error:', err)
+        return jsonResponse({statusCode: 500, message: 'Internal Server Error'}, 500)
     }
 }

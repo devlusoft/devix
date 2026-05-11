@@ -1,11 +1,24 @@
 import type {DevixHandler} from './create-handler'
+import type {RouteError} from '../utils/response'
+import type {BackendClient} from './server-client'
 
 export class RouteContext {
     readonly params: Record<string, string>
+    readonly request: Request
+    readonly url: URL
+    readonly $server: Record<string, BackendClient<string>>
     private _state = new Map<string, unknown>()
 
-    constructor(params: Record<string, string> = {}) {
+    constructor(
+        params: Record<string, string>,
+        request: Request,
+        url: URL,
+        $server: Record<string, BackendClient<string>> = {},
+    ) {
         this.params = params
+        this.request = request
+        this.url = url
+        this.$server = $server
     }
 
     set<T>(key: string, value: T): void {
@@ -17,12 +30,12 @@ export class RouteContext {
     }
 }
 
-export type RouteResult = Response | Record<string, unknown> | unknown[] | null | void
+export type RouteResult = Response | RouteError | Record<string, unknown> | unknown[] | null | void
 
-export type RouteHandler = (ctx: RouteContext, req: Request) => Promise<RouteResult> | RouteResult
+export type RouteHandler = (ctx: RouteContext) => Promise<RouteResult> | RouteResult
 
 export interface MiddlewareModule {
-    middleware: (ctx: RouteContext, req: Request) => Promise<Response | null> | Response | null
+    middleware: (ctx: RouteContext) => Promise<Response | null> | Response | null
 }
 
 type AnyHandler = RouteHandler | DevixHandler<any, any>

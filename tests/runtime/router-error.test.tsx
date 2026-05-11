@@ -46,12 +46,15 @@ function makeMatch(Page = TestPage) {
 
 let container: HTMLDivElement
 let root: Root
+let originalLocation: Location
 
 beforeEach(() => {
     container = document.createElement('div')
     document.body.appendChild(container)
     capturedNavigate = null
     capturedErrorProps = null
+    originalLocation = window.location
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
 
     vi.mocked(getDefaultErrorPage).mockReturnValue(MockErrorPage as any)
     vi.mocked(loadErrorPage).mockResolvedValue(null)
@@ -66,6 +69,14 @@ afterEach(() => {
     vi.mocked(matchClientRoute).mockReturnValue(null)
     vi.mocked(getDefaultErrorPage).mockReturnValue(null as any)
     vi.mocked(loadErrorPage).mockResolvedValue(null)
+
+    if (window.location !== originalLocation) {
+        Object.defineProperty(window, 'location', {
+            value: originalLocation,
+            writable: true,
+            configurable: true,
+        })
+    }
 })
 
 async function renderProvider(Page = TestPage) {
@@ -163,12 +174,25 @@ describe('404 ya no hace full page reload', () => {
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeErrorResponse(404, 'Not found')))
 
         const hrefSpy = vi.fn()
+        const snapshot = {
+            href: originalLocation.href,
+            origin: originalLocation.origin,
+            pathname: originalLocation.pathname,
+            search: originalLocation.search,
+            hash: originalLocation.hash,
+            host: originalLocation.host,
+            hostname: originalLocation.hostname,
+            port: originalLocation.port,
+            protocol: originalLocation.protocol,
+        }
         Object.defineProperty(window, 'location', {
             value: {
-                ...window.location,
-                set href(v: string) {
-                    hrefSpy(v)
-                },
+                ...snapshot,
+                get href() { return snapshot.href },
+                set href(v: string) { hrefSpy(v) },
+                assign: vi.fn(),
+                replace: vi.fn(),
+                reload: vi.fn(),
             },
             writable: true,
             configurable: true,

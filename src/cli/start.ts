@@ -7,6 +7,7 @@ import type { Manifest } from 'vite'
 import { registerApiRoutes, registerSsrRoute } from '../server/routes'
 import { loadDotenv } from '../utils/env'
 import {pathToFileURL} from "node:url"
+import {loadConfig} from "../utils/load-config"
 
 loadDotenv('production')
 
@@ -64,7 +65,8 @@ app.use('/*', serveStatic({
 if (runtimeConfig!.output === 'static') {
     console.log('[devix] Static mode — serving pre-generated files from dist/client')
 } else {
-    registerApiRoutes(app, { renderModule, apiModule, manifest })
+    const userConfig = await loadConfig(process.cwd()).catch(() => null)
+    registerApiRoutes(app, { renderModule, apiModule, manifest, server: userConfig?.server })
     registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig!.loaderTimeout })
 }
 

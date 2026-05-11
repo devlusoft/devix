@@ -35,10 +35,20 @@ export class DevixErrorBoundary extends Component<Props, State> {
     }
 }
 
+export interface DevixErrorOptions {
+    code?: string
+    data?: unknown
+}
+
 export class DevixError extends Error {
     statusCode: number
-    constructor(statusCode: number, message: string) {
+    code?: string
+    data?: unknown
+    constructor(statusCode: number, message: string, options?: DevixErrorOptions) {
         super(message)
+        this.name = 'DevixError'
         this.statusCode = statusCode
+        this.code = options?.code
+        this.data = options?.data
     }
 }

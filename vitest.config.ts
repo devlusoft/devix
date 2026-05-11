@@ -9,6 +9,7 @@ export default defineConfig({
         alias: {
             'virtual:devix/context': resolve(__dirname, 'tests/__mocks__/virtual-context.ts'),
             'virtual:devix/client-routes': resolve(__dirname, 'tests/__mocks__/virtual-client-routes.ts'),
+            '@devlusoft/devix': resolve(__dirname, 'src/runtime/index.ts'),
         },
     }
 })

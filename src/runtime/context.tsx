@@ -12,6 +12,7 @@ export interface RouterContextValue {
     params: Record<string, string>
     loaderData: unknown
     layoutsData: unknown[]
+    guardData: unknown
     Page: ComponentType<PageProps>
     layouts: ComponentType<LayoutProps>[]
     metadata: Metadata | null

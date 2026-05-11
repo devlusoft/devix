@@ -68,9 +68,17 @@ import { readFileSync } from 'node:fs'
                   
   if (runtimeConfig.output === 'static') {
       console.log('[devix] Static mode — serving pre-generated files from dist/client')
-  } else {                                                                                                    
-      registerApiRoutes(app, { renderModule, apiModule, manifest })
-      registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig.loaderTimeout })
+  } else {
+      let userServerConfig
+      try {
+          const userConfigMod = await import(pathToFileURL(resolve(process.cwd(), 'devix.config.ts')).href).catch(() =>
+              import(pathToFileURL(resolve(process.cwd(), 'devix.config.js')).href))
+          userServerConfig = userConfigMod?.default?.server
+      } catch {
+          /* config sin server — sigue normal */
+      }
+      registerApiRoutes(app, { renderModule, apiModule, manifest, server: userServerConfig })
+      registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig.loaderTimeout, server: userServerConfig })
   }                                                                                                           
    
   const server = serve({ fetch: app.fetch, port, hostname: host }, (info) =>                                  

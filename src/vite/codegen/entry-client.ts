@@ -22,11 +22,12 @@ if (!window.__DEVIX__) {
     const {metadata, viewport, clientEntry} = window.__DEVIX__
     const loaderData = window.__LOADER_DATA__
     const layoutsData = window.__LAYOUTS_DATA__ ?? []
+    const guardData = window.__GUARD_DATA__ ?? null
 
     const matched = matchClientRoute(window.location.pathname)
 
     if (window.__LOADER_ERROR__) {
-        const {statusCode, message, data} = window.__LOADER_ERROR__
+        const {statusCode, message, code, data} = window.__LOADER_ERROR__
         const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
         createRoot(root).render(
             React.createElement(RouterProvider, {
@@ -34,7 +35,7 @@ if (!window.__DEVIX__) {
                 initialData: null,
                 initialParams: {},
                 initialPage: () => null,
-                initialError: {statusCode, message, data},
+                initialError: {statusCode, message, code, data},
                 initialErrorPage: ErrorPage,
             })
         )
@@ -52,6 +53,7 @@ if (!window.__DEVIX__) {
                 initialPage: pageMod.default,
                 initialLayouts: layoutMods.map(m => m.default),
                 initialLayoutsData: layoutsData,
+                initialGuardData: guardData,
                 initialMeta: metadata,
                 initialViewport: viewport,
             })

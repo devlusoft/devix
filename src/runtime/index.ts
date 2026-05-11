@@ -1,4 +1,4 @@
-export {useRouter, useNavigate, useRevalidate, useParams, useLoaderData, RouterProvider} from "./router-provider"
+export {useRouter, useNavigate, useRevalidate, useParams, useLoaderData, useGuardData, RouterProvider} from "./router-provider"
 
 export {Link} from "./link"
 
@@ -9,11 +9,15 @@ export type { RouteHandler, RouteResult, MiddlewareModule } from './api-context'
 export {getCookie, setCookie, deleteCookie} from '../utils/cookies'
 export type {CookieOptions} from '../utils/cookies'
 export {json, text, redirect, error} from '../utils/response'
-export type {JsonResponse, Redirect, RedirectOptions, RouteError} from '../utils/response'
+export type {JsonResponse, Redirect, RedirectOptions, RouteError, ErrorOptions, ErrorBody} from '../utils/response'
 export {createHandler} from './create-handler'
 export type {DevixHandler} from './create-handler'
+export type {StandardSchemaV1} from '../utils/standard-schema'
 export {FetchError} from './fetch'
+export {$server} from './server-client'
+export type {BackendRoutes, BackendClient, ServerFetchOptions} from './server-client'
 export {DevixError} from './error-boundary'
+export type {DevixErrorOptions} from './error-boundary'
 export type {HttpMethod} from './fetch'
 
 import {FetchError, type HttpMethod} from './fetch'
@@ -63,13 +67,18 @@ export async function $fetch<P extends ApiPath = ApiPath, M extends HttpMethod =
 
     const response = await fetch(path, {method, headers, body, signal: options?.signal})
 
+    const isEmptyBody = response.status === 204 || response.headers.get('Content-Length') === '0'
+
     if (!response.ok) {
         const contentType = response.headers.get('Content-Type') ?? ''
-        const errorBody = contentType.includes('application/json')
-            ? await response.json()
-            : undefined
+        let errorBody: unknown
+        if (!isEmptyBody && contentType.includes('application/json')) {
+            try { errorBody = await response.json() } catch { /* body vacío o inválido */ }
+        }
         throw new FetchError(response.status, response.statusText, response, errorBody)
     }
+
+    if (isEmptyBody) return null as InferResult<M, P>
 
     const contentType = response.headers.get('Content-Type') ?? ''
     if (contentType.includes('application/json')) {

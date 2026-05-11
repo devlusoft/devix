@@ -45,13 +45,54 @@ export interface RouteError {
     readonly [ERROR_BRAND]: true
     readonly statusCode: number
     readonly message: string
+    readonly code?: string
     readonly data?: unknown
 }
 
-export function error(statusCode: number, message: string, data?: unknown): RouteError {
-    return { [ERROR_BRAND]: true, statusCode, message, data } as RouteError
+export interface ErrorOptions {
+    code?: string
+    data?: unknown
+}
+
+/**
+ * Crea un error tipado que funciona en loaders, guards y handlers API.
+ *
+ * En loaders/guards: retórnalo (no lo lances) y el sistema renderiza `error.tsx`.
+ * En handlers API: retórnalo y el sistema serializa el shape `ErrorBody` como JSON
+ * con el statusCode correcto.
+ *
+ * ```ts
+ * return error(404, 'Post no encontrado', { code: 'POST_NOT_FOUND' })
+ * ```
+ */
+export function error(statusCode: number, message: string, options?: ErrorOptions): RouteError {
+    return {
+        [ERROR_BRAND]: true,
+        statusCode,
+        message,
+        code: options?.code,
+        data: options?.data,
+    } as RouteError
 }
 
 export function isLoaderError(value: unknown): value is RouteError {
     return typeof value === 'object' && value !== null && ERROR_BRAND in value
+}
+
+/**
+ * Shape público del body de un error API. Todos los errores emitidos por `error()`
+ * o `DevixError` se serializan a este shape. `FetchError.body` del cliente lo recibe.
+ */
+export interface ErrorBody {
+    statusCode: number
+    message: string
+    code?: string
+    data?: unknown
+}
+
+export function errorToBody(err: { statusCode: number; message: string; code?: string; data?: unknown }): ErrorBody {
+    const body: ErrorBody = { statusCode: err.statusCode, message: err.message }
+    if (err.code !== undefined) body.code = err.code
+    if (err.data !== undefined) body.data = err.data
+    return body
 }

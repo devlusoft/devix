@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { hasLoaderExport, generatePageTypesDts, writePageTypes, deletePageTypes } from '../../src/vite/codegen/page-types'
+import { hasLoaderExport, inspectLoaderExport, generatePageTypesDts, writePageTypes, deletePageTypes } from '../../src/vite/codegen/page-types'
 import { mkdirSync, writeFileSync, existsSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -38,6 +38,50 @@ describe('hasLoaderExport', () => {
 
     it('no confunde export default con loader', () => {
         expect(hasLoaderExport(`export default async function loader() {}`, FILE)).toBe(false)
+    })
+})
+
+describe('inspectLoaderExport', () => {
+    it('function declaration sync', () => {
+        expect(inspectLoaderExport(`export function loader() {}`, FILE)).toEqual({
+            exists: true, isAsync: false, isReExport: false,
+        })
+    })
+
+    it('function declaration async', () => {
+        expect(inspectLoaderExport(`export async function loader() {}`, FILE)).toEqual({
+            exists: true, isAsync: true, isReExport: false,
+        })
+    })
+
+    it('arrow function async', () => {
+        expect(inspectLoaderExport(`export const loader = async () => ({})`, FILE)).toEqual({
+            exists: true, isAsync: true, isReExport: false,
+        })
+    })
+
+    it('arrow function sync', () => {
+        expect(inspectLoaderExport(`export const loader = () => ({})`, FILE)).toEqual({
+            exists: true, isAsync: false, isReExport: false,
+        })
+    })
+
+    it('function expression async', () => {
+        expect(inspectLoaderExport(`export const loader = async function () { return {} }`, FILE)).toEqual({
+            exists: true, isAsync: true, isReExport: false,
+        })
+    })
+
+    it('re-export marca isReExport y no afirma async', () => {
+        expect(inspectLoaderExport(`export { loader } from './other'`, FILE)).toEqual({
+            exists: true, isAsync: false, isReExport: true,
+        })
+    })
+
+    it('sin loader', () => {
+        expect(inspectLoaderExport(`export default function Page() { return null }`, FILE)).toEqual({
+            exists: false, isAsync: false, isReExport: false,
+        })
     })
 })
 
@@ -162,5 +206,34 @@ describe('writePageTypes / deletePageTypes', () => {
 
     it('deletePageTypes no falla si el archivo no existe', () => {
         expect(() => deletePageTypes('app/pages/nonexistent.tsx', root)).not.toThrow()
+    })
+
+    it('emite warning cuando el loader no es async', () => {
+        const pageRelPath = 'app/pages/sync.tsx'
+        mkdirSync(join(root, 'app/pages'), { recursive: true })
+        writeFileSync(join(root, pageRelPath), `export function loader() { return {} }\nexport default function P() { return null }`)
+
+        const { warnings } = writePageTypes(pageRelPath, root)
+        expect(warnings).toHaveLength(1)
+        expect(warnings[0]).toContain(pageRelPath)
+        expect(warnings[0]).toContain("'loader' must be async")
+    })
+
+    it('no emite warning cuando el loader es async', () => {
+        const pageRelPath = 'app/pages/ok.tsx'
+        mkdirSync(join(root, 'app/pages'), { recursive: true })
+        writeFileSync(join(root, pageRelPath), `export const loader = async () => ({})\nexport default function P() { return null }`)
+
+        const { warnings } = writePageTypes(pageRelPath, root)
+        expect(warnings).toHaveLength(0)
+    })
+
+    it('no emite warning para re-export (no podemos inspeccionar el módulo origen)', () => {
+        const pageRelPath = 'app/pages/reexport.tsx'
+        mkdirSync(join(root, 'app/pages'), { recursive: true })
+        writeFileSync(join(root, pageRelPath), `export { loader } from './other'\nexport default function P() { return null }`)
+
+        const { warnings } = writePageTypes(pageRelPath, root)
+        expect(warnings).toHaveLength(0)
     })
 })

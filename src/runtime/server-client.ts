@@ -1,4 +1,5 @@
 import {FetchError, type HttpMethod} from './fetch'
+import type {ServerNamespaces} from './index'
 
 export interface ServerFetchOptions {
     headers?: HeadersInit
@@ -66,6 +67,9 @@ export interface BackendClient {
     patch<TResponse = unknown>(path: string, body?: unknown, options?: ServerFetchOptions): Promise<TResponse>
     delete<TResponse = unknown>(path: string, options?: ServerFetchOptions): Promise<TResponse>
 }
+export type ServerClient = {
+    [K in keyof ServerNamespaces]: BackendClient
+}
 
 function makeBackendClient(namespace: string): BackendClient {
     return {
@@ -91,10 +95,10 @@ function makeBackendClient(namespace: string): BackendClient {
  * const post = await $server.api.post<Post>('/v1/posts', { title: 'Hola' })
  * ```
  */
-export const $server: Record<string, BackendClient> = new Proxy({} as Record<string, BackendClient>, {
+export const $server: ServerClient = new Proxy({} as Record<string, BackendClient>, {
     get(target, namespace: string) {
         if (typeof namespace !== 'string') return undefined
         if (!target[namespace]) target[namespace] = makeBackendClient(namespace)
         return target[namespace]
     },
-})
+}) as ServerClient

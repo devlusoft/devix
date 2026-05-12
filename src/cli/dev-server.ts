@@ -7,15 +7,12 @@ import { registerApiRoutes } from '../server/routes'
 import { printDevBanner } from "../utils/banner"
 import { collectCss } from "../server/collect-css"
 import { parseDuration } from "../utils/duration"
-import { loadDotenv } from "../utils/env"
 import {loadConfig} from "../utils/load-config";
-
-loadDotenv('development')
 
 const VIRTUAL_RENDER = 'virtual:devix/render'
 const VIRTUAL_API = 'virtual:devix/api'
 
-const config = await loadConfig(process.cwd())
+const config = await loadConfig(process.cwd(), 'development')
 const port = Number(process.env.PORT) || config.port || 3000
 const host = typeof config.host === 'string' ? config.host : config.host ? '0.0.0.0' : 'localhost'
 

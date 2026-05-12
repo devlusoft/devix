@@ -5,7 +5,7 @@ import {devix} from '../vite'
 import {parseDuration} from '../utils/duration'
 import {loadConfig} from "../utils/load-config";
 
-const config = await loadConfig(process.cwd())
+const config = await loadConfig(process.cwd(), process.env.NODE_ENV ?? 'production')
 const baseConfig = devix(config)
 
 await build({

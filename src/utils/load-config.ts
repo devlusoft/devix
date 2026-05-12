@@ -3,8 +3,14 @@ import type {DevixConfig} from "../config"
 import {join} from "node:path"
 import {unlinkSync, writeFileSync} from "node:fs";
 import {pathToFileURL} from "node:url";
+import {loadDotenv} from "./env"
 
-export async function loadConfig(cwd: string): Promise<DevixConfig> {
+export async function loadConfig(
+    cwd: string,
+    mode: string = process.env.NODE_ENV ?? 'development',
+): Promise<DevixConfig> {
+    loadDotenv(mode)
+
     const result = await build({
         entryPoints: [join(cwd, 'devix.config.ts')],
         bundle: true,

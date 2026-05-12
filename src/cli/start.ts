@@ -5,11 +5,8 @@ import { Hono, type Context } from 'hono'
 import { resolve, join } from 'node:path'
 import type { Manifest } from 'vite'
 import { registerApiRoutes, registerSsrRoute } from '../server/routes'
-import { loadDotenv } from '../utils/env'
 import {pathToFileURL} from "node:url"
 import {loadConfig} from "../utils/load-config"
-
-loadDotenv('production')
 
 let renderModule: any
 let apiModule: any
@@ -65,7 +62,7 @@ app.use('/*', serveStatic({
 if (runtimeConfig!.output === 'static') {
     console.log('[devix] Static mode — serving pre-generated files from dist/client')
 } else {
-    const userConfig = await loadConfig(process.cwd()).catch(() => null)
+    const userConfig = await loadConfig(process.cwd(), 'production').catch(() => null)
     registerApiRoutes(app, { renderModule, apiModule, manifest, server: userConfig?.server })
     registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig!.loaderTimeout })
 }

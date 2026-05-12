@@ -23,6 +23,7 @@ export type {HttpMethod} from './fetch'
 import {FetchError, type HttpMethod} from './fetch'
 
 export interface ApiRoutes {}
+export interface ServerNamespaces {}
 
 type ApiKey<M extends HttpMethod, P extends string> = `${M} ${P}`
 type MatchingKey<M extends HttpMethod, P extends string> = {

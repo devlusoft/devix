@@ -4,7 +4,7 @@ import type {Manifest} from 'vite'
 import { pathToFileURL } from "node:url"
 import {loadConfig} from "../utils/load-config";
 
-const userConfig = await loadConfig(process.cwd())
+const userConfig = await loadConfig(process.cwd(), process.env.NODE_ENV ?? 'production')
 if (userConfig.output !== 'static') {
     console.warn('[devix] Tip: set output: "static" in devix.config.ts to skip the SSR server at runtime.')
 }

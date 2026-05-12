@@ -67,7 +67,7 @@
     "picocolors": "1.1.1",
     "oxc-parser": "0.121.0"
   },
-  "packageManager": "pnpm@10.31.0",
+  "packageManager": "pnpm@11.1.1",
   "pnpm": {
     "overrides": {
       "picomatch": ">=4.0.4"

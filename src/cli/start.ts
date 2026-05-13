@@ -64,7 +64,7 @@ if (runtimeConfig!.output === 'static') {
 } else {
     const userConfig = await loadConfig(process.cwd(), 'production').catch(() => null)
     registerApiRoutes(app, { renderModule, apiModule, manifest, server: userConfig?.server })
-    registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig!.loaderTimeout })
+    registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig!.loaderTimeout, server: userConfig?.server })
 }
 
 serve({ fetch: app.fetch, port, hostname: host }, (info: {address: string; port: number}) => console.log(`http://${info.address}:${info.port}`))

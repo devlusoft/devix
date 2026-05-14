@@ -6,14 +6,14 @@ export function generateServerDts(server: DevixConfig['server']): string {
     const namespaces = server ? Object.keys(server) : []
 
     if (namespaces.length === 0) {
-        return `// auto-generado por devix — no editar\nexport {}\ndeclare module '@devlusoft/devix' {\n  interface ServerNamespaces {}\n}\n`
+        return `// auto-generado por devix — no editar\nexport {}\ndeclare module '@devlusoft/devix' {\n  export interface ServerNamespaces {}\n}\n`
     }
 
     const lines = namespaces.map(ns => `    ${ns}: true`).join('\n')
     return `// auto-generado por devix — no editar
 export {}
 declare module '@devlusoft/devix' {
-  interface ServerNamespaces {
+  export interface ServerNamespaces {
 ${lines}
   }
 }

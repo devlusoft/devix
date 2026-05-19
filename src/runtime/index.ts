@@ -1,4 +1,4 @@
-export {useRouter, useNavigate, useRevalidate, useParams, useLoaderData, useGuardData, RouterProvider} from "./router-provider"
+export {useRouter, useNavigate, useRevalidate, useParams, useLoaderData, useGuardData, RouterProvider, Await, useDeferred} from "./router-provider"
 
 export {Link} from "./link"
 
@@ -8,7 +8,7 @@ export type { PageProps, LayoutProps, PageModule, LayoutModule, ErrorProps } fro
 export type { RouteHandler, RouteResult, MiddlewareModule } from './api-context'
 export {getCookie, setCookie, deleteCookie} from '../utils/cookies'
 export type {CookieOptions} from '../utils/cookies'
-export {json, text, redirect, error} from '../utils/response'
+export {json, text, redirect, error, defer} from '../utils/response'
 export type {JsonResponse, Redirect, RedirectOptions, RouteError, ErrorOptions, ErrorBody} from '../utils/response'
 export {createHandler} from './create-handler'
 export type {DevixHandler} from './create-handler'
@@ -17,6 +17,9 @@ export {FetchError} from './fetch'
 export {$server} from './server-client'
 export type {BackendClient, ServerFetchOptions} from './server-client'
 export {DevixError} from './error-boundary'
+export { decode as decodeTurbo } from 'turbo-stream'
+export { decodeResponse } from '../utils/turbo-serializer'
+export {actions} from './actions-client'
 export type {DevixErrorOptions} from './error-boundary'
 export type {HttpMethod} from './fetch'
 
@@ -24,6 +27,7 @@ import {FetchError, type HttpMethod} from './fetch'
 
 export interface ApiRoutes {}
 export interface ServerNamespaces {}
+export interface Actions {}
 
 type ApiKey<M extends HttpMethod, P extends string> = `${M} ${P}`
 type MatchingKey<M extends HttpMethod, P extends string> = {

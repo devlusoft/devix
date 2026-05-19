@@ -11,7 +11,7 @@ import "@vitejs/plugin-react/preamble"
 import React from "react"
 import {hydrateRoot, createRoot} from 'react-dom/client'
 import {matchClientRoute, loadErrorPage, getDefaultErrorPage} from 'virtual:devix/client-routes'
-import {RouterProvider} from '@devlusoft/devix'
+import {RouterProvider, decodeTurbo, decodeResponse} from '@devlusoft/devix'
 
 const root = document.getElementById('devix-root')
 
@@ -20,9 +20,30 @@ if (!window.__DEVIX__) {
     createRoot(root).render(React.createElement(ErrorPage, {statusCode: 500, message: 'Server error'}))
 } else {
     const {metadata, viewport, clientEntry} = window.__DEVIX__
-    const loaderData = window.__LOADER_DATA__
-    const layoutsData = window.__LAYOUTS_DATA__ ?? []
-    const guardData = window.__GUARD_DATA__ ?? null
+    let loaderData, layoutsData = [], guardData = null
+
+    if (window.__DEVIX_TURBO__) {
+        const value = await decodeTurbo(new ReadableStream({
+            start(controller) {
+                controller.enqueue(atob(window.__DEVIX_TURBO__))
+                controller.close()
+            }
+        }))
+        loaderData = value.LOADER_DATA
+        layoutsData = value.LAYOUTS_DATA ?? []
+        guardData = value.GUARD_DATA ?? null
+    }
+
+    const deferredKeys = window.__DEVIX_DEFERRED__ ?? []
+    const deferredResolvers = {}
+    const deferredPromises = {}
+    for (const key of deferredKeys) {
+        deferredPromises[key] = new Promise(r => { deferredResolvers[key] = r })
+    }
+
+    if (loaderData && typeof loaderData === 'object' && deferredKeys.length > 0) {
+        loaderData = Object.assign({}, loaderData, deferredPromises)
+    }
 
     const matched = matchClientRoute(window.location.pathname)
 
@@ -64,6 +85,21 @@ if (!window.__DEVIX__) {
                 initialViewport: viewport,
             })
         )
+
+        if (deferredKeys.length > 0) {
+            fetch('/_devix/data' + window.location.pathname)
+                .then(async res => {
+                    if (!res.ok) return
+                    const data = await decodeResponse(res)
+                    for (const key of deferredKeys) {
+                        if (key in data.loaderData) {
+                            const value = await data.loaderData[key]
+                            deferredResolvers[key](value)
+                        }
+                    }
+                })
+                .catch(() => {})
+        }
 
         if (window.location.hash) {                                                                                 
             const id = window.location.hash.slice(1)                                                                

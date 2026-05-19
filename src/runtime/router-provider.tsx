@@ -1,13 +1,14 @@
-import { ComponentType, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { ErrorProps, LayoutProps, PageProps } from "../server/types";
-import { Metadata, Viewport } from "../types";
+import {ComponentType, ReactNode, Suspense, useCallback, useContext, useEffect, useRef, useState} from "react";
+import {ErrorProps, LayoutProps, PageProps} from "../server/types";
+import {Metadata, Viewport} from "../types";
 
-const DEFAULT_VIEWPORT: Viewport = { width: 'device-width', initialScale: 1 }
-import { HeadSlot } from "./head";
-import { NavigateOptions, PageMetaContext, RouteDataContext, RouterContext } from "./context";
-import { DevixErrorBoundary } from "./error-boundary";
-import { resolveTo } from "./url";
-import type { Redirect } from "../utils/response";
+const DEFAULT_VIEWPORT: Viewport = {width: 'device-width', initialScale: 1}
+import {HeadSlot} from "./head";
+import {NavigateOptions, PageMetaContext, RouteDataContext, RouterContext} from "./context";
+import {DevixErrorBoundary} from "./error-boundary";
+import {resolveTo} from "./url";
+import type {Redirect} from "../utils/response";
+import {decodeResponse} from "../utils/turbo-serializer";
 
 export interface ClientRouteMatcher {
     matchClientRoute: (pathname: string) => {
@@ -59,8 +60,8 @@ export function useParams<T extends Record<string, string>>() {
 type LoaderReturnType<T> = T extends (...args: any[]) => Promise<infer R>
     ? [Exclude<R, Redirect | void | undefined>] extends [never] ? undefined : Exclude<R, Redirect | void | undefined>
     : T extends (...args: any[]) => infer R
-    ? [Exclude<R, Redirect | void | undefined>] extends [never] ? undefined : Exclude<R, Redirect | void | undefined>
-    : T
+        ? [Exclude<R, Redirect | void | undefined>] extends [never] ? undefined : Exclude<R, Redirect | void | undefined>
+        : T
 
 export function useLoaderData<T>() {
     const ctx = useContext(RouteDataContext)
@@ -70,8 +71,11 @@ export function useLoaderData<T>() {
 
 type GuardDataReturn<TGuard> =
     TGuard extends (...args: any[]) => infer R
-    ? Exclude<Awaited<R>, string | Redirect | null | undefined | { readonly statusCode: number; readonly message: string }>
-    : unknown
+        ? Exclude<Awaited<R>, string | Redirect | null | undefined | {
+            readonly statusCode: number;
+            readonly message: string
+        }>
+        : unknown
 
 /**
  * Devuelve el `guardData` resuelto en el último guard que retornó un objeto
@@ -96,6 +100,26 @@ export function useGuardData<TGuard = unknown>(): GuardDataReturn<TGuard> {
     return ctx.guardData as GuardDataReturn<TGuard>
 }
 
+export function useDeferred<T>(value: T | Promise<T>): T | undefined {
+    const [state, setState] = useState<T | undefined>(
+        () => value instanceof Promise ? undefined : value
+    )
+
+    useEffect(() => {
+        if (value instanceof Promise) {
+            let cancelled = false
+            value.then(v => {
+                if (!cancelled) setState(v)
+            })
+            return () => {
+                cancelled = true
+            }
+        }
+    }, [value])
+
+    return state
+}
+
 interface PrefetchEntry {
     promise: Promise<{ pageMod: any; layoutMods: any[]; data: any } | null>
     controller: AbortController
@@ -116,21 +140,21 @@ interface RouterProviderProps extends ClientRouteMatcher {
 }
 
 export function RouterProvider({
-    initialData,
-    initialParams,
-    initialPage,
-    initialLayouts = [],
-    initialLayoutsData = [],
-    initialGuardData = null,
-    initialMeta,
-    initialViewport,
-    initialError,
-    initialErrorPage,
-    clientEntry,
-    matchClientRoute,
-    loadErrorPage,
-    getDefaultErrorPage,
-}: RouterProviderProps) {
+                                   initialData,
+                                   initialParams,
+                                   initialPage,
+                                   initialLayouts = [],
+                                   initialLayoutsData = [],
+                                   initialGuardData = null,
+                                   initialMeta,
+                                   initialViewport,
+                                   initialError,
+                                   initialErrorPage,
+                                   clientEntry,
+                                   matchClientRoute,
+                                   loadErrorPage,
+                                   getDefaultErrorPage,
+                               }: RouterProviderProps) {
 
     const [state, setState] = useState<RouteState>({
         pathname: window.location.pathname,
@@ -163,11 +187,11 @@ export function RouterProvider({
         const controller = new AbortController()
         const promise = Promise.all([
             Promise.all([matched.load(), ...matched.loadLayouts.map(l => l())]),
-            fetch(`/_data${key}`, { headers: { Accept: 'application/json' }, signal: controller.signal })
+            fetch(`/_devix/data${key}`, {signal: controller.signal})
         ]).then(async ([[pageMod, ...layoutMods], dataRes]) => {
             if (!dataRes.ok || !pageMod.default) return null
-            const data = await dataRes.json()
-            return { pageMod, layoutMods, data }
+            const data = await decodeResponse(dataRes)
+            return {pageMod, layoutMods, data}
         }).catch(() => null)
 
         const expireTimer = setTimeout(() => {
@@ -176,7 +200,7 @@ export function RouterProvider({
         }, 3000)
         promise.finally(() => clearTimeout(expireTimer))
 
-        prefetchCacheRef.current.set(key, { promise, controller })
+        prefetchCacheRef.current.set(key, {promise, controller})
     }, [])
 
     const loadRoute = useCallback(async (to: string, controller: AbortController) => {
@@ -187,7 +211,7 @@ export function RouterProvider({
             setState(prev => ({
                 ...prev,
                 pathname: pathname,
-                pendingError: { statusCode: 404, message: 'Not found' },
+                pendingError: {statusCode: 404, message: 'Not found'},
                 ErrorPage: ErrorPage ?? undefined,
             }))
             return
@@ -199,35 +223,53 @@ export function RouterProvider({
 
         if (controller.signal.aborted) return
 
-        let pageMod: any, layoutMods: any[], data: any
-
         if (prefetched) {
-            ;({ pageMod, layoutMods, data } = prefetched)
+            const {pageMod, layoutMods, data} = prefetched
+
+            if (data.redirect) {
+                if (data.redirectReplace) {
+                    window.history.replaceState(null, '', data.redirect)
+                } else {
+                    window.history.pushState(null, '', data.redirect)
+                }
+                await loadRoute(data.redirect, controller)
+                return
+            }
+
+            setState({
+                pathname,
+                params: data.params ?? {},
+                loaderData: data.loaderData,
+                layoutsData: (data.layouts ?? []).map((l: any) => l.loaderData),
+                guardData: data.guardData ?? null,
+                Page: pageMod.default,
+                layouts: layoutMods.map(m => m.default),
+                metadata: data.metadata ?? null,
+                viewport: data.viewport ?? DEFAULT_VIEWPORT,
+            })
         } else {
-            const [[pm, ...lm], dataRes] = await Promise.all([
-                Promise.all([
-                    matched.load(),
-                    ...matched.loadLayouts.map(l => l()),
-                ]),
-                fetch(`/_data${to}`, {
-                    headers: { Accept: 'application/json' },
-                    signal: controller.signal,
-                })
+            const pagePromise = matched.load()
+
+            const [layoutMods, dataRes] = await Promise.all([
+                Promise.all(matched.loadLayouts.map(l => l())),
+                fetch(`/_devix/data${to}`, {signal: controller.signal})
             ])
 
             if (controller.signal.aborted) return
-            if (!pm.default) return
 
             if (!dataRes.ok) {
                 const ct = dataRes.headers.get('Content-Type') ?? ''
                 let errorBody: { statusCode?: number; message?: string; code?: string; data?: unknown } | null = null
                 try {
                     if (ct.includes('application/json')) errorBody = await dataRes.json()
-                    else if (ct.includes('text/plain')) errorBody = { message: await dataRes.text() }
-                } catch { /* ignorar errores de parsing */ }
+                    else if (ct.includes('text/plain')) errorBody = {message: await dataRes.text()}
+                } catch {
+                }
 
                 const headers: Record<string, string> = {}
-                dataRes.headers.forEach((value, key) => { headers[key] = value })
+                dataRes.headers.forEach((value, key) => {
+                    headers[key] = value
+                })
 
                 const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
                 setState(prev => ({
@@ -245,41 +287,41 @@ export function RouterProvider({
                 return
             }
 
-            pageMod = pm
-            layoutMods = lm
-            data = await dataRes.json()
-        }
+            const data = await decodeResponse(dataRes)
 
-        if (data.redirect) {
-            if (data.redirectReplace) {
-                window.history.replaceState(null, '', data.redirect)
-            } else {
-                window.history.pushState(null, '', data.redirect)
+            if (data.redirect) {
+                if (data.redirectReplace) {
+                    window.history.replaceState(null, '', data.redirect)
+                } else {
+                    window.history.pushState(null, '', data.redirect)
+                }
+                await loadRoute(data.redirect, controller)
+                return
             }
-            await loadRoute(data.redirect, controller)
-            return
-        }
 
-        setState({
-            pathname,
-            params: data.params ?? {},
-            loaderData: data.loaderData,
-            layoutsData: (data.layouts ?? []).map((l: any) => l.loaderData),
-            guardData: data.guardData ?? null,
-            Page: pageMod.default,
-            layouts: layoutMods.map(m => m.default),
-            metadata: data.metadata ?? null,
-            viewport: data.viewport ?? DEFAULT_VIEWPORT,
-        })
+            const Page = (await pagePromise).default
+
+            setState({
+                pathname,
+                params: data.params ?? {},
+                loaderData: data.loaderData,
+                layoutsData: (data.layouts ?? []).map((l: any) => l.loaderData),
+                guardData: data.guardData ?? null,
+                Page,
+                layouts: layoutMods.map(m => m.default),
+                metadata: data.metadata ?? null,
+                viewport: data.viewport ?? DEFAULT_VIEWPORT,
+            })
+        }
 
         const hash = to.includes('#') ? to.split('#')[1] : null
         const scrollBehavior = getComputedStyle(document.documentElement).scrollBehavior as ScrollBehavior
         if (hash) {
             requestAnimationFrame(() => {
-                document.getElementById(hash)?.scrollIntoView({ behavior: scrollBehavior })
+                document.getElementById(hash)?.scrollIntoView({behavior: scrollBehavior})
             })
         } else {
-            window.scrollTo({ top: 0, behavior: scrollBehavior })
+            window.scrollTo({top: 0, behavior: scrollBehavior})
         }
     }, [])
 
@@ -321,8 +363,7 @@ export function RouterProvider({
         const to = window.location.pathname + window.location.search
         let dataRes: Response
         try {
-            dataRes = await fetch(`/_data${to}`, {
-                headers: { Accept: 'application/json' },
+            dataRes = await fetch(`/_devix/data${to}`, {
                 signal: controller.signal,
             })
         } catch (err) {
@@ -333,11 +374,11 @@ export function RouterProvider({
         if (controller.signal.aborted) return
         if (!dataRes.ok) return
 
-        const data = await dataRes.json()
+        const data = await decodeResponse(dataRes)
         if (controller.signal.aborted) return
 
         if (data.redirect) {
-            await navigate(data.redirect, { replace: data.redirectReplace })
+            await navigate(data.redirect, {replace: data.redirectReplace})
             return
         }
         setState(prev => ({
@@ -374,8 +415,10 @@ export function RouterProvider({
             : <h1>{state.pendingError.statusCode}</h1>
     } else {
         let tree: ReactNode = (
-            <RouteDataContext value={{ loaderData: state.loaderData, params: state.params }}>
-                <state.Page data={state.loaderData} params={state.params} url={state.pathname} />
+            <RouteDataContext value={{loaderData: state.loaderData, params: state.params}}>
+                <Suspense fallback={null}>
+                    <state.Page data={state.loaderData} params={state.params} url={state.pathname}/>
+                </Suspense>
             </RouteDataContext>
         )
 
@@ -383,7 +426,7 @@ export function RouterProvider({
             const Layout = state.layouts[i]
             const layoutData = state.layoutsData[i]
             tree = (
-                <RouteDataContext value={{ loaderData: layoutData, params: state.params }}>
+                <RouteDataContext value={{loaderData: layoutData, params: state.params}}>
                     <Layout data={layoutData} params={state.params}>{tree}</Layout>
                 </RouteDataContext>
             )
@@ -402,10 +445,56 @@ export function RouterProvider({
             viewport: state.viewport,
             clientEntry,
         }}>
-            <HeadSlot metadata={state.metadata} viewport={state.viewport} />
-            <RouterContext value={{ ...state, isNavigating, navigate, revalidate, prefetchRoute }}>
+            <HeadSlot metadata={state.metadata} viewport={state.viewport}/>
+            <RouterContext value={{...state, isNavigating, navigate, revalidate, prefetchRoute}}>
                 {content}
             </RouterContext>
         </PageMetaContext>
     )
+}
+
+export function Await<T>({resolve, children, fallback}: {
+    resolve: Promise<T> | T,
+    children: ((value: T) => ReactNode) | ReactNode,
+    fallback?: ReactNode
+}) {
+    let inner: ReactNode
+    if (resolve instanceof Promise) {
+        if (typeof window === 'undefined') {
+            inner = fallback ?? null
+        } else {
+            inner = <AwaitInner resolve={resolve} children={children} fallback={fallback}/>
+        }
+    } else {
+        inner = typeof children === 'function' ? children(resolve) : children
+    }
+    return (
+        <Suspense fallback={fallback ?? null}>
+            {inner}
+        </Suspense>
+    )
+}
+
+function AwaitInner<T>({resolve, children, fallback}: {
+    resolve: Promise<T>,
+    children: ((value: T) => ReactNode) | ReactNode,
+    fallback?: ReactNode
+}) {
+    const [value, setValue] = useState<T | undefined>(undefined)
+    const [error, setError] = useState<unknown>(undefined)
+
+    useEffect(() => {
+        let cancelled = false
+        resolve.then(
+            v => { if (!cancelled) setValue(v) },
+            e => { if (!cancelled) setError(e) }
+        )
+        return () => { cancelled = true }
+    }, [resolve])
+
+    if (error) throw error
+    if (value !== undefined) {
+        return typeof children === 'function' ? children(value) : children
+    }
+    return fallback ?? null
 }

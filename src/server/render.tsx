@@ -8,12 +8,16 @@ import type {PageModule, LayoutModule, PageGlob} from './types'
 import type {Manifest} from "vite";
 import {escapeAttr, safeJsonStringify} from "../utils/html";
 import {withTimeout} from "../utils/async";
-import {isRedirect, isLoaderError, errorToBody} from "../utils/response";
+import {collectEncode, stringToBase64} from "../utils/turbo-serializer";
+import {isRedirect, isLoaderError, isDeferred, errorToBody, NotFoundError, RedirectError, LoaderError} from "../utils/response";
 import type {Viewport} from "../types";
 import type {ServerBackendConfig} from "../config";
 import {makeBoundServer} from "./server-bound";
+import {PassThrough} from "node:stream";
+import {createHtmlStream} from "./stream-html";
 
-const DEFAULT_VIEWPORT: Viewport = { width: 'device-width', initialScale: 1 }
+
+const DEFAULT_VIEWPORT: Viewport = {width: 'device-width', initialScale: 1}
 
 let pagesCache: PagesResult | null = null
 let pagesCacheKey: string | null = null
@@ -105,7 +109,10 @@ async function resolvePageData(pathname: string, request: Request, glob: PageGlo
     return {pageMod, layoutMods, params, loaderData, layoutsData, guardData, metadata, viewport, lang}
 }
 
-export async function runLoader(url: string, request: Request, glob: PageGlob, options?: { loaderTimeout?: number; server?: Record<string, ServerBackendConfig> }) {
+export async function runLoader(url: string, request: Request, glob: PageGlob, options?: {
+    loaderTimeout?: number;
+    server?: Record<string, ServerBackendConfig>
+}) {
     const {pathname} = new URL(url, 'http://localhost')
     let result: Awaited<ReturnType<typeof resolvePageData>>
     try {
@@ -187,13 +194,20 @@ export async function render(
 
     if ('loaderError' in result) {
         const errBody = errorToBody(result.loaderError!)
-        const dataScript = `<script>window.__DEVIX__=${safeJsonStringify({metadata: null, viewport: undefined, clientEntry})};window.__LOADER_DATA__=null;window.__LAYOUTS_DATA__=[];window.__LOADER_ERROR__=${safeJsonStringify(errBody)};</script>`
+        const dataScript = `<script>window.__DEVIX__=${safeJsonStringify({
+            metadata: null,
+            viewport: undefined,
+            clientEntry
+        })};window.__LOADER_DATA__=null;window.__LAYOUTS_DATA__=[];window.__LOADER_ERROR__=${safeJsonStringify(errBody)};</script>`
         const clientScript = `<script type="module" src="${clientEntry}"></script>`
         const html = `<html lang="en"><head><meta charset="utf-8">${cssLinks}${dataScript}</head><body><div id="devix-root"></div>${clientScript}</body></html>`
         return {html, statusCode: errBody.statusCode, headers: {}}
     }
 
     const {pageMod, layoutMods, params, loaderData, layoutsData, guardData, metadata, viewport, lang} = result
+
+    const [syncLoader, deferredLoaderKeys] = separateDeferred(loaderData as Record<string, unknown> | null)
+    const syncLayouts = layoutsData.map(d => separateDeferred(d as Record<string, unknown> | null)[0])
 
     const content = renderToString(createElement(ServerApp, {
         pathname,
@@ -209,11 +223,20 @@ export async function render(
     }))
     const headTags = metadata ? renderToStaticMarkup(buildHeadNodes(metadata, viewport) as any) : ''
 
+    const turboStr = await collectEncode({
+        LOADER_DATA: syncLoader ?? null,
+        LAYOUTS_DATA: syncLayouts,
+        GUARD_DATA: guardData ?? null,
+    })
+    const syncB64 = stringToBase64(turboStr)
+    const deferredScript = deferredLoaderKeys?.length
+        ? `window.__DEVIX_DEFERRED__=${safeJsonStringify(deferredLoaderKeys)};`
+        : ''
     const dataScript = `<script>window.__DEVIX__=${safeJsonStringify({
         metadata,
         viewport,
         clientEntry
-    })};window.__LOADER_DATA__=${safeJsonStringify(loaderData ?? null)};window.__LAYOUTS_DATA__=${safeJsonStringify(layoutsData)};window.__GUARD_DATA__=${safeJsonStringify(guardData ?? null)};</script>`
+    })};window.__DEVIX_TURBO__=${safeJsonStringify(syncB64)};${deferredScript}</script>`
     const clientScript = `<script type="module" src="${clientEntry}"></script>`
     const customHeaders: Record<string, string> = pageMod.headers ?? {}
 
@@ -246,3 +269,106 @@ export async function getStaticRoutes(glob: PageGlob): Promise<string[]> {
     return urls
 }
 
+export async function renderStream(url: string, request: Request, glob: PageGlob, options?: {
+    manifest?: Manifest,
+    loaderTimeout?: number,
+    server?: Record<string, ServerBackendConfig>
+},): Promise<{ stream: PassThrough, statusCode: number, headers: Record<string, string> }> {
+    const clientEntry = options?.manifest
+        ? `/${Object.values(options.manifest).find(chunk => chunk.isEntry)?.file}`
+        : DEV_CLIENT_ENTRY
+
+    const cssFiles = options?.manifest
+        ? (Object.values(options.manifest).find(chunk => chunk.isEntry)?.css ?? [])
+        : []
+    const cssLinks = cssFiles.map(f => `<link rel="stylesheet" href="/${f}">`).join('')
+
+    const {pathname} = new URL(url, 'http://localhost')
+
+    let result: Awaited<ReturnType<typeof resolvePageData>>
+    try {
+        const timeout = options?.loaderTimeout ?? 10_000
+        result = await resolvePageData(pathname, request, glob, timeout, options?.server)
+    } catch (err) {
+        console.error('[devix] render error:', err)
+        throw err
+    }
+
+    if (!result) {
+        throw new NotFoundError()
+    }
+
+    if ('redirect' in result) {
+        const {redirect, redirectStatus, redirectReplace} = result as {
+            redirect: string
+            redirectStatus: number
+            redirectReplace: boolean
+        }
+        throw new RedirectError(redirect, redirectStatus, redirectReplace)
+    }
+
+    if ('loaderError' in result) {
+        throw new LoaderError(errorToBody(result.loaderError!))
+    }
+
+    const {pageMod, layoutMods, params, loaderData, layoutsData, guardData, metadata, viewport, lang} = result
+
+    const headTags = metadata ? renderToStaticMarkup(buildHeadNodes(metadata, viewport) as any) : ''
+
+    const [syncLoader, deferredLoaderKeys] = separateDeferred(loaderData as Record<string, unknown> | null)
+    const syncLayouts = layoutsData.map(d => separateDeferred(d as Record<string, unknown> | null)[0])
+
+    const turboStr = await collectEncode({
+        LOADER_DATA: syncLoader ?? null,
+        LAYOUTS_DATA: syncLayouts,
+        GUARD_DATA: guardData ?? null,
+    })
+    const syncB64 = stringToBase64(turboStr)
+    const deferredScript = deferredLoaderKeys?.length
+        ? `window.__DEVIX_DEFERRED__=${safeJsonStringify(deferredLoaderKeys)};`
+        : ''
+    const dataScript = `<script>window.__DEVIX__=${safeJsonStringify({
+        metadata,
+        viewport,
+        clientEntry,
+    })};window.__DEVIX_TURBO__=${safeJsonStringify(syncB64)};${deferredScript}</script>`
+
+    const head = `<!DOCTYPE html><html lang="${escapeAttr(lang)}"><head><meta charset="utf-8">${headTags}${cssLinks}${dataScript}</head><body><div id="devix-root">`
+    const tail = `</div></body></html>`
+
+    const {stream} = await createHtmlStream(
+        createElement(ServerApp, {
+            pathname,
+            params,
+            loaderData,
+            layoutsData,
+            guardData,
+            Page: pageMod.default as any,
+            layouts: layoutMods.map(m => m.default as any),
+            metadata: metadata ?? null,
+            viewport,
+            clientEntry,
+        }),
+        head,
+        tail,
+        {
+            bootstrapModules: [clientEntry],
+            onError: (err) => console.error('[devix] Streaming error:', err),
+        },
+    )
+    return {stream, statusCode: 200, headers: pageMod.headers ?? {}}
+}
+
+function separateDeferred<T extends Record<string, unknown>>(obj: T | null | undefined): [T | null, string[] | null] {
+    if (!obj) return [null, null]
+
+    const sync: Record<string, unknown> = {}
+    const deferred: string[] = []
+
+    for (const [key, value] of Object.entries(obj)) {
+        if (value instanceof Promise || isDeferred(value)) deferred.push(key)
+        else sync[key] = value
+    }
+
+    return [sync as T, deferred.length > 0 ? deferred : null]
+}

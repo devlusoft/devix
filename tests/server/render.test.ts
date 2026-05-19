@@ -169,15 +169,20 @@ describe('guardData — guard pasa datos al loader', () => {
         expect(result.guardData).toEqual({user: 'ana'})
     })
 
-    it('render incluye __GUARD_DATA__ en el script SSR', async () => {
+    it('render incluye guardData en __DEVIX_TURBO__', async () => {
         const glob = makeGlob({
             [`${PAGES_DIR}/index.tsx`]: pageEntry({
                 guard: async () => ({user: 'ana'}),
             }),
         })
         const result = await render('http://localhost/', req, glob)
-        expect(result.html).toContain('__GUARD_DATA__')
-        expect(result.html).toContain('"user":"ana"')
+        expect(result.html).toContain('__DEVIX_TURBO__')
+
+        const b64 = result.html.match(/__DEVIX_TURBO__=("?)([A-Za-z0-9+/=]+)\1/)?.[2]
+        expect(b64).toBeTruthy()
+        const turboStr = Buffer.from(b64!, 'base64').toString('utf-8')
+        expect(turboStr).toContain('GUARD_DATA')
+        expect(turboStr).toContain('"user":"ana"')
     })
 })
 

@@ -35,15 +35,17 @@ const app = new Hono()
 const clientRoot = join(process.cwd(), 'dist/client')
 
 if (runtimeConfig!.output === 'static') {
-    app.get('/_data/*', (c: Context) => {
-        const pathname = c.req.path.replace(/^\/_data/, '') || '/'
+    app.get('/_devix/data/*', (c: Context) => {
+        const pathname = c.req.path.replace(/^\/_devix\/data/, '') || '/'
         const filePath = pathname === '/'
-            ? join(clientRoot, '_data/index.json')
-            : join(clientRoot, '_data', `${pathname}.json`)
+            ? join(clientRoot, '_devix/data/index.turbo')
+            : join(clientRoot, '_devix/data', `${pathname}.turbo`)
 
         try {
-            const data = readFileSync(filePath, 'utf-8')
-            return c.json(JSON.parse(data))
+            const buf = readFileSync(filePath)
+            return new Response(buf, {
+                headers: {'Content-Type': 'application/octet-stream'}
+            })
         } catch {
             return c.json({ error: 'not found' }, 404)
         }

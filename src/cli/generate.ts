@@ -3,6 +3,7 @@ import {resolve, join} from 'node:path'
 import type {Manifest} from 'vite'
 import { pathToFileURL } from "node:url"
 import {loadConfig} from "../utils/load-config";
+import {collectEncode} from "../utils/turbo-serializer";
 
 const userConfig = await loadConfig(process.cwd(), process.env.NODE_ENV ?? 'production')
 if (userConfig.output !== 'static') {
@@ -40,11 +41,12 @@ for (const url of urls) {
 
     const data = await renderModule.runLoader(fullUrl, new Request(fullUrl), {manifest})
     const dataPath = url === '/'
-        ? join(process.cwd(), 'dist/client/_data/index.json')
-        : join(process.cwd(), 'dist/client/_data', `${url}.json`)
-    
+        ? join(process.cwd(), 'dist/client/_devix/data/index.turbo')
+        : join(process.cwd(), 'dist/client/_devix/data', `${url}.turbo`)
+
     mkdirSync(join(dataPath, '..'), {recursive: true})
-    writeFileSync(dataPath, JSON.stringify(data), 'utf-8')
+    const turboStr = await collectEncode(data)
+    writeFileSync(dataPath, Buffer.from(turboStr, 'utf-8'))
 
     console.log(`  ✓ ${url}`)
 }

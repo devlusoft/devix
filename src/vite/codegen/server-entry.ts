@@ -21,13 +21,16 @@ import { readFileSync } from 'node:fs'
                                                                                                               
   const __dir = dirname(process.argv[1])
 
-  let renderModule, apiModule, manifest, runtimeConfig                                                        
-   
+  let renderModule, apiModule, actionsModule, manifest, runtimeConfig                                                        
+    
   try {                                                                                                       
       runtimeConfig = JSON.parse(readFileSync(resolve(__dir, '../devix.config.json'), 'utf-8'))
       if (runtimeConfig.output !== 'static') {                                                                
           renderModule = await import(pathToFileURL(resolve(__dir, 'render.js')).href)
-          apiModule = await import(pathToFileURL(resolve(__dir, 'api.js')).href)                              
+          apiModule = await import(pathToFileURL(resolve(__dir, 'api.js')).href)
+          try {
+              actionsModule = await import(pathToFileURL(resolve(__dir, 'actions.js')).href)
+          } catch { /* actions directory may not exist — skip */ }
       }           
       manifest = JSON.parse(readFileSync(resolve(__dir, '../client/.vite/manifest.json'), 'utf-8'))           
   } catch {                                                                                                   
@@ -44,13 +47,16 @@ import { readFileSync } from 'node:fs'
   const app = new Hono()
                                                                                                               
   if (runtimeConfig.output === 'static') {
-      app.get('/_data/*', (c) => {
-          const pathname = c.req.path.replace(/^\\/_data/, '') || '/'                                         
+      app.get('/_devix/data/*', (c) => {
+          const pathname = c.req.path.replace(/^\\/_devix\\/data/, '') || '/'                                         
           const filePath = pathname === '/'                                                                   
-              ? join(clientRoot, '_data/index.json')                                                          
-              : join(clientRoot, '_data', pathname + '.json')                                                 
+              ? join(clientRoot, '_devix/data/index.turbo')                                                          
+              : join(clientRoot, '_devix/data', pathname + '.turbo')                                                 
           try {                                                                                               
-              return c.json(JSON.parse(readFileSync(filePath, 'utf-8')))
+              const buf = readFileSync(filePath)
+              return new Response(buf, {
+                  headers: {'Content-Type': 'application/octet-stream'}
+              })
           } catch {                                                                                           
               return c.json({ error: 'not found' }, 404)
           }                                                                                                   
@@ -77,7 +83,7 @@ import { readFileSync } from 'node:fs'
       } catch {
           /* config sin server — sigue normal */
       }
-      registerApiRoutes(app, { renderModule, apiModule, manifest, server: userServerConfig })
+      registerApiRoutes(app, { renderModule, apiModule, actionsModule, manifest, server: userServerConfig })
       registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig.loaderTimeout, server: userServerConfig })
   }                                                                                                           
    

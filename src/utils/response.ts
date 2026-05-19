@@ -39,6 +39,18 @@ export function isRedirect(value: unknown): value is Redirect {
     return typeof value === 'object' && value !== null && REDIRECT_BRAND in value
 }
 
+const DEFERRED_BRAND = Symbol.for('devix.deferred')
+
+export function defer<T>(promise: Promise<T>): Promise<T> {
+    const p = promise as Promise<T> & { [DEFERRED_BRAND]: true }
+    p[DEFERRED_BRAND] = true
+    return p
+}
+
+export function isDeferred(value: unknown): boolean {
+    return value !== null && typeof value === 'object' && DEFERRED_BRAND in (value as any)
+}
+
 const ERROR_BRAND = Symbol.for('devix.loaderError')
 
 export interface RouteError {
@@ -91,8 +103,41 @@ export interface ErrorBody {
 }
 
 export function errorToBody(err: { statusCode: number; message: string; code?: string; data?: unknown }): ErrorBody {
-    const body: ErrorBody = { statusCode: err.statusCode, message: err.message }
+    const body: ErrorBody = {statusCode: err.statusCode, message: err.message}
     if (err.code !== undefined) body.code = err.code
     if (err.data !== undefined) body.data = err.data
     return body
+}
+
+export class RedirectError extends Error {
+    readonly url: string
+    readonly status: number
+    readonly replace: boolean
+
+    constructor(url: string, status = 302, replace = false) {
+        super(`Redirect to ${url}`)
+        this.name = 'RedirectError'
+        this.url = url
+        this.status = status
+        this.replace = replace
+    }
+}
+
+export class NotFoundError extends Error {
+    constructor() {
+        super('Not Found')
+        this.name = 'NotFoundError'
+    }
+}
+
+export class LoaderError extends Error {
+    readonly statusCode: number
+    readonly body: ErrorBody
+
+    constructor(body: ErrorBody) {
+        super(body.message)
+        this.name = 'LoaderError'
+        this.statusCode = body.statusCode
+        this.body = body
+    }
 }

@@ -6,6 +6,7 @@ export default defineConfig({
     plugins: [react()],
     test: {
         include: ["tests/**/*.test.{ts,tsx}"],
+        setupFiles: ["tests/setup.ts"],
         alias: {
             'virtual:devix/context': resolve(__dirname, 'tests/__mocks__/virtual-context.ts'),
             'virtual:devix/client-routes': resolve(__dirname, 'tests/__mocks__/virtual-client-routes.ts'),

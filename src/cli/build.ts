@@ -31,6 +31,7 @@ await build({
             input: {
                 render: 'virtual:devix/render',
                 api: 'virtual:devix/api',
+                actions: 'virtual:devix/actions',
             },
         },
     },

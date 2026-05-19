@@ -1,4 +1,4 @@
-import {ComponentType, ReactNode} from 'react'
+import {ComponentType, ReactNode, Suspense} from 'react'
 import {RouterContext, PageMetaContext, RouteDataContext, NavigateOptions} from './context'
 import {HeadSlot} from './head'
 import {DevixErrorBoundary} from './error-boundary'
@@ -28,7 +28,9 @@ export function ServerApp({
 }: ServerAppProps) {
     let tree: ReactNode = (
         <RouteDataContext value={{loaderData, params}}>
-            <Page data={loaderData as any} params={params} url={pathname}/>
+            <Suspense fallback={null}>
+                <Page data={loaderData as any} params={params} url={pathname}/>
+            </Suspense>
         </RouteDataContext>
     )
 

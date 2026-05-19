@@ -11,6 +11,7 @@ import {loadConfig} from "../utils/load-config";
 
 const VIRTUAL_RENDER = 'virtual:devix/render'
 const VIRTUAL_API = 'virtual:devix/api'
+const VIRTUAL_ACTIONS = 'virtual:devix/actions'
 
 const config = await loadConfig(process.cwd(), 'development')
 const port = Number(process.env.PORT) || config.port || 3000
@@ -31,9 +32,13 @@ const apiModule = {
   handleApiRequest: async (...args: any[]) => (await
     vite.ssrLoadModule(VIRTUAL_API)).handleApiRequest(...args),
 }
+const actionsModule = {
+  handleActionRequest: async (...args: any[]) => (await
+    vite.ssrLoadModule(VIRTUAL_ACTIONS)).handleActionRequest(...args),
+}
 
 const app = new Hono()
-registerApiRoutes(app, { renderModule, apiModule, server: config.server })
+registerApiRoutes(app, { renderModule, apiModule, actionsModule, server: config.server })
 
 app.get('*', async (c: Context) => {
   try {

@@ -5,7 +5,7 @@ import {decode} from 'turbo-stream'
 const ACTIONS_PREFIX = '/_devix/actions'
 
 function createActionFn(file: string, name: string) {
-    const fn = async (...args: any[]) => {
+    return async (...args: any[]) => {
         const headers = new Headers()
         let body: BodyInit | undefined
 
@@ -59,7 +59,6 @@ function createActionFn(file: string, name: string) {
 
         return res.text()
     }
-    return fn
 }
 
 export const actions: Actions = new Proxy({} as Record<string, Record<string, Function>>, {

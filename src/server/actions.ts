@@ -1,4 +1,4 @@
-import {DevixError} from '../runtime/error-boundary'
+import {DevixError} from '@devlusoft/devix'
 import {errorToBody, isRedirect, isLoaderError} from '../utils/response'
 import {createTurboResponse, decodeFromRequest} from '../utils/turbo-serializer'
 

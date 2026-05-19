@@ -228,7 +228,6 @@ export function encodeSync(
     plugins: ((value: unknown) => unknown[] | undefined)[],
     redactErrors: boolean | string,
 ) {
-    type ThisValue = any
     const ENCODE_FRAME_TYPE_NEEDS_ENCODING = 1
     const ENCODE_FRAME_TYPE_ALREADY_ENCODED = 2
 
@@ -417,29 +416,24 @@ export function encodeSync(
                     refs.delete(val as object)
                 }
             } else {
-                {
-                    const isIterable = typeof (val as any)[Symbol.iterator] === "function"
-                    if (isIterable) {
-                        const isArray = Array.isArray(val)
-                        const toEncode = isArray ? (val as unknown[]) : Array.from(val as Iterable<unknown>)
-                        encodeStack.push(new EncodeFrame(ENCODE_FRAME_TYPE_ALREADY_ENCODED, "]", undefined))
-                        for (let i = toEncode.length - 1; i >= 0; i--) {
-                            encodeStack.push(new EncodeFrame(ENCODE_FRAME_TYPE_NEEDS_ENCODING, i === 0 ? "" : ",", toEncode[i]))
-                        }
-                        chunks.push(
-                            isArray
-                                ? "["
-                                : val instanceof Set
-                                  ? `${STR_SET}[`
-                                  : val instanceof Map
-                                    ? `${STR_MAP}[`
-                                    : "[",
-                        )
-                        continue
+                const isIterable = typeof (val as any)[Symbol.iterator] === "function"
+                if (isIterable) {
+                    const isArray = Array.isArray(val)
+                    const toEncode = isArray ? (val as unknown[]) : Array.from(val as Iterable<unknown>)
+                    encodeStack.push(new EncodeFrame(ENCODE_FRAME_TYPE_ALREADY_ENCODED, "]", undefined))
+                    for (let i = toEncode.length - 1; i >= 0; i--) {
+                        encodeStack.push(new EncodeFrame(ENCODE_FRAME_TYPE_NEEDS_ENCODING, i === 0 ? "" : ",", toEncode[i]))
                     }
-                }
-
-                {
+                    chunks.push(
+                        isArray
+                            ? "["
+                            : val instanceof Set
+                              ? `${STR_SET}[`
+                              : val instanceof Map
+                                ? `${STR_MAP}[`
+                                : "[",
+                    )
+                } else {
                     for (let i = 0; i < plugins.length; i++) {
                         const result = plugins[i](val)
                         if (Array.isArray(result)) {
@@ -449,19 +443,19 @@ export function encodeSync(
                             continue encodeLoop
                         }
                     }
-                }
 
-                encodeStack.push(new EncodeFrame(ENCODE_FRAME_TYPE_ALREADY_ENCODED, "}", undefined))
-                const keys = Object.keys(val as object)
-                const end = keys.length
-                const encodeFrames: EncodeFrame[] = new Array(end)
-                for (let i = keys.length - 1; i >= 0; i--) {
-                    const key = keys[i]
-                    const prefix = i > 0 ? "," : ""
-                    encodeFrames[end - 1 - i] = new EncodeFrame(ENCODE_FRAME_TYPE_NEEDS_ENCODING, `${prefix}${JSON.stringify(key)}:`, (val as any)[key])
+                    encodeStack.push(new EncodeFrame(ENCODE_FRAME_TYPE_ALREADY_ENCODED, "}", undefined))
+                    const keys = Object.keys(val as object)
+                    const end = keys.length
+                    const encodeFrames: EncodeFrame[] = new Array(end)
+                    for (let i = keys.length - 1; i >= 0; i--) {
+                        const key = keys[i]
+                        const prefix = i > 0 ? "," : ""
+                        encodeFrames[end - 1 - i] = new EncodeFrame(ENCODE_FRAME_TYPE_NEEDS_ENCODING, `${prefix}${JSON.stringify(key)}:`, (val as any)[key])
+                    }
+                    encodeStack.push(...encodeFrames)
+                    chunks.push("{")
                 }
-                encodeStack.push(...encodeFrames)
-                chunks.push("{")
             }
         } else if (typeOfValue === "string") {
             chunks.push(JSON.stringify(val))

@@ -1,4 +1,4 @@
-import {createContext, Context, ComponentType} from "react";
+import {createContext, Component, type Context} from "solid-js";
 import {Metadata, Viewport} from "../types";
 import {LayoutProps, PageProps} from "../server/types";
 
@@ -9,12 +9,13 @@ export interface NavigateOptions {
 
 export interface RouterContextValue {
     pathname: string
+    search: string
     params: Record<string, string>
     loaderData: unknown
     layoutsData: unknown[]
     guardData: unknown
-    Page: ComponentType<PageProps>
-    layouts: ComponentType<LayoutProps>[]
+    Page: Component<PageProps>
+    layouts: Component<LayoutProps>[]
     metadata: Metadata | null
     viewport?: Viewport
     navigate: (to: string, options?: NavigateOptions) => Promise<void>

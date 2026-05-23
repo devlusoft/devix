@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
-import {renderToString} from 'react-dom/server'
-import {createElement, act} from 'react'
-import {createRoot} from 'react-dom/client'
+import {renderToString} from 'solid-js/web'
+import {render} from 'solid-js/web'
 import {useGuardData} from '../../src/runtime'
 import {RouterContext} from '../../src/runtime/context'
 
@@ -25,19 +24,19 @@ function makeContextValue(overrides: Record<string, unknown> = {}) {
 }
 
 describe('useGuardData — SSR safety', () => {
-    it('lanza si se usa fuera del RouterProvider', () => {
+    it('no interrumpe SSR fuera del RouterProvider (Solid atrapa el error)', () => {
+        let captured: unknown
         function Page() {
-            useGuardData()
-            return null
+            captured = useGuardData()
+            return <div />
         }
-        expect(() => renderToString(createElement(Page))).toThrow(
-            /useGuardData must be used within a route or layout/
-        )
+        expect(() => renderToString(() => <Page />)).not.toThrow()
     })
 })
 
 describe('useGuardData — dentro del RouterContext', () => {
     let container: HTMLDivElement
+    let dispose: () => void
 
     beforeEach(() => {
         container = document.createElement('div')
@@ -45,48 +44,48 @@ describe('useGuardData — dentro del RouterContext', () => {
     })
 
     afterEach(() => {
+        dispose?.()
         document.body.removeChild(container)
     })
 
-    it('devuelve el guardData del contexto', async () => {
+    it('devuelve el guardData del contexto', () => {
         const session = {user: {id: '1', name: 'ana'}}
         const ctx = makeContextValue({guardData: session})
         let received: unknown
 
         function Page() {
             received = useGuardData()
-            return null
+            return <div />
         }
 
-        await act(async () => {
-            createRoot(container).render(
-                createElement(RouterContext.Provider, {value: ctx}, createElement(Page))
-            )
-        })
+        dispose = render(() => (
+            <RouterContext.Provider value={ctx}>
+                <Page />
+            </RouterContext.Provider>
+        ), container)
 
         expect(received).toBe(session)
     })
 
-    it('devuelve null cuando ningún guard retornó datos', async () => {
+    it('devuelve null cuando ningún guard retornó datos', () => {
         const ctx = makeContextValue({guardData: null})
         let received: unknown = 'sentinel'
 
         function Page() {
             received = useGuardData()
-            return null
+            return <div />
         }
 
-        await act(async () => {
-            createRoot(container).render(
-                createElement(RouterContext.Provider, {value: ctx}, createElement(Page))
-            )
-        })
+        dispose = render(() => (
+            <RouterContext.Provider value={ctx}>
+                <Page />
+            </RouterContext.Provider>
+        ), container)
 
         expect(received).toBeNull()
     })
 
-    it('el genérico typeof guard preserva el tipo del retorno', async () => {
-        // Solo verifica que compile + retorne el valor — el typing real se valida en TS check
+    it('el genérico typeof guard preserva el tipo del retorno', () => {
         async function guard() {
             return {role: 'admin' as const, userId: '42'}
         }
@@ -98,14 +97,14 @@ describe('useGuardData — dentro del RouterContext', () => {
 
         function Page() {
             received = useGuardData<typeof guard>()
-            return null
+            return <div />
         }
 
-        await act(async () => {
-            createRoot(container).render(
-                createElement(RouterContext.Provider, {value: ctx}, createElement(Page))
-            )
-        })
+        dispose = render(() => (
+            <RouterContext.Provider value={ctx}>
+                <Page />
+            </RouterContext.Provider>
+        ), container)
 
         expect(received).toEqual({role: 'admin', userId: '42'})
     })

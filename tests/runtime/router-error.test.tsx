@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
-import {createElement, act} from 'react'
-import {createRoot, Root} from 'react-dom/client'
+import {render} from 'solid-js/web'
 import {RouterProvider, useNavigate} from '@devlusoft/devix'
 import {matchClientRoute, loadErrorPage, getDefaultErrorPage} from 'virtual:devix/client-routes'
 import type {ErrorProps} from '../../src/server/types'
@@ -25,7 +24,7 @@ let capturedNavigate: ((to: string) => Promise<void>) | null = null
 
 function TestPage() {
     capturedNavigate = useNavigate()
-    return null
+    return <div />
 }
 
 let capturedErrorProps: ErrorProps | null = null
@@ -33,7 +32,7 @@ let capturedErrorProps: ErrorProps | null = null
 function MockErrorPage(props: ErrorProps) {
     capturedErrorProps = props
     capturedNavigate = useNavigate()
-    return null
+    return <div />
 }
 
 function makeMatch(Page = TestPage) {
@@ -45,7 +44,7 @@ function makeMatch(Page = TestPage) {
 }
 
 let container: HTMLDivElement
-let root: Root
+let dispose: () => void
 let originalLocation: Location
 
 beforeEach(() => {
@@ -61,9 +60,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-    act(() => {
-        root.unmount()
-    })
+    dispose?.()
     document.body.removeChild(container)
     vi.unstubAllGlobals()
     vi.mocked(matchClientRoute).mockReturnValue(null)
@@ -79,25 +76,22 @@ afterEach(() => {
     }
 })
 
-async function renderProvider(Page = TestPage) {
-    await act(async () => {
-        root = createRoot(container)
-        root.render(createElement(RouterProvider, {
-            matchClientRoute: matchClientRoute as any,
-            loadErrorPage: loadErrorPage as any,
-            getDefaultErrorPage: getDefaultErrorPage as any,
-            initialData: null,
-            initialParams: {},
-            initialPage: Page,
-            clientEntry: '/entry.js',
-        }))
-    })
+function renderProvider(Page = TestPage) {
+    dispose = render(() => (
+        <RouterProvider
+            matchClientRoute={matchClientRoute as any}
+            loadErrorPage={loadErrorPage as any}
+            getDefaultErrorPage={getDefaultErrorPage as any}
+            initialData={null}
+            initialParams={{}}
+            initialPage={Page as any}
+            clientEntry='/entry.js'
+        />
+    ), container)
 }
 
 async function navigate(to: string) {
-    await act(async () => {
-        await capturedNavigate!(to)
-    })
+    await capturedNavigate!(to)
 }
 
 describe('401 → ErrorPage con statusCode correcto', () => {
@@ -105,7 +99,7 @@ describe('401 → ErrorPage con statusCode correcto', () => {
         vi.mocked(matchClientRoute).mockReturnValue(makeMatch())
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeErrorResponse(401, 'Sesion expirada')))
 
-        await renderProvider()
+        renderProvider()
         await navigate('/protected')
 
         expect(capturedErrorProps?.statusCode).toBe(401)
@@ -116,7 +110,7 @@ describe('401 → ErrorPage con statusCode correcto', () => {
         vi.mocked(matchClientRoute).mockReturnValue(makeMatch())
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeErrorResponse(401, 'Sesion expirada')))
 
-        await renderProvider()
+        renderProvider()
         await navigate('/protected')
 
         expect(container.querySelector('[id]') === null || container.childElementCount >= 0).toBe(true)
@@ -131,7 +125,7 @@ describe('body del error disponible en ErrorPage', () => {
             makeErrorResponse(403, 'Sin permisos', {requiredRole: 'admin'})
         ))
 
-        await renderProvider()
+        renderProvider()
         await navigate('/admin')
 
         expect(capturedErrorProps?.statusCode).toBe(403)
@@ -153,7 +147,7 @@ describe('body del error disponible en ErrorPage', () => {
         )
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(res))
 
-        await renderProvider()
+        renderProvider()
         await navigate('/protected')
 
         expect((capturedErrorProps?.headers as any)?.['x-error-code']).toBe('SESSION_EXPIRED')
@@ -163,7 +157,7 @@ describe('body del error disponible en ErrorPage', () => {
         vi.mocked(matchClientRoute).mockReturnValue(makeMatch())
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeErrorResponse(401, 'Unauthorized')))
 
-        await renderProvider()
+        renderProvider()
         await navigate('/protected')
 
         expect(capturedErrorProps?.statusCode).toBe(401)
@@ -201,7 +195,7 @@ describe('404 ya no hace full page reload', () => {
             configurable: true,
         })
 
-        await renderProvider()
+        renderProvider()
         await navigate('/missing-page')
 
         expect(hrefSpy).not.toHaveBeenCalled()
@@ -212,7 +206,7 @@ describe('404 ya no hace full page reload', () => {
         vi.mocked(matchClientRoute).mockReturnValue(makeMatch())
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeErrorResponse(404, 'Not found')))
 
-        await renderProvider()
+        renderProvider()
         await navigate('/missing-page')
 
         expect(capturedErrorProps?.statusCode).toBe(404)
@@ -221,7 +215,7 @@ describe('404 ya no hace full page reload', () => {
 
 describe('router se recupera de error', () => {
     it('503 → ErrorPage muestra el error; navigate posterior a ruta válida limpia el estado', async () => {
-        const PageAfterError = vi.fn(() => { capturedNavigate = useNavigate(); return null })
+        const PageAfterError = vi.fn(() => { capturedNavigate = useNavigate(); return <div /> })
         vi.mocked(matchClientRoute).mockReturnValue(makeMatch(PageAfterError as any))
 
         vi.stubGlobal('fetch', vi.fn()
@@ -229,7 +223,7 @@ describe('router se recupera de error', () => {
             .mockResolvedValueOnce(makeSuccessResponse({user: 'John'}))
         )
 
-        await renderProvider()
+        renderProvider()
 
         await navigate('/down')
         expect(capturedErrorProps?.statusCode).toBe(503)
@@ -250,7 +244,7 @@ describe('router se recupera de error', () => {
             .mockResolvedValueOnce(makeSuccessResponse())
         )
 
-        await renderProvider()
+        renderProvider()
         await navigate('/error-route')
         expect(capturedErrorProps?.statusCode).toBe(503)
 
@@ -272,7 +266,7 @@ describe('error con body text/plain', () => {
             })
         ))
 
-        await renderProvider()
+        renderProvider()
         await navigate('/restricted')
 
         expect(capturedErrorProps?.statusCode).toBe(403)
@@ -290,7 +284,7 @@ describe('error sin Content-Type reconocido', () => {
             })
         ))
 
-        await renderProvider()
+        renderProvider()
         await navigate('/crash')
 
         expect(capturedErrorProps?.statusCode).toBe(500)

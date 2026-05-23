@@ -1,9 +1,9 @@
 import {defineConfig} from 'vitest/config'
-import react from "@vitejs/plugin-react";
+import solid from 'vite-plugin-solid'
 import {resolve} from 'node:path'
 
 export default defineConfig({
-    plugins: [react()],
+    plugins: [solid()],
     test: {
         include: ["tests/**/*.test.{ts,tsx}"],
         setupFiles: ["tests/setup.ts"],

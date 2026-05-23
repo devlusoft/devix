@@ -34,7 +34,7 @@ import { readFileSync } from 'node:fs'
       }           
       manifest = JSON.parse(readFileSync(resolve(__dir, '../client/.vite/manifest.json'), 'utf-8'))           
   } catch {                                                                                                   
-      console.error('[devix] Build not found. Run "devix build" first.')
+      console.error('✗ devix Build not found — run "devix build" first')
       process.exit(1)                                                                                         
   }               
                                                                                                               
@@ -73,7 +73,7 @@ import { readFileSync } from 'node:fs'
   }))                                                                                                         
                   
   if (runtimeConfig.output === 'static') {
-      console.log('[devix] Static mode — serving pre-generated files from dist/client')
+      console.log('● devix Static mode — serving pre-generated files from dist/client')
   } else {
       let userServerConfig
       try {

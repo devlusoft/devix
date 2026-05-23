@@ -4,9 +4,11 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono, type Context } from 'hono'
 import { resolve, join } from 'node:path'
 import type { Manifest } from 'vite'
+import { c } from '@nijil71/lumi-cli'
 import { registerApiRoutes, registerSsrRoute } from '../server/routes'
 import {pathToFileURL} from "node:url"
 import {loadConfig} from "../utils/load-config"
+import {devixLog} from "../utils/log"
 
 let renderModule: any
 let apiModule: any
@@ -21,7 +23,7 @@ try {
     }
     manifest = JSON.parse(readFileSync(join(process.cwd(), 'dist/client/.vite/manifest.json'), 'utf-8'))
 } catch {
-    console.error('[devix] Build not found. Run "devix build" first.')
+    devixLog.error('Build not found — run "devix build" first')
     process.exit(1)
 }
 
@@ -31,6 +33,19 @@ const host = typeof runtimeConfig!.host === 'string'
     : runtimeConfig!.host ? '0.0.0.0' : (process.env.HOST || '0.0.0.0')
 
 const app = new Hono()
+
+const assetRx = /\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff2?|ttf|eot|map)$/
+
+app.use('*', async (ctx, next) => {
+    if (assetRx.test(ctx.req.path)) return next()
+    const t = Date.now()
+    await next()
+    const ms = Date.now() - t
+    const status = ctx.res.status
+    const col = status < 300 ? c.sage : status < 400 ? c.amber : c.signal
+    const time = new Date().toISOString().slice(11, 19)
+    devixLog.info(`${c.fog}${time}${c.r} ${col}${status}${c.r} ${c.b}${ctx.req.method}${c.r} ${ctx.req.path} ${c.fog}${ms}ms${c.r}`)
+})
 
 const clientRoot = join(process.cwd(), 'dist/client')
 
@@ -62,13 +77,15 @@ app.use('/*', serveStatic({
 }))
 
 if (runtimeConfig!.output === 'static') {
-    console.log('[devix] Static mode — serving pre-generated files from dist/client')
+    devixLog.info('Static mode — serving pre-generated files from dist/client')
 } else {
     const userConfig = await loadConfig(process.cwd(), 'production').catch(() => null)
     registerApiRoutes(app, { renderModule, apiModule, manifest, server: userConfig?.server })
     registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig!.loaderTimeout, server: userConfig?.server })
 }
 
-serve({ fetch: app.fetch, port, hostname: host }, (info: {address: string; port: number}) => console.log(`http://${info.address}:${info.port}`))
+serve({ fetch: app.fetch, port, hostname: host }, (info: {address: string; port: number}) =>
+    devixLog.info(`Server running at http://${info.address}:${info.port}`)
+)
 
 export { }

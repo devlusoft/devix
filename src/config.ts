@@ -1,4 +1,6 @@
 import type { UserConfig } from "vite"
+export {getCookie, setCookie, deleteCookie} from './utils/cookies'
+export type {CookieOptions} from './utils/cookies'
 
 export interface PrepareContext {
     /** Request entrante del cliente. */

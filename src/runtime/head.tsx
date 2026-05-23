@@ -1,10 +1,10 @@
-import { Metadata, MetadataIcon, Viewport } from "../types";
-import { ReactNode } from "react";
+import type { Metadata, MetadataIcon, Viewport } from "../types";
+import type {JSX} from "solid-js";
 
 type MetaTag =
     | { tag: 'title'; children: string }
     | { tag: 'meta'; name?: string; property?: string; content: string }
-    | { tag: 'link'; rel: string; href: string; hrefLang?: string; type?: string; sizes?: string }
+    | { tag: 'link'; rel: string; href: string; hreflang?: string; type?: string; sizes?: string }
 
 function collectTags(metadata: Metadata, viewport?: Viewport): MetaTag[] {
     const tags: MetaTag[] = []
@@ -45,7 +45,7 @@ function collectTags(metadata: Metadata, viewport?: Viewport): MetaTag[] {
     if (metadata.robots) tags.push({ tag: 'meta', name: 'robots', content: metadata.robots })
     if (metadata.alternates) {
         for (const [lang, href] of Object.entries(metadata.alternates))
-            tags.push({ tag: 'link', rel: 'alternate', href, hrefLang: lang })
+            tags.push({ tag: 'link', rel: 'alternate', href, hreflang: lang })
     }
 
     if (metadata.icons) {
@@ -78,19 +78,18 @@ function collectTags(metadata: Metadata, viewport?: Viewport): MetaTag[] {
     return tags
 }
 
-export function HeadSlot({ metadata, viewport }: { metadata: Metadata | null, viewport?: Viewport }) {
-    if (typeof window === 'undefined' || !metadata) return null
-    return <>{buildHeadNodes(metadata, viewport)}</>
+export function HeadSlot(_props: { metadata: Metadata | null, viewport?: Viewport }) {
+    return null
 }
 
-export function buildHeadNodes(metadata: Metadata, viewport?: Viewport): ReactNode {
+export function buildHeadNodes(metadata: Metadata, viewport?: Viewport): JSX.Element {
     const tags = collectTags(metadata, viewport)
 
     return <>
         {tags.map((t, i) => {
-            if (t.tag === 'title') return <title key={i}>{t.children}</title>
-            if (t.tag === 'link') return <link key={i} rel={t.rel} href={t.href} hrefLang={t.hrefLang} type={t.type} sizes={t.sizes} />
-            return <meta key={i} name={t.name} property={t.property} content={t.content} />
+            if (t.tag === 'title') return <title>{t.children}</title>
+            if (t.tag === 'link') return <link rel={t.rel} href={t.href} hreflang={t.hreflang} type={t.type} sizes={t.sizes} />
+            return <meta name={t.name} property={t.property} content={t.content} />
         })}
     </>
 }

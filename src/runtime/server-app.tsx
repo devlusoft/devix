@@ -1,7 +1,6 @@
-import {ComponentType, ReactNode, Suspense} from 'react'
-import {RouterContext, PageMetaContext, RouteDataContext, NavigateOptions} from './context'
-import {HeadSlot} from './head'
-import {DevixErrorBoundary} from './error-boundary'
+import {Component} from "solid-js";
+import {RouterContext, PageMetaContext, NavigateOptions} from './context'
+import {ContentTree} from './content-tree'
 import {LayoutProps, PageProps} from '../server/types'
 import {Metadata, Viewport} from '../types'
 
@@ -11,44 +10,27 @@ const noopPrefetch = (_href: string) => {}
 
 export interface ServerAppProps {
     pathname: string
+    search: string
     params: Record<string, string>
     loaderData: unknown
     layoutsData: unknown[]
     guardData: unknown
-    Page: ComponentType<PageProps>
-    layouts: ComponentType<LayoutProps>[]
+    Page: Component<PageProps>
+    layouts: Component<LayoutProps>[]
     metadata: Metadata | null
     viewport?: Viewport
     clientEntry: string
 }
 
 export function ServerApp({
-    pathname, params, loaderData, layoutsData, guardData,
+    pathname, search, params, loaderData, layoutsData, guardData,
     Page, layouts, metadata, viewport, clientEntry,
 }: ServerAppProps) {
-    let tree: ReactNode = (
-        <RouteDataContext value={{loaderData, params}}>
-            <Suspense fallback={null}>
-                <Page data={loaderData as any} params={params} url={pathname}/>
-            </Suspense>
-        </RouteDataContext>
-    )
-
-    for (let i = layouts.length - 1; i >= 0; i--) {
-        const Layout = layouts[i]
-        const layoutData = layoutsData[i]
-        tree = (
-            <RouteDataContext value={{loaderData: layoutData, params}}>
-                <Layout data={layoutData as any} params={params}>{tree}</Layout>
-            </RouteDataContext>
-        )
-    }
-
     return (
-        <PageMetaContext value={{metadata, viewport, clientEntry}}>
-            <HeadSlot metadata={metadata} viewport={viewport}/>
-            <RouterContext value={{
+        <PageMetaContext.Provider value={{metadata, viewport, clientEntry}}>
+            <RouterContext.Provider value={{
                 pathname,
+                search,
                 params,
                 loaderData,
                 layoutsData,
@@ -62,10 +44,16 @@ export function ServerApp({
                 revalidate: noopRevalidate,
                 prefetchRoute: noopPrefetch,
             }}>
-                <DevixErrorBoundary key={pathname}>
-                    {tree}
-                </DevixErrorBoundary>
-            </RouterContext>
-        </PageMetaContext>
+                <ContentTree
+                    pathname={pathname}
+                    params={params}
+                    loaderData={loaderData}
+                    layoutsData={layoutsData}
+                    Page={Page}
+                    layouts={layouts}
+                />
+            </RouterContext.Provider>
+        </PageMetaContext.Provider>
     )
 }
+

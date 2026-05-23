@@ -1,4 +1,4 @@
-import type React from "react";
+import type {Component} from "solid-js";
 import {LoaderContext, Metadata, Viewport} from "../types";
 import type {Redirect, RouteError} from "../utils/response";
 
@@ -17,7 +17,7 @@ export interface PageProps<TDataOrParams = unknown, TParams = Record<string, str
 }
 
 export interface LayoutProps<TDataOrParams = unknown, TParams = Record<string, string>> {
-    children: React.ReactNode
+    children: any
     data: IsParams<TDataOrParams> extends true ? unknown : InferLoaderData<TDataOrParams>
     params: IsParams<TDataOrParams> extends true
         ? TDataOrParams extends Record<string, string> ? TDataOrParams : Record<string, string>
@@ -56,13 +56,13 @@ interface BaseModule<TData, TParams> {
 
 export interface PageModule<TData = unknown, TParams = Record<string, string>>
     extends BaseModule<TData, TParams> {
-    default: React.ComponentType<PageProps<TData, TParams>>
+    default: Component<PageProps<TData, TParams>>
     generateStaticParams?: () => Promise<Record<string, string>[]> | Record<string, string>[]
 }
 
 export interface LayoutModule<TData = unknown, TParams = Record<string, string>>
     extends BaseModule<TData, TParams> {
-    default: React.ComponentType<LayoutProps<TData, TParams>>
+    default: Component<LayoutProps<TData, TParams>>
     lang?: string
     generateLang?: (ctx: LoaderContext<TParams> & { loaderData: TData }) => Promise<string> | string
 }

@@ -1,12 +1,11 @@
-globalThis.IS_REACT_ACT_ENVIRONMENT = true
-
 const origConsoleError = console.error
 console.error = (...args: any[]) => {
     const msg = args[0] ?? ''
-    if (typeof msg === 'string' && (
-        msg.includes('[devix] server.') ||
-        msg.includes('Not implemented: navigation')
-    )) return
+    const errMsg = typeof msg === 'string' ? msg : msg instanceof Error ? msg.message : ''
+    if (errMsg.includes('[devix] server.') ||
+        errMsg.includes('Not implemented: navigation') ||
+        errMsg.includes('is not supported in the browser'))
+        return
     origConsoleError.apply(console, args)
 }
 

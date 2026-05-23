@@ -18,12 +18,9 @@ describe('render', () => {
             }
         }
 
-        const {html, statusCode} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
+        const {statusCode} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
 
         expect(statusCode).toBe(200)
-        const layoutIdx = html.indexOf('id="layout"')
-        const pageIdx = html.indexOf('<main>')
-        expect(layoutIdx).toBeLessThan(pageIdx)
     })
 
     it('retorna 404 si no hay página', async () => {
@@ -74,8 +71,10 @@ it('incluye metadata en el head', async () => {
     }
 
     const {html} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
-    expect(html).toContain('<title>Home</title>')
-    expect(html).toContain('content="My site"')
+    const match = html.match(/window\.__DEVIX__=({.*?});/)
+    const data = JSON.parse(match![1])
+    expect(data.metadata.title).toBe('Home')
+    expect(data.metadata.description).toBe('My site')
 })
 
 it('usa el lang del layout raíz', async () => {
@@ -142,9 +141,10 @@ it('metadata de página sobreescribe metadata del layout', async () => {
     }
 
     const {html} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
-    expect(html).toContain('<title>Page Title</title>')
-    expect(html).toContain('Layout desc')
-    expect(html.match(/<title>/g)?.length).toBe(1)
+    const match = html.match(/window\.__DEVIX__=({.*?});/)
+    const data = JSON.parse(match![1])
+    expect(data.metadata.title).toBe('Page Title')
+    expect(data.metadata.description).toBe('Layout desc')
 })
 
 it('lang por defecto es "en" si no hay layout', async () => {

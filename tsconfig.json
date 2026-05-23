@@ -3,7 +3,8 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "jsx": "react-jsx",
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
     "lib": [
       "ESNext",
       "DOM",
@@ -23,7 +24,7 @@
         "./src/config.ts"
       ],
       "@devlusoft/devix/runtime/context": [
-        "./src/runtime/context.ts"
+        "./src/runtime/context.tsx"
       ],
       "@devlusoft/devix/server": [
         "./src/server/index.ts"

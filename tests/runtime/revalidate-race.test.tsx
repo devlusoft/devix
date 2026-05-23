@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
-import {createElement, act} from 'react'
-import {createRoot, Root} from 'react-dom/client'
+import {render} from 'solid-js/web'
 import {RouterProvider, useRevalidate} from '@devlusoft/devix'
 import {matchClientRoute, loadErrorPage, getDefaultErrorPage} from 'virtual:devix/client-routes'
 
@@ -11,16 +10,16 @@ let receivedLoaderData: unknown = null
 function TestPage(props: any) {
     capturedRevalidate = useRevalidate()
     receivedLoaderData = props.data
-    return null
+    return <div />
 }
 
 let container: HTMLDivElement
-let root: Root | null
+let dispose: () => void
 
 beforeEach(() => {
     container = document.createElement('div')
     document.body.appendChild(container)
-    root = null
+    dispose = () => {}
     capturedRevalidate = null
     receivedLoaderData = null
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
@@ -30,24 +29,23 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-    if (root) act(() => { root!.unmount() })
+    dispose?.()
     if (container.parentNode) document.body.removeChild(container)
     vi.unstubAllGlobals()
 })
 
-async function renderProvider(initialData: unknown = {n: 0}) {
-    await act(async () => {
-        root = createRoot(container)
-        root.render(createElement(RouterProvider, {
-            matchClientRoute: matchClientRoute as any,
-            loadErrorPage: loadErrorPage as any,
-            getDefaultErrorPage: getDefaultErrorPage as any,
-            initialData,
-            initialParams: {},
-            initialPage: TestPage,
-            clientEntry: '/entry.js',
-        }))
-    })
+function renderProvider(initialData: unknown = {n: 0}) {
+    dispose = render(() => (
+        <RouterProvider
+            matchClientRoute={matchClientRoute as any}
+            loadErrorPage={loadErrorPage as any}
+            getDefaultErrorPage={getDefaultErrorPage as any}
+            initialData={initialData}
+            initialParams={{}}
+            initialPage={TestPage as any}
+            clientEntry='/entry.js'
+        />
+    ), container)
 }
 
 describe('revalidate — race condition (#11)', () => {
@@ -79,14 +77,12 @@ describe('revalidate — race condition (#11)', () => {
         })
         vi.stubGlobal('fetch', fetchMock)
 
-        await renderProvider({n: 0})
+        renderProvider({n: 0})
 
-        await act(async () => {
-            const p1 = capturedRevalidate!()
-            await new Promise(r => setTimeout(r, 5))
-            const p2 = capturedRevalidate!()
-            await Promise.allSettled([p1, p2])
-        })
+        const p1 = capturedRevalidate!()
+        await new Promise(r => setTimeout(r, 5))
+        const p2 = capturedRevalidate!()
+        await Promise.allSettled([p1, p2])
 
         expect(fetchMock).toHaveBeenCalledTimes(2)
         expect(fetchCallSignals[0].aborted).toBe(true)   // p1 fue abortado por p2
@@ -119,16 +115,14 @@ describe('revalidate — race condition (#11)', () => {
         })
         vi.stubGlobal('fetch', fetchMock)
 
-        await renderProvider({})
+        renderProvider({})
 
-        await act(async () => {
-            const p1 = capturedRevalidate!()
-            await new Promise(r => setTimeout(r, 2))
-            const p2 = capturedRevalidate!()
-            await new Promise(r => setTimeout(r, 2))
-            const p3 = capturedRevalidate!()
-            await Promise.allSettled([p1, p2, p3])
-        })
+        const p1 = capturedRevalidate!()
+        await new Promise(r => setTimeout(r, 2))
+        const p2 = capturedRevalidate!()
+        await new Promise(r => setTimeout(r, 2))
+        const p3 = capturedRevalidate!()
+        await Promise.allSettled([p1, p2, p3])
 
         expect(receivedLoaderData).toEqual({idx: 2})
     })

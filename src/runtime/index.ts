@@ -1,4 +1,4 @@
-export {useRouter, useNavigate, useRevalidate, useParams, useLoaderData, useGuardData, RouterProvider, Await, useDeferred} from "./router-provider"
+export {useRouter, useNavigate, useRevalidate, useParams, useLoaderData, useGuardData, useSearchParams, RouterProvider} from "./router-provider"
 
 export {Link} from "./link"
 
@@ -9,6 +9,9 @@ export type { RouteHandler, RouteResult, MiddlewareModule } from './api-context'
 export {getCookie, setCookie, deleteCookie} from '../utils/cookies'
 export type {CookieOptions} from '../utils/cookies'
 export {json, text, redirect, error, defer} from '../utils/response'
+export {query} from './query'
+export {createAsync} from './create-async'
+export {AwaitData} from './await-data'
 export type {JsonResponse, Redirect, RedirectOptions, RouteError, ErrorOptions, ErrorBody} from '../utils/response'
 export {createHandler} from './create-handler'
 export type {DevixHandler} from './create-handler'

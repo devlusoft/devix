@@ -1,11 +1,10 @@
-import {ComponentType, ReactNode, Suspense, useCallback, useContext, useEffect, useRef, useState} from "react";
-import {ErrorProps, LayoutProps, PageProps} from "../server/types";
-import {Metadata, Viewport} from "../types";
+import {Component, createEffect, createMemo, createSignal, onCleanup, useContext} from "solid-js";
+import type {ErrorProps, LayoutProps, PageProps} from "../server/types";
+import type {Metadata, Viewport} from "../types";
 
 const DEFAULT_VIEWPORT: Viewport = {width: 'device-width', initialScale: 1}
-import {HeadSlot} from "./head";
 import {NavigateOptions, PageMetaContext, RouteDataContext, RouterContext} from "./context";
-import {DevixErrorBoundary} from "./error-boundary";
+import {ContentTree} from "./content-tree";
 import {resolveTo} from "./url";
 import type {Redirect} from "../utils/response";
 import {decodeResponse} from "../utils/turbo-serializer";
@@ -16,22 +15,24 @@ export interface ClientRouteMatcher {
         loadLayouts: (() => Promise<any>)[]
         params: Record<string, string>
     } | null
-    loadErrorPage: () => Promise<ComponentType<ErrorProps> | null>
-    getDefaultErrorPage: () => ComponentType<ErrorProps> | null
+    loadErrorPage: () => Promise<Component<ErrorProps> | null>
+    getDefaultErrorPage: () => Component<ErrorProps> | null
 }
 
 interface RouteState {
+    _navKey: number
     pathname: string
+    search: string
     params: Record<string, string>
     loaderData: unknown
     layoutsData: unknown[]
     guardData: unknown
-    Page: ComponentType<PageProps>
-    layouts: ComponentType<LayoutProps>[]
+    Page: Component<PageProps>
+    layouts: Component<LayoutProps>[]
     metadata: Metadata | null
     viewport?: Viewport
     pendingError?: ErrorProps
-    ErrorPage?: ComponentType<ErrorProps>
+    ErrorPage?: Component<ErrorProps>
 }
 
 export function useRouter() {
@@ -100,25 +101,21 @@ export function useGuardData<TGuard = unknown>(): GuardDataReturn<TGuard> {
     return ctx.guardData as GuardDataReturn<TGuard>
 }
 
-export function useDeferred<T>(value: T | Promise<T>): T | undefined {
-    const [state, setState] = useState<T | undefined>(
-        () => value instanceof Promise ? undefined : value
-    )
-
-    useEffect(() => {
-        if (value instanceof Promise) {
-            let cancelled = false
-            value.then(v => {
-                if (!cancelled) setState(v)
-            })
-            return () => {
-                cancelled = true
-            }
+export function useSearchParams(): [() => URLSearchParams, (params: Record<string, string | undefined>) => void] {
+    const ctx = useContext(RouterContext)
+    const searchParams = createMemo(() => new URLSearchParams(ctx?.search ?? window.location.search))
+    const setSearchParams = (params: Record<string, string | undefined>) => {
+        const next = new URLSearchParams(ctx?.search ?? window.location.search)
+        for (const [key, value] of Object.entries(params)) {
+            if (value === undefined) next.delete(key)
+            else next.set(key, value)
         }
-    }, [value])
-
-    return state
+        const qs = next.toString()
+        ctx?.navigate(qs ? `?${qs}` : window.location.pathname, {replace: true})
+    }
+    return [searchParams, setSearchParams]
 }
+
 
 interface PrefetchEntry {
     promise: Promise<{ pageMod: any; layoutMods: any[]; data: any } | null>
@@ -128,14 +125,14 @@ interface PrefetchEntry {
 interface RouterProviderProps extends ClientRouteMatcher {
     initialData: unknown
     initialParams: Record<string, string>
-    initialPage: ComponentType<PageProps>
-    initialLayouts?: ComponentType<LayoutProps>[]
+    initialPage: Component<PageProps>
+    initialLayouts?: Component<LayoutProps>[]
     initialLayoutsData?: unknown[]
     initialGuardData?: unknown
     initialMeta?: Metadata | null
     initialViewport?: Viewport
     initialError?: ErrorProps
-    initialErrorPage?: ComponentType<ErrorProps>
+    initialErrorPage?: Component<ErrorProps>
     clientEntry: string
 }
 
@@ -156,8 +153,10 @@ export function RouterProvider({
                                    getDefaultErrorPage,
                                }: RouterProviderProps) {
 
-    const [state, setState] = useState<RouteState>({
+    const [state, setState] = createSignal<RouteState>({
+        _navKey: 0,
         pathname: window.location.pathname,
+        search: window.location.search,
         params: initialParams,
         loaderData: initialData,
         layoutsData: initialLayoutsData,
@@ -170,17 +169,17 @@ export function RouterProvider({
         ErrorPage: initialErrorPage,
     })
 
-    const navigatingRef = useRef<AbortController | null>(null)
-    const [isNavigating, setIsNavigating] = useState(false)
+    let navigatingController: AbortController | null = null
+    const [isNavigating, setIsNavigating] = createSignal(false)
 
-    const prefetchCacheRef = useRef<Map<string, PrefetchEntry>>(new Map())
+    const prefetchCache = new Map<string, PrefetchEntry>()
 
-    const prefetchRoute = useCallback((href: string) => {
+    const prefetchRoute = (href: string) => {
         const resolved = resolveTo(href)
         if (resolved.kind === 'external') return
 
         const key = resolved.href
-        if (prefetchCacheRef.current.has(key)) return
+        if (prefetchCache.has(key)) return
         const matched = matchClientRoute(resolved.pathname)
         if (!matched) return
 
@@ -196,36 +195,37 @@ export function RouterProvider({
 
         const expireTimer = setTimeout(() => {
             controller.abort()
-            prefetchCacheRef.current.delete(key)
+            prefetchCache.delete(key)
         }, 3000)
         promise.finally(() => clearTimeout(expireTimer))
 
-        prefetchCacheRef.current.set(key, {promise, controller})
-    }, [])
+        prefetchCache.set(key, {promise, controller})
+    }
 
-    const loadRoute = useCallback(async (to: string, controller: AbortController) => {
+    const loadRoute = async (to: string, controller: AbortController) => {
         const pathname = to.split('?')[0].split('#')[0]
+        const qsIndex = to.indexOf('?')
+        const search = qsIndex !== -1 ? '?' + to.slice(qsIndex + 1).split('#')[0] : ''
         const matched = matchClientRoute(pathname)
         if (!matched) {
             const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
-            setState(prev => ({
-                ...prev,
-                pathname: pathname,
+            setState(s => ({
+                ...s,
+                _navKey: s._navKey + 1,
+                pathname,
+                search,
                 pendingError: {statusCode: 404, message: 'Not found'},
                 ErrorPage: ErrorPage ?? undefined,
             }))
             return
         }
 
-        const cached = prefetchCacheRef.current.get(to)
-        if (cached) prefetchCacheRef.current.delete(to)
+        const cached = prefetchCache.get(to)
+        if (cached) prefetchCache.delete(to)
         const prefetched = cached ? await cached.promise : null
-
-        if (controller.signal.aborted) return
 
         if (prefetched) {
             const {pageMod, layoutMods, data} = prefetched
-
             if (data.redirect) {
                 if (data.redirectReplace) {
                     window.history.replaceState(null, '', data.redirect)
@@ -236,8 +236,10 @@ export function RouterProvider({
                 return
             }
 
-            setState({
+            setState(prev => ({
+                _navKey: prev._navKey + 1,
                 pathname,
+                search,
                 params: data.params ?? {},
                 loaderData: data.loaderData,
                 layoutsData: (data.layouts ?? []).map((l: any) => l.loaderData),
@@ -246,16 +248,16 @@ export function RouterProvider({
                 layouts: layoutMods.map(m => m.default),
                 metadata: data.metadata ?? null,
                 viewport: data.viewport ?? DEFAULT_VIEWPORT,
-            })
+            }))
         } else {
             const pagePromise = matched.load()
 
             const [layoutMods, dataRes] = await Promise.all([
                 Promise.all(matched.loadLayouts.map(l => l())),
-                fetch(`/_devix/data${to}`, {signal: controller.signal})
+                fetch(`/_devix/data${to}`, {signal: controller.signal}).catch(() => null as Response | null)
             ])
 
-            if (controller.signal.aborted) return
+            if (controller.signal.aborted || !dataRes) return
 
             if (!dataRes.ok) {
                 const ct = dataRes.headers.get('Content-Type') ?? ''
@@ -272,9 +274,11 @@ export function RouterProvider({
                 })
 
                 const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
-                setState(prev => ({
-                    ...prev,
+                setState(s => ({
+                    ...s,
+                    _navKey: s._navKey + 1,
                     pathname,
+                    search,
                     pendingError: {
                         statusCode: errorBody?.statusCode ?? dataRes.status,
                         message: errorBody?.message ?? 'Server error',
@@ -287,7 +291,21 @@ export function RouterProvider({
                 return
             }
 
-            const data = await decodeResponse(dataRes)
+            let data: any
+            try {
+                data = await decodeResponse(dataRes)
+            } catch {
+                const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
+                setState(s => ({
+                    ...s,
+                    _navKey: s._navKey + 1,
+                    pathname,
+                    search,
+                    pendingError: {statusCode: 500, message: 'Failed to decode server response'},
+                    ErrorPage: ErrorPage ?? undefined,
+                }))
+                return
+            }
 
             if (data.redirect) {
                 if (data.redirectReplace) {
@@ -299,10 +317,28 @@ export function RouterProvider({
                 return
             }
 
-            const Page = (await pagePromise).default
+            let Page: any
+            try {
+                Page = (await pagePromise).default
+                if (!Page) throw new Error('Page module has no default export')
+            } catch (err) {
+                const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
+                console.error('[router] page load error:', err)
+                setState(s => ({
+                    ...s,
+                    _navKey: s._navKey + 1,
+                    pathname,
+                    search,
+                    pendingError: {statusCode: 500, message: 'Failed to load page module'},
+                    ErrorPage: ErrorPage ?? undefined,
+                }))
+                return
+            }
 
-            setState({
+            setState(prev => ({
+                _navKey: prev._navKey + 1,
                 pathname,
+                search,
                 params: data.params ?? {},
                 loaderData: data.loaderData,
                 layoutsData: (data.layouts ?? []).map((l: any) => l.loaderData),
@@ -311,7 +347,7 @@ export function RouterProvider({
                 layouts: layoutMods.map(m => m.default),
                 metadata: data.metadata ?? null,
                 viewport: data.viewport ?? DEFAULT_VIEWPORT,
-            })
+            }))
         }
 
         const hash = to.includes('#') ? to.split('#')[1] : null
@@ -323,9 +359,9 @@ export function RouterProvider({
         } else {
             window.scrollTo({top: 0, behavior: scrollBehavior})
         }
-    }, [])
+    }
 
-    const navigate = useCallback(async (to: string, options?: NavigateOptions) => {
+    const navigate = async (to: string, options?: NavigateOptions) => {
         const resolved = resolveTo(to)
         if (resolved.kind === 'external') {
             window.location.href = resolved.url.href
@@ -333,32 +369,27 @@ export function RouterProvider({
         }
         const href = resolved.href
 
-        navigatingRef.current?.abort()
+        navigatingController?.abort()
         const controller = new AbortController()
-        navigatingRef.current = controller
+        navigatingController = controller
 
-        setIsNavigating(true)
-        const run = async () => {
+        setIsNavigating(() => true)
+        try {
             window.history[options?.replace ? 'replaceState' : 'pushState'](null, '', href)
             await loadRoute(href, controller)
-        }
-        try {
-            if (options?.viewTransition && 'startViewTransition' in document) {
-                await (document as any).startViewTransition(run).finished
-            } else {
-                await run()
-            }
+        } catch (err) {
+            console.error('[router] navigate error:', err)
         } finally {
-            if (!controller.signal.aborted) setIsNavigating(false)
+            if (!controller.signal.aborted) setIsNavigating(() => false)
         }
-    }, [loadRoute])
+    }
 
-    const revalidatingRef = useRef<AbortController | null>(null)
+    let revalidatingController: AbortController | null = null
 
-    const revalidate = useCallback(async () => {
-        revalidatingRef.current?.abort()
+    const revalidate = async () => {
+        revalidatingController?.abort()
         const controller = new AbortController()
-        revalidatingRef.current = controller
+        revalidatingController = controller
 
         const to = window.location.pathname + window.location.search
         let dataRes: Response
@@ -381,22 +412,30 @@ export function RouterProvider({
             await navigate(data.redirect, {replace: data.redirectReplace})
             return
         }
-        setState(prev => ({
-            ...prev,
+        setState(s => ({
+            ...s,
+            _navKey: s._navKey + 1,
             loaderData: data.loaderData,
             layoutsData: (data.layouts ?? []).map((l: any) => l.loaderData),
             guardData: data.guardData ?? null,
-            params: data.params ?? prev.params,
-            metadata: data.metadata ?? prev.metadata,
-            viewport: data.viewport ?? prev.viewport,
+            params: data.params ?? s.params,
+            metadata: data.metadata ?? s.metadata,
+            viewport: data.viewport ?? s.viewport,
         }))
-    }, [navigate])
+    }
 
-    useEffect(() => {
+    createEffect(() => {
+        const meta = state().metadata
+        if (meta?.title && document.title !== meta.title) {
+            document.title = meta.title
+        }
+    })
+
+    createEffect(() => {
         const handlePop = () => {
-            navigatingRef.current?.abort()
+            navigatingController?.abort()
             const controller = new AbortController()
-            navigatingRef.current = controller
+            navigatingController = controller
 
             const to = window.location.pathname + window.location.search
             loadRoute(to, controller).catch(err => {
@@ -404,97 +443,43 @@ export function RouterProvider({
             })
         }
         window.addEventListener("popstate", handlePop)
-        return () => window.removeEventListener("popstate", handlePop)
-    }, [loadRoute])
-
-    let content: ReactNode
-
-    if (state.pendingError) {
-        content = state.ErrorPage
-            ? <state.ErrorPage {...state.pendingError} />
-            : <h1>{state.pendingError.statusCode}</h1>
-    } else {
-        let tree: ReactNode = (
-            <RouteDataContext value={{loaderData: state.loaderData, params: state.params}}>
-                <Suspense fallback={null}>
-                    <state.Page data={state.loaderData} params={state.params} url={state.pathname}/>
-                </Suspense>
-            </RouteDataContext>
-        )
-
-        for (let i = state.layouts.length - 1; i >= 0; i--) {
-            const Layout = state.layouts[i]
-            const layoutData = state.layoutsData[i]
-            tree = (
-                <RouteDataContext value={{loaderData: layoutData, params: state.params}}>
-                    <Layout data={layoutData} params={state.params}>{tree}</Layout>
-                </RouteDataContext>
-            )
-        }
-
-        content = (
-            <DevixErrorBoundary key={state.pathname} ErrorPage={state.ErrorPage}>
-                {tree}
-            </DevixErrorBoundary>
-        )
-    }
+        onCleanup(() => window.removeEventListener("popstate", handlePop))
+    })
 
     return (
-        <PageMetaContext value={{
-            metadata: state.metadata,
-            viewport: state.viewport,
+        <PageMetaContext.Provider value={{
+            metadata: state().metadata,
+            viewport: state().viewport,
             clientEntry,
         }}>
-            <HeadSlot metadata={state.metadata} viewport={state.viewport}/>
-            <RouterContext value={{...state, isNavigating, navigate, revalidate, prefetchRoute}}>
-                {content}
-            </RouterContext>
-        </PageMetaContext>
+            <RouterContext.Provider value={{
+                get pathname() { return state().pathname },
+                get search() { return state().search },
+                get params() { return state().params },
+                get loaderData() { return state().loaderData },
+                get layoutsData() { return state().layoutsData },
+                get guardData() { return state().guardData },
+                get Page() { return state().Page },
+                get layouts() { return state().layouts },
+                get metadata() { return state().metadata },
+                get viewport() { return state().viewport },
+                isNavigating: isNavigating(),
+                navigate,
+                revalidate,
+                prefetchRoute,
+            }}>
+                <ContentTree
+                    _navKey={state()._navKey}
+                    pathname={state().pathname}
+                    params={state().params}
+                    loaderData={state().loaderData}
+                    layoutsData={state().layoutsData}
+                    Page={state().Page}
+                    layouts={state().layouts}
+                    ErrorPage={state().ErrorPage}
+                    pendingError={state().pendingError}
+                />
+            </RouterContext.Provider>
+        </PageMetaContext.Provider>
     )
-}
-
-export function Await<T>({resolve, children, fallback}: {
-    resolve: Promise<T> | T,
-    children: ((value: T) => ReactNode) | ReactNode,
-    fallback?: ReactNode
-}) {
-    let inner: ReactNode
-    if (resolve instanceof Promise) {
-        if (typeof window === 'undefined') {
-            inner = fallback ?? null
-        } else {
-            inner = <AwaitInner resolve={resolve} children={children} fallback={fallback}/>
-        }
-    } else {
-        inner = typeof children === 'function' ? children(resolve) : children
-    }
-    return (
-        <Suspense fallback={fallback ?? null}>
-            {inner}
-        </Suspense>
-    )
-}
-
-function AwaitInner<T>({resolve, children, fallback}: {
-    resolve: Promise<T>,
-    children: ((value: T) => ReactNode) | ReactNode,
-    fallback?: ReactNode
-}) {
-    const [value, setValue] = useState<T | undefined>(undefined)
-    const [error, setError] = useState<unknown>(undefined)
-
-    useEffect(() => {
-        let cancelled = false
-        resolve.then(
-            v => { if (!cancelled) setValue(v) },
-            e => { if (!cancelled) setError(e) }
-        )
-        return () => { cancelled = true }
-    }, [resolve])
-
-    if (error) throw error
-    if (value !== undefined) {
-        return typeof children === 'function' ? children(value) : children
-    }
-    return fallback ?? null
 }

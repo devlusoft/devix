@@ -1,9 +1,9 @@
-import {ComponentType} from "react";
+import type {Component} from "solid-js";
 import {routePattern} from "../utils/patterns";
 
 export interface ClientMatch {
-    load: () => Promise<{ default: ComponentType<any> }>
-    loadLayouts: Array<() => Promise<{ default: ComponentType<any> }>>
+    load: () => Promise<{ default: Component<any> }>
+    loadLayouts: Array<() => Promise<{ default: Component<any> }>>
     params: Record<string, string>
 }
 

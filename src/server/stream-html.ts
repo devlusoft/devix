@@ -1,6 +1,6 @@
 import {PassThrough, Transform, TransformCallback} from "node:stream"
-import type {ReactElement} from "react";
-import {renderToPipeableStream} from "react-dom/server";
+import {renderToStream} from "solid-js/web";
+import {JSX} from "solid-js";
 
 class HtmlTailInjector extends Transform {
     private readonly tail: Buffer
@@ -34,51 +34,42 @@ export interface CreateHtmlStreamResult {
 }
 
 export function createHtmlStream(
-    element: ReactElement,
+    fn: () => JSX.Element,
     head: string,
     tail: string,
     options?: CreateHtmlStreamOptions,
-): Promise<CreateHtmlStreamResult> {
-    return new Promise((resolve, reject) => {
-        const output = new PassThrough()
-        const injector = new HtmlTailInjector(tail)
-        let timer: ReturnType<typeof setTimeout> | undefined
+): CreateHtmlStreamResult {
+    const output = new PassThrough()
+    const injector = new HtmlTailInjector(tail)
 
-        injector.pipe(output)
+    injector.pipe(output)
+    output.write(head)
 
-        const {pipe, abort} = renderToPipeableStream(element, {
-            bootstrapModules: options?.bootstrapModules,
-            onShellReady() {
-                output.write(head)
-                pipe(injector)
-                clearTimeout(timer)
-                resolve({stream: output, abort})
-            },
-            onShellError(err) {
-                clearTimeout(timer)
-                output.destroy()
-                injector.destroy()
-                reject(err)
-            },
-            onError(error) {
-                options?.onError?.(error)
-            }
-        })
+    const stream = renderToStream(fn)
 
-        if (options?.signal) {
-            if (options.signal.aborted) {
-                abort()
-                reject(new DOMException('Aborted', 'AbortError'))
-                return
-            }
-            options.signal.addEventListener('abort', () => abort(), {once: true})
+    stream.pipe(injector)
+
+    if (options?.signal) {
+        if (options.signal.aborted) {
+            output.destroy()
+            injector.destroy()
         }
+        options.signal.addEventListener('abort', () => {
+            output.destroy()
+            injector.destroy()
+        }, {once: true})
+    }
 
-        if (options?.timeoutMs) {
-            timer = setTimeout(() => {
-                abort()
-                reject(new Error(`Stream render timed out after ${options.timeoutMs}ms`))
-            }, options.timeoutMs)
+    if (options?.timeoutMs) {
+        setTimeout(() => {
+            output.destroy(new Error(`Stream render timed out after ${options.timeoutMs}ms`))
+        }, options.timeoutMs)
+    }
+
+    return {
+        stream: output, abort: () => {
+            output.destroy();
+            injector.destroy()
         }
-    })
+    }
 }

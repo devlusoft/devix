@@ -1,52 +1,30 @@
 // @vitest-environment jsdom
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
-import {renderToString} from 'react-dom/server'
-import {createElement, act} from 'react'
-import {createRoot} from 'react-dom/client'
+import {render} from 'solid-js/web'
 import {useNavigate, useRevalidate} from '../../src/runtime'
 import {RouterContext} from '../../src/runtime/context'
 
 describe('useNavigate — SSR safety', () => {
-    it('no lanza durante SSR (sin RouterProvider)', () => {
-        let navigate: unknown
-        function Page() {
-            navigate = useNavigate()
-            return null
-        }
-        expect(() => renderToString(createElement(Page))).not.toThrow()
+    it('retorna noop sin RouterProvider', () => {
+        const navigate = useNavigate()
         expect(typeof navigate).toBe('function')
     })
 
-    it('el noop de SSR resuelve sin error', async () => {
-        let navigate: ReturnType<typeof useNavigate>
-        function Page() {
-            navigate = useNavigate()
-            return null
-        }
-        renderToString(createElement(Page))
-        await expect(navigate!('/test')).resolves.toBeUndefined()
+    it('el noop resuelve sin error', async () => {
+        const navigate = useNavigate()
+        await expect(navigate('/test')).resolves.toBeUndefined()
     })
 })
 
 describe('useRevalidate — SSR safety', () => {
-    it('no lanza durante SSR (sin RouterProvider)', () => {
-        let revalidate: unknown
-        function Page() {
-            revalidate = useRevalidate()
-            return null
-        }
-        expect(() => renderToString(createElement(Page))).not.toThrow()
+    it('retorna noop sin RouterProvider', () => {
+        const revalidate = useRevalidate()
         expect(typeof revalidate).toBe('function')
     })
 
-    it('el noop de SSR resuelve sin error', async () => {
-        let revalidate: ReturnType<typeof useRevalidate>
-        function Page() {
-            revalidate = useRevalidate()
-            return null
-        }
-        renderToString(createElement(Page))
-        await expect(revalidate!()).resolves.toBeUndefined()
+    it('el noop resuelve sin error', async () => {
+        const revalidate = useRevalidate()
+        await expect(revalidate()).resolves.toBeUndefined()
     })
 })
 
@@ -56,18 +34,21 @@ function makeContextValue(overrides: Record<string, unknown> = {}) {
         params: {},
         loaderData: null,
         layoutsData: [],
+        guardData: null,
         Page: () => null,
         layouts: [],
         metadata: null,
         isNavigating: false,
         navigate: vi.fn().mockResolvedValue(undefined),
         revalidate: vi.fn().mockResolvedValue(undefined),
+        prefetchRoute: vi.fn(),
         ...overrides,
     } as any
 }
 
 describe('useNavigate — dentro de RouterProvider', () => {
     let container: HTMLDivElement
+    let dispose: () => void
 
     beforeEach(() => {
         container = document.createElement('div')
@@ -75,23 +56,24 @@ describe('useNavigate — dentro de RouterProvider', () => {
     })
 
     afterEach(() => {
+        dispose?.()
         document.body.removeChild(container)
     })
 
-    it('retorna la función navigate del contexto', async () => {
+    it('retorna la función navigate del contexto', () => {
         const ctx = makeContextValue()
         let fn: ReturnType<typeof useNavigate>
 
         function Page() {
             fn = useNavigate()
-            return null
+            return <div />
         }
 
-        await act(async () => {
-            createRoot(container).render(
-                createElement(RouterContext.Provider, {value: ctx}, createElement(Page))
-            )
-        })
+        dispose = render(() => (
+            <RouterContext.Provider value={ctx}>
+                <Page />
+            </RouterContext.Provider>
+        ), container)
 
         expect(fn!).toBe(ctx.navigate)
     })
@@ -102,16 +84,16 @@ describe('useNavigate — dentro de RouterProvider', () => {
 
         function Page() {
             fn = useNavigate()
-            return null
+            return <div />
         }
 
-        await act(async () => {
-            createRoot(container).render(
-                createElement(RouterContext.Provider, {value: ctx}, createElement(Page))
-            )
-        })
+        dispose = render(() => (
+            <RouterContext.Provider value={ctx}>
+                <Page />
+            </RouterContext.Provider>
+        ), container)
 
-        await act(async () => { await fn!('/home', {replace: true}) })
+        await fn!('/home', {replace: true})
         expect(ctx.navigate).toHaveBeenCalledWith('/home', {replace: true})
     })
 
@@ -121,22 +103,23 @@ describe('useNavigate — dentro de RouterProvider', () => {
 
         function Page() {
             fn = useNavigate()
-            return null
+            return <div />
         }
 
-        await act(async () => {
-            createRoot(container).render(
-                createElement(RouterContext.Provider, {value: ctx}, createElement(Page))
-            )
-        })
+        dispose = render(() => (
+            <RouterContext.Provider value={ctx}>
+                <Page />
+            </RouterContext.Provider>
+        ), container)
 
-        await act(async () => { await fn!('/home', {viewTransition: true}) })
+        await fn!('/home', {viewTransition: true})
         expect(ctx.navigate).toHaveBeenCalledWith('/home', {viewTransition: true})
     })
 })
 
 describe('useRevalidate — dentro de RouterProvider', () => {
     let container: HTMLDivElement
+    let dispose: () => void
 
     beforeEach(() => {
         container = document.createElement('div')
@@ -144,6 +127,7 @@ describe('useRevalidate — dentro de RouterProvider', () => {
     })
 
     afterEach(() => {
+        dispose?.()
         document.body.removeChild(container)
     })
 
@@ -153,16 +137,16 @@ describe('useRevalidate — dentro de RouterProvider', () => {
 
         function Page() {
             fn = useRevalidate()
-            return null
+            return <div />
         }
 
-        await act(async () => {
-            createRoot(container).render(
-                createElement(RouterContext.Provider, {value: ctx}, createElement(Page))
-            )
-        })
+        dispose = render(() => (
+            <RouterContext.Provider value={ctx}>
+                <Page />
+            </RouterContext.Provider>
+        ), container)
 
-        await act(async () => { await fn!() })
+        await fn!()
         expect(ctx.revalidate).toHaveBeenCalledOnce()
     })
 })

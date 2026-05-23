@@ -1,12 +1,13 @@
 import type {Context, Hono} from 'hono'
 import type {ContentfulStatusCode, RedirectStatusCode} from 'hono/utils/http-status'
 import type {Manifest} from 'vite'
-import {errorToBody, LoaderError, NotFoundError, RedirectError} from "../utils/response"
+import {errorToBody} from "../utils/response"
 import type {ServerBackendConfig} from "../config"
 import {handleProxyRequest} from "./server-proxy"
 import {Readable} from "node:stream";
 import {safeJsonStringify} from "../utils/html";
 import {createTurboResponse} from "../utils/turbo-serializer";
+import {getQueryRegistry} from "../runtime/query";
 
 interface ServerOptions {
     renderModule: any
@@ -53,6 +54,26 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTim
             return createTurboResponse(data, c.req.raw.signal)
         } catch (e) {
             console.error(e)
+            return c.json({statusCode: 500, message: 'Internal Server Error'}, 500)
+        }
+    })
+
+    app.post('/_devix/query', async (c: Context) => {
+        try {
+            const registry = getQueryRegistry()
+            const body = await c.req.json() as Array<{name: string, args: unknown[]}>
+            const results: Record<string, unknown> = {}
+            for (const {name, args} of body) {
+                const fn = registry.get(name)
+                if (!fn) {
+                    results[name] = {error: `Query "${name}" not found`}
+                    continue
+                }
+                results[name] = await fn(...(args ?? []))
+            }
+            return c.json(results)
+        } catch (e) {
+            console.error('[devix] query RPC error:', e)
             return c.json({statusCode: 500, message: 'Internal Server Error'}, 500)
         }
     })

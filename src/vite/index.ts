@@ -37,9 +37,9 @@ export function devix(config: DevixConfig): UserConfig {
     const pagesDir = `${appDir}/pages`
     const cssUrls = (config.css ?? []).map(u => u.startsWith('/') ? u : `/${u.replace(/^\.\//, '')}`)
 
-    const renderPath = resolve(__dirname, '../server/render.jsx').replace(/\\/g, '/')
-    const apiPath = resolve(__dirname, '../server/api.jsx').replace(/\\/g, '/')
-    const actionsPath = resolve(__dirname, '../server/actions.jsx').replace(/\\/g, '/')
+    const renderPath = resolve(__dirname, '../server/render').replace(/\\/g, '/')
+    const apiPath = resolve(__dirname, '../server/api').replace(/\\/g, '/')
+    const actionsPath = resolve(__dirname, '../server/actions').replace(/\\/g, '/')
     const matcherPath = resolve(__dirname, '../runtime/client-router.js').replace(/\\/g, '/')
     
 
@@ -246,7 +246,6 @@ export function devix(config: DevixConfig): UserConfig {
         plugins: [solid({ssr: true}), virtualPlugin],
         publicDir: resolve(process.cwd(), config.publicDir ?? 'public'),
         ssr: {noExternal: ['@devlusoft/devix', 'solid-js', 'solid-js/web', 'seroval', 'seroval-plugins']},
-        optimizeDeps: {include: ['solid-js/web']},
         ...(config.envPrefix ? {envPrefix: config.envPrefix} : {}),
     }
 

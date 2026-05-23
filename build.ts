@@ -1,6 +1,6 @@
 import {build} from 'esbuild'
 import {solidPlugin} from 'esbuild-plugin-solid'
-import {readdirSync, readFileSync, renameSync, existsSync} from 'node:fs'
+import {readdirSync, readFileSync, globSync, rmSync} from 'node:fs'
 import {join} from 'node:path'
 import {execSync} from 'node:child_process'
 
@@ -23,7 +23,7 @@ await build({
     },
     jsx: 'preserve',
     plugins: [solidPlugin({
-        solid: {hydratable: true},
+        solid: {hydratable: true, generate: "ssr"},
         typescript: {onlyRemoveTypeImports: true},
     })],
     sourcemap: true,
@@ -72,6 +72,10 @@ await build({
     bundle: true,
     packages: 'external',
     jsx: 'preserve',
+    plugins: [solidPlugin({
+        solid: {hydratable: true, generate: 'ssr'},
+        typescript: {onlyRemoveTypeImports: true},
+    })],
     outbase: 'src',
     outExtension: {'.js': '.jsx'},
     sourcemap: true,
@@ -79,5 +83,8 @@ await build({
 })
 
 execSync('npx tsc -p tsconfig.build.json', {stdio: 'inherit'})
+
+for (const f of globSync('dist/**/*.map')) rmSync(f)
+for (const f of globSync('dist/server/*.jsx')) rmSync(f)
 
 console.log('✓ devix built')

@@ -8,11 +8,11 @@ Un archivo `layout.tsx` envuelve automáticamente todas las páginas del mismo d
 // app/pages/layout.tsx
 import type { LayoutProps } from '@devlusoft/devix'
 
-export default function RootLayout({ children }: LayoutProps) {
+export default function RootLayout(props: LayoutProps) {
   return (
     <div>
       <header>Mi App</header>
-      <main>{children}</main>
+      <main>{props.children}</main>
     </div>
   )
 }
@@ -43,13 +43,13 @@ export async function loader({ request }: LoaderContext) {
   return { user: await getUser(request) }
 }
 
-export default function RootLayout({ children, data }: LayoutProps<{ user: User }>) {
+export default function RootLayout(props: LayoutProps<{ user: User }>) {
   return (
     <div>
       <header>
-        {data.user ? data.user.name : <a href="/login">Iniciar sesión</a>}
+        {props.data.user ? props.data.user.name : <a href="/login">Iniciar sesión</a>}
       </header>
-      {children}
+      {props.children}
     </div>
   )
 }
@@ -72,4 +72,13 @@ export async function generateLang({ request }: LoaderContext) {
 
 ## Datos del layout en el cliente
 
-Usa `useLoaderData()` dentro del layout para acceder a sus datos en el cliente.
+Usa `useLoaderData()` dentro del layout para acceder a sus datos en el cliente. Retorna una signal:
+
+```tsx
+import { useLoaderData } from '@devlusoft/devix'
+
+function Header() {
+  const data = useLoaderData<{ user: User }>()
+  return <span>{data().user.name}</span>
+}
+```

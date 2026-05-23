@@ -1,16 +1,17 @@
 # devix
 
-Un meta-framework ligero de React 19 con SSR, impulsado por Vite 8 + Hono.
+Un meta-framework ligero de **SolidJS** con SSR, impulsado por Vite 8 + Hono.
 
-Construye aplicaciones React full-stack con enrutamiento basado en archivos, renderizado del lado del servidor, generación estática de sitios y rutas API — configuración mínima, control máximo.
+Construye aplicaciones SolidJS full-stack con enrutamiento basado en archivos, renderizado del lado del servidor, generación estática de sitios y rutas API — configuración mínima, control máximo.
 
 ## Características
 
 - **Vite 8** — HMR instantáneo y builds rápidos con Rolldown
-- **React 19** — SSR con `renderToString` e `hydrateRoot`
+- **SolidJS 1.9** — SSR con `renderToString` e `hydrateRoot`. Sin VDOM, JSX compilado a DOM real
 - **Enrutamiento basado en archivos** — páginas, layouts anidados y rutas API desde el sistema de archivos
 - **SSR por defecto** — cada página se renderiza en el servidor
 - **SSG** — genera HTML estático con `generateStaticParams`
+- **Query system** — queries nombradas con deduplicación automática por request y caché cliente
 - **Rutas API** — basadas en archivos, con `createHandler` para tipado de extremo a extremo
 - **$fetch** — cliente HTTP con body y respuesta tipados, con autocompletado de rutas
 - **$server** — proxy a backends remotos con auth pass-through y allowlist (multi-backend, tipo via generic en el call site)
@@ -20,16 +21,16 @@ Construye aplicaciones React full-stack con enrutamiento basado en archivos, ren
 - **Guards de ruta** — redirecciones del lado del servidor antes del renderizado, con `useGuardData()` para leer datos del guard sin loader
 - **Navegación programática** — `useNavigate()` con soporte de `replace` y View Transitions API
 - **Revalidación de datos** — `useRevalidate()` para refrescar guards y loaders sin recargar la página
-- **SEO** — `metadata` y `generateMetadata` por página, con soporte de Open Graph y Twitter
+- **SEO** — `metadata` y `generateMetadata` por página, con soporte de Open Graph
 - **TypeScript primero** — inferencia de tipos completa en todo el framework
 
 ## Instalación
 
 ```bash
-npm install @devlusoft/devix react react-dom
+npm install @devlusoft/devix solid-js
 ```
 
-Requiere React 19+, Vite 8+, Node 20+.
+Requiere SolidJS 1.9+, Vite 8+, Node 20+.
 
 ## Inicio rápido
 
@@ -84,7 +85,6 @@ app/
 ### Loader y datos
 
 ```tsx
-import { useLoaderData } from '@devlusoft/devix'
 import type { PageProps, LoaderContext } from '@devlusoft/devix'
 
 export async function loader({ params, request }: LoaderContext) {
@@ -92,8 +92,8 @@ export async function loader({ params, request }: LoaderContext) {
   return post
 }
 
-export default function BlogPost({ data, params }: PageProps<typeof loader>) {
-  return <article>{data.title}</article>
+export default function BlogPost(props: PageProps<typeof loader>) {
+  return <article>{props.data.title}</article>
 }
 ```
 
@@ -114,7 +114,6 @@ export const metadata = {
   title: 'Inicio',
   description: 'Bienvenido a mi sitio',
   og: { image: '/og.png', type: 'website' },
-  twitter: { card: 'summary_large_image' },
 }
 
 // o dinámica:
@@ -128,25 +127,13 @@ export async function generateMetadata({ loaderData }) {
 ```tsx
 import type { LayoutProps } from '@devlusoft/devix'
 
-export default function RootLayout({ children }: LayoutProps) {
+export default function RootLayout(props: LayoutProps) {
   return (
     <div>
       <nav>...</nav>
-      {children}
+      {props.children}
     </div>
   )
-}
-```
-
-### Tipado de params
-
-Pasa el tipo de params directamente sin necesidad de un loader:
-
-```tsx
-import type { PageProps } from '@devlusoft/devix'
-
-export default function ProviderPage({ params }: PageProps<{ providerId: string }>) {
-  return <h1>{params.providerId}</h1>
 }
 ```
 
@@ -170,18 +157,6 @@ function MyComponent() {
 }
 ```
 
-### redirect con replace
-
-```ts
-import { redirect } from '@devlusoft/devix'
-
-export async function loader({ request }: LoaderContext) {
-  const user = await getSession(request)
-  if (!user) return redirect('/login', { replace: true })
-  return user
-}
-```
-
 ### Rutas API
 
 `createHandler` da tipado de extremo a extremo — el body y el retorno se infieren automáticamente para `$fetch`. El segundo argumento `ctx` expone `request`, `url`, `params`, `$server` y state heredado de middleware:
@@ -195,16 +170,14 @@ export const GET = createHandler(async (_body, ctx) => {
 })
 
 export const POST = createHandler(async (body: { name: string }, ctx) => {
-  const user = ctx.get<User>('user')  // del middleware
+  const user = ctx.get<User>('user')
   if (!user) return error(401, 'No autenticado')
   const item = await db.items.create({ ...body, ownerId: user.id })
   return json(item, 201)
 })
-
-export const DELETE = createHandler(async () => null)  // 204
 ```
 
-Con [Standard Schema](https://standardschema.dev) la validación es automática — si el body no cumple, devix responde `400` con el shape `{ statusCode, code, message, data: { issues } }`:
+Con [Standard Schema](https://standardschema.dev) la validación es automática:
 
 ```ts
 import { z } from 'zod'
@@ -226,8 +199,6 @@ const res = await $fetch('/api/items', {
 
 ### Backend remoto con `$server`
 
-Llama a tu API (Go, Rails, microservicios) directamente desde loaders, handlers y componentes — devix se encarga del proxy y del auth pass-through. Multi-backend soportado.
-
 ```ts
 // devix.config.ts
 import { defineConfig } from '@devlusoft/devix/config'
@@ -248,23 +219,33 @@ export default defineConfig({
 ```
 
 ```ts
-// Loader/handler — $server bound al request del usuario
+// Loader/handler
 export async function loader({ $server, params }: LoaderContext) {
   return await $server.api.get<Post>(`/v1/posts/${params.id}`)
 }
 
-// Cliente — pasa por el proxy interno con el mismo prepare
+// Cliente
 import { $server } from '@devlusoft/devix'
 const me = await $server.api.get<User>('/v1/me')
 ```
 
-El tipo de respuesta se declara con un generic en el call site (`<User>`). El backend remoto vive fuera del repo — devix no puede inferir tipos automáticamente.
+### Query system
 
-> ⚠️ `$server` reenvía credenciales del usuario al backend (el backend valida). **No lo uses para APIs de terceros con keys del server (Stripe, etc.)** — eso expone esa key. Para terceros, escribe un handler explícito con autorización propia. Ver [Server primitive](./docs/server-primitive.md).
+```ts
+import { query } from '@devlusoft/devix'
+
+export const getPost = query(async (id: string) => {
+  return db.posts.find(id)
+}, 'getPost')
+
+export async function loader({ params }: LoaderContext) {
+  return { post: await getPost(params.slug) }
+}
+```
+
+Deduplicación automática por request. Caché cliente hidratada desde `window.__DEVIX_QUERIES__`.
 
 ### Generación estática (SSG)
-
-Configura `output: 'static'` y exporta `generateStaticParams` desde cualquier página dinámica:
 
 ```ts
 // devix.config.ts
@@ -280,8 +261,8 @@ export async function generateStaticParams() {
 ```
 
 ```bash
-npx devix generate   # compila y pre-renderiza todas las páginas en dist/client/
-npx devix start      # sirve los archivos estáticos (sin SSR en runtime)
+npx devix generate
+npx devix start
 ```
 
 ## Comandos
@@ -300,15 +281,15 @@ npx devix start      # sirve los archivos estáticos (sin SSR en runtime)
 import { defineConfig } from '@devlusoft/devix/config'
 
 export default defineConfig({
-  port: 3000,                // puerto del servidor dev y producción (default: 3000)
-  host: false,               // bind a 0.0.0.0 (default: false)
-  appDir: 'app',             // directorio de la app (default: 'app')
-  publicDir: 'public',       // directorio de archivos estáticos (default: 'public')
-  output: 'server',          // 'server' | 'static' (default: 'server')
-  loaderTimeout: 10_000,     // timeout de los loaders en ms (default: 10000)
-  css: ['./app/styles/global.css'],  // archivos CSS globales
-  envPrefix: 'PUBLIC_',      // expone variables de entorno con este prefijo al cliente
-  vite: {},                  // extiende la configuración de Vite
+  port: 3000,
+  host: false,
+  appDir: 'app',
+  publicDir: 'public',
+  output: 'server',
+  loaderTimeout: 10_000,
+  css: ['./app/styles/global.css'],
+  envPrefix: 'PUBLIC_',
+  vite: {},
 })
 ```
 
@@ -320,6 +301,8 @@ La documentación completa está en la carpeta [`docs/`](./docs):
 - [Enrutamiento](./docs/routing.md)
 - [Layouts](./docs/layouts.md)
 - [Carga de datos](./docs/data-loading.md)
+- [Query System](./docs/query-system.md)
+- [Server Actions](./docs/actions.md)
 - [Rutas API](./docs/api-routes.md)
 - [Backend remoto con `$server`](./docs/server-primitive.md)
 - [Metadata y SEO](./docs/metadata.md)

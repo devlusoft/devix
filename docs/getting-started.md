@@ -3,13 +3,13 @@
 ## Requisitos
 
 - Node.js 20+
-- React 19+
+- SolidJS 1.9+
 - Vite 8+
 
 ## Instalación
 
 ```bash
-npm install @devlusoft/devix react react-dom
+npm install @devlusoft/devix solid-js
 ```
 
 ## Estructura del proyecto
@@ -67,7 +67,8 @@ npx devix start
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "jsx": "react-jsx",
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
     "strict": true
   },
   "include": ["app", "devix.config.ts"]

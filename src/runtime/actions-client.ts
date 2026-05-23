@@ -1,6 +1,7 @@
 import type {Actions} from './index'
 import {FetchError} from './fetch'
-import {decode} from 'turbo-stream'
+import {decode, encode as turboEncode} from 'turbo-stream'
+import {collectTurbo} from './turbo-client'
 
 const ACTIONS_PREFIX = '/_devix/actions'
 
@@ -12,8 +13,8 @@ function createActionFn(file: string, name: string) {
         if (args.length === 1 && args[0] instanceof FormData) {
             body = args[0]
         } else if (args.length > 0) {
-            body = JSON.stringify(args)
-            headers.set('Content-Type', 'application/json')
+            body = await collectTurbo(args)
+            headers.set('Content-Type', 'application/x-turbo')
         }
 
         const res = await fetch(`${ACTIONS_PREFIX}/${file}/${name}`, {
@@ -39,13 +40,11 @@ function createActionFn(file: string, name: string) {
 
         const ct = res.headers.get('Content-Type') ?? ''
         if (ct.includes('application/octet-stream') || ct.includes('application/x-turbo')) {
-            const decoder = new TextDecoder()
-            const stringStream = res.body!.pipeThrough(new TransformStream<Uint8Array, string>({
+            return decode(res.body!.pipeThrough(new TransformStream<Uint8Array, string>({
                 transform(chunk, controller) {
-                    controller.enqueue(decoder.decode(chunk, {stream: true}))
+                    controller.enqueue(new TextDecoder().decode(chunk, {stream: true}))
                 }
-            }))
-            return decode(stringStream)
+            })))
         }
 
         if (ct.includes('application/json')) {

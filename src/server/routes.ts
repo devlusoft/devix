@@ -6,7 +6,7 @@ import type {ServerBackendConfig} from "../config"
 import {handleProxyRequest} from "./server-proxy"
 import {Readable} from "node:stream";
 import {safeJsonStringify} from "../utils/html";
-import {createTurboResponse} from "../utils/turbo-serializer";
+import {createTurboResponse, decodeFromRequest} from "../utils/turbo-serializer";
 import {getQueryRegistry} from "../runtime/query";
 
 interface ServerOptions {
@@ -61,7 +61,7 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTim
     app.post('/_devix/query', async (c: Context) => {
         try {
             const registry = getQueryRegistry()
-            const body = await c.req.json() as Array<{name: string, args: unknown[]}>
+            const body = await decodeFromRequest(c.req.raw) as Array<{name: string, args: unknown[]}>
             const results: Record<string, unknown> = {}
             for (const {name, args} of body) {
                 const fn = registry.get(name)
@@ -71,7 +71,7 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTim
                 }
                 results[name] = await fn(...(args ?? []))
             }
-            return c.json(results)
+            return createTurboResponse(results)
         } catch (e) {
             console.error('[devix] query RPC error:', e)
             return c.json({statusCode: 500, message: 'Internal Server Error'}, 500)

@@ -15,7 +15,7 @@ function walkDir(dir: string, root: string): string[] {
 }
 
 const EXPORT_FN_RE = /export\s+(?:async\s+)?function\s+(\w+)\s*\(/g
-const EXPORT_CONST_FN_RE = /export\s+(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?(?:function\s*)?\(/
+const EXPORT_CONST_FN_RE = /export\s+(?:const|let|var)\s+(\w+)\s*=\s*(?:\w+\s*)?(?:async\s+)?(?:function\s*)?\(/
 
 export interface ActionEntry {
     filePath: string

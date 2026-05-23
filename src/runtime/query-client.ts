@@ -1,4 +1,5 @@
 import {setQueryExecutor} from './query'
+import { decodeTurboResponse, collectTurbo } from './turbo-client'
 
 const clientCache = new Map<string, unknown>()
 
@@ -24,15 +25,16 @@ export function hydrateClientCache(data: Record<string, unknown>): void {
 }
 
 async function queryRpc(name: string, args: unknown[]): Promise<unknown> {
+  const body = await collectTurbo([{name, args}])
   const res = await fetch('/_devix/query', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify([{name, args}]),
+    headers: {'Content-Type': 'application/x-turbo'},
+    body,
   })
   if (!res.ok) {
     const text = await res.text().catch(() => 'Unknown error')
     throw new Error(`Query RPC failed (${res.status}): ${text}`)
   }
-  const result: Record<string, unknown> = await res.json()
+  const result: Record<string, unknown> = await decodeTurboResponse(res) as Record<string, unknown>
   return result[name]
 }

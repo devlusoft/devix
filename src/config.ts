@@ -56,7 +56,6 @@ export interface DevixConfig {
     envPrefix?: string | string[]
     html?: { lang?: string }
     vite?: UserConfig
-    loaderTimeout?: number | string
     output?: 'server' | 'static'
     /**
      * Backends remotos accesibles vía `$server.<namespace>.<method>(path)`.

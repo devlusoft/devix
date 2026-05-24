@@ -8,8 +8,6 @@ function makeCtx(overrides: Record<string, unknown> = {}) {
     return {
         pathname: '/',
         params: {},
-        loaderData: null,
-        layoutsData: [],
         guardData: null,
         Page: () => null,
         layouts: [],
@@ -152,7 +150,7 @@ describe('Link — navegación al hacer click', () => {
         const anchor = container.querySelector('a')!
 
         anchor.dispatchEvent(new MouseEvent('click', {bubbles: true, button: 0, cancelable: true}))
-        expect(ctx.navigate).toHaveBeenCalledWith('/dashboard', {replace: false, viewTransition: false})
+        expect(ctx.navigate).toHaveBeenCalledWith('/dashboard', {replace: undefined, viewTransition: undefined})
     })
 
     it('click con metaKey no llama navigate (abrir en nueva pestaña)', () => {
@@ -197,7 +195,7 @@ describe('Link — navegación al hacer click', () => {
         const anchor = container.querySelector('a')!
 
         anchor.dispatchEvent(new MouseEvent('click', {bubbles: true, button: 0, cancelable: true}))
-        expect(ctx.navigate).toHaveBeenCalledWith('/login', {replace: true, viewTransition: false})
+        expect(ctx.navigate).toHaveBeenCalledWith('/login', {replace: true, viewTransition: undefined})
     })
 
     it('viewTransition=true pasa { viewTransition: true } a navigate', () => {
@@ -206,6 +204,6 @@ describe('Link — navegación al hacer click', () => {
         const anchor = container.querySelector('a')!
 
         anchor.dispatchEvent(new MouseEvent('click', {bubbles: true, button: 0, cancelable: true}))
-        expect(ctx.navigate).toHaveBeenCalledWith('/profile', {replace: false, viewTransition: true})
+        expect(ctx.navigate).toHaveBeenCalledWith('/profile', {replace: undefined, viewTransition: true})
     })
 })

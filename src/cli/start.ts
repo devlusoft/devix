@@ -13,7 +13,7 @@ import {devixLog} from "../utils/log"
 let renderModule: any
 let apiModule: any
 let manifest: Manifest
-let runtimeConfig: { port: number, host: string | boolean, loaderTimeout: number, output: 'server' | 'static' }
+let runtimeConfig: { port: number, host: string | boolean, output: 'server' | 'static' }
 
 try {
     runtimeConfig = JSON.parse(readFileSync(join(process.cwd(), 'dist/devix.config.json'), 'utf-8'))
@@ -37,7 +37,7 @@ const app = new Hono()
 const assetRx = /\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff2?|ttf|eot|map)$/
 
 app.use('*', async (ctx, next) => {
-    if (assetRx.test(ctx.req.path)) return next()
+    if (assetRx.test(ctx.req.path) || ctx.req.path === '/_devix/query') return next()
     const t = Date.now()
     await next()
     const ms = Date.now() - t
@@ -81,7 +81,7 @@ if (runtimeConfig!.output === 'static') {
 } else {
     const userConfig = await loadConfig(process.cwd(), 'production').catch(() => null)
     registerApiRoutes(app, { renderModule, apiModule, manifest, server: userConfig?.server })
-    registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig!.loaderTimeout, server: userConfig?.server })
+    registerSsrRoute(app, { renderModule, apiModule, manifest, server: userConfig?.server })
 }
 
 serve({ fetch: app.fetch, port, hostname: host }, (info: {address: string; port: number}) =>

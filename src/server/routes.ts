@@ -8,17 +8,19 @@ import {Readable} from "node:stream";
 import {safeJsonStringify} from "../utils/html";
 import {createTurboResponse, decodeFromRequest} from "../utils/turbo-serializer";
 import {getQueryRegistry} from "../runtime/query";
+import {runWithQueryCache} from "./query-cache";
+import {__setFrame} from "../runtime/request-context";
+import {devixLog} from "../utils/log";
 
 interface ServerOptions {
     renderModule: any
     apiModule: any
     actionsModule?: any
     manifest?: Manifest
-    loaderTimeout?: number
     server?: Record<string, ServerBackendConfig>
 }
 
-export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTimeout, server, actionsModule}: ServerOptions) {
+export function registerApiRoutes(app: Hono, {apiModule, renderModule, server, actionsModule}: ServerOptions) {
     if (server) {
         app.all('/_devix/server/*', async (c: Context) => {
             try {
@@ -44,7 +46,7 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTim
             const {pathname, search} = new URL(c.req.url, 'http://localhost')
             const url = pathname.replace(/^\/_devix\/data/, '') + search
 
-            const data = await renderModule.runLoader(url, c.req.raw, {loaderTimeout, server})
+            const data = await renderModule.runLoader(url, c.req.raw, {server})
             if (data.error) return c.json({statusCode: 500, message: 'Internal Server Error'}, 500)
             if ('loaderError' in data) {
                 const body = errorToBody(data.loaderError)
@@ -59,21 +61,40 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTim
     })
 
     app.post('/_devix/query', async (c: Context) => {
+        const t = Date.now()
         try {
             const registry = getQueryRegistry()
             const body = await decodeFromRequest(c.req.raw) as Array<{name: string, args: unknown[]}>
             const results: Record<string, unknown> = {}
-            for (const {name, args} of body) {
-                const fn = registry.get(name)
-                if (!fn) {
-                    results[name] = {error: `Query "${name}" not found`}
-                    continue
-                }
-                results[name] = await fn(...(args ?? []))
+            const responseHeaders = new Headers()
+
+            __setFrame({request: c.req.raw, responseHeaders})
+            try {
+                await runWithQueryCache(async () => {
+                    for (const {name, args} of body) {
+                        const fn = registry.get(name)
+                        if (!fn) {
+                            results[name] = {error: `Query "${name}" not found`}
+                            continue
+                        }
+                        results[name] = await fn(...(args ?? []))
+                    }
+                }, undefined, c.req.raw, responseHeaders)
+            } finally {
+                __setFrame(null)
             }
-            return createTurboResponse(results)
+
+            const res = createTurboResponse(results)
+            for (const [k, v] of responseHeaders.entries()) {
+                res.headers.append(k, v)
+            }
+            const ms = Date.now() - t
+            devixLog.info(`200 POST /_devix/query [${body.map(b => b.name).join(', ')}] ${ms}ms`)
+            return res
         } catch (e) {
             console.error('[devix] query RPC error:', e)
+            const ms = Date.now() - t
+            devixLog.info(`500 POST /_devix/query [error] ${ms}ms`)
             return c.json({statusCode: 500, message: 'Internal Server Error'}, 500)
         }
     })
@@ -90,12 +111,11 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTim
     }
 }
 
-export function registerSsrRoute(app: Hono, {renderModule, manifest, loaderTimeout, server}: ServerOptions) {
+export function registerSsrRoute(app: Hono, {renderModule, manifest, server}: ServerOptions) {
     app.get('*', async (c: Context) => {
         try {
             const {stream, statusCode, headers} = await renderModule.renderStream(c.req.url, c.req.raw, {
                 manifest,
-                loaderTimeout,
                 server
             })
             const webStream = Readable.toWeb(stream) as ReadableStream
@@ -111,10 +131,8 @@ export function registerSsrRoute(app: Hono, {renderModule, manifest, loaderTimeo
                 return c.text('Not Found', 404)
             }
             if (e?.name === 'LoaderError') {
-                const dataScript = `<script>window.__DEVIX__=${safeJsonStringify({
-                    metadata: null, viewport: undefined, clientEntry: ''
-                })};window.__LOADER_DATA__=null;window.__LAYOUTS_DATA__=[];window.__LOADER_ERROR__=${safeJsonStringify(e.body)};</script>`
-                const html = `<html lang="en"><head><meta charset="utf-8">${dataScript}</head><body><div id="devix-root"></div></body></html>`
+                const errorScript = `<script>window.__LOADER_ERROR__=${safeJsonStringify(e.body)};</script>`
+                const html = `<html lang="en"><head><meta charset="utf-8">${errorScript}</head><body><div id="devix-root"></div></body></html>`
                 return c.html(html, e.statusCode as ContentfulStatusCode)
             }
             console.error(e)

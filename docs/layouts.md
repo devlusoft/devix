@@ -32,29 +32,6 @@ app/pages/
 
 La cadena `RootLayout → BlogLayout → Page` se ensambla en el servidor.
 
-## Loader en el layout
-
-Los loaders de layouts corren en paralelo con el loader de la página:
-
-```tsx
-import type { LayoutProps, LoaderContext } from '@devlusoft/devix'
-
-export async function loader({ request }: LoaderContext) {
-  return { user: await getUser(request) }
-}
-
-export default function RootLayout(props: LayoutProps<{ user: User }>) {
-  return (
-    <div>
-      <header>
-        {props.data.user ? props.data.user.name : <a href="/login">Iniciar sesión</a>}
-      </header>
-      {props.children}
-    </div>
-  )
-}
-```
-
 ## Atributo lang
 
 Solo aplica desde el layout raíz:
@@ -70,15 +47,3 @@ export async function generateLang({ request }: LoaderContext) {
 }
 ```
 
-## Datos del layout en el cliente
-
-Usa `useLoaderData()` dentro del layout para acceder a sus datos en el cliente. Retorna una signal:
-
-```tsx
-import { useLoaderData } from '@devlusoft/devix'
-
-function Header() {
-  const data = useLoaderData<{ user: User }>()
-  return <span>{data().user.name}</span>
-}
-```

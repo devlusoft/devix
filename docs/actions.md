@@ -26,31 +26,70 @@ export const remove = action(async (id: string) => {
 
 ```
 app/actions/
-├── profile.ts    → actions.profile.get(), actions.profile.update()
-└── posts.ts      → actions.posts.create(), actions.posts.delete()
+├── profile.ts    → create, update
+└── posts.ts      → create, remove
 ```
 
-Cada archivo en `app/actions/` exporta funciones envueltas con `action()`. devix genera automáticamente un endpoint `POST /_devix/actions/<namespace>/<fnName>` por cada función.
+Cada archivo en `app/actions/` exporta funciones envueltas con `action()`. devix genera automáticamente un endpoint `POST /_devix/actions/<file>/<fnName>` por cada función.
 
 ## Llamar desde el cliente
 
 ```tsx
-import { actions } from '@devlusoft/devix'
+import { create } from '~/actions/posts'  // import directo
 
-const result = await actions.posts.create({ title: 'Hola', content: 'Mundo' })
+const result = await create({ title: 'Hola', content: 'Mundo' })
 
 // En un form
 <form onSubmit={async (e) => {
   e.preventDefault()
-  await actions.posts.create({ title: 'Hola', content: 'Mundo' })
+  await create({ title: 'Hola', content: 'Mundo' })
 }}>
 ```
 
-Formato: `actions.<file>.<fn>(args)`. Tipado E2E generado automáticamente.
+## Seguridad
 
-## Con contexto (request)
+El cuerpo de la función `action(fn)` **nunca llega al bundle cliente**. devix detecta automáticamente las llamadas a `action()` en cualquier archivo y reemplaza el argumento función por un stub que lanza error en cliente. Los imports que solo usaba `fn` (DB, tokens, etc.) se eliminan por tree-shaking:
 
-El segundo parámetro opcional `ctx` expone `request`:
+```ts
+// Esto NUNCA toca el bundle cliente:
+export const create = action(async (data: Input) => {
+  const token = getServerSecret()
+  return db.query(token, data)
+})
+
+// El cliente recibe:
+export const create = action(async (...$a) => {
+  throw new Error("server-only code")
+})
+```
+
+Esto funciona para cualquier archivo del proyecto, no solo `app/actions/`.
+
+## Cookies
+
+Dentro de una action puedes leer y escribir cookies del request sin pasar parámetros (ver [Cookies](./cookies.md)):
+
+```ts
+// app/actions/auth.ts
+import { action } from '@devlusoft/devix'
+
+export const login = action(async (token: string) => {
+  setCookie('session', token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'Lax',
+    path: '/',
+  })
+  return { ok: true }
+})
+
+export const logout = action(async () => {
+  deleteCookie('session')
+  return { ok: true }
+})
+```
+
+### También funciona el modo explícito
 
 ```ts
 // app/actions/profile.ts

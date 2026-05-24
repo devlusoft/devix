@@ -2,10 +2,10 @@ import type { LayoutProps } from '@devlusoft/devix'
 
 export const lang = 'es'
 
-export default function RootLayout({ children }: LayoutProps) {
+export default function RootLayout(props: LayoutProps) {
   return (
     <div>
-      {children}
+      {props.children}
     </div>
   )
 }

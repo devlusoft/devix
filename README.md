@@ -16,11 +16,10 @@ Construye aplicaciones SolidJS full-stack con enrutamiento basado en archivos, r
 - **$fetch** — cliente HTTP con body y respuesta tipados, con autocompletado de rutas
 - **$server** — proxy a backends remotos con auth pass-through y allowlist (multi-backend, tipo via generic en el call site)
 - **Validación de body** — soporte de [Standard Schema](https://standardschema.dev) (Zod, Valibot, ArkType) en `createHandler` con error shape automático
-- **Error shape unificado** — `error()` y `DevixError` producen el mismo `{ statusCode, code, message }` en loaders, guards y handlers
-- **Carga de datos** — funciones `loader` con hidratación automática en el cliente
+- **Error shape unificado** — `error()` y `DevixError` producen el mismo `{ statusCode, code, message }` en guards y handlers
 - **Guards de ruta** — redirecciones del lado del servidor antes del renderizado, con `useGuardData()` para leer datos del guard sin loader
 - **Navegación programática** — `useNavigate()` con soporte de `replace` y View Transitions API
-- **Revalidación de datos** — `useRevalidate()` para refrescar guards y loaders sin recargar la página
+- **Revalidación de datos** — `useRevalidate()` para refrescar guards sin recargar la página
 - **SEO** — `metadata` y `generateMetadata` por página, con soporte de Open Graph
 - **TypeScript primero** — inferencia de tipos completa en todo el framework
 
@@ -82,21 +81,6 @@ app/
 
 ## Conceptos principales
 
-### Loader y datos
-
-```tsx
-import type { PageProps, LoaderContext } from '@devlusoft/devix'
-
-export async function loader({ params, request }: LoaderContext) {
-  const post = await db.posts.findBySlug(params.slug)
-  return post
-}
-
-export default function BlogPost(props: PageProps<typeof loader>) {
-  return <article>{props.data.title}</article>
-}
-```
-
 ### Guard de ruta
 
 ```ts
@@ -117,8 +101,8 @@ export const metadata = {
 }
 
 // o dinámica:
-export async function generateMetadata({ loaderData }) {
-  return { title: loaderData.title }
+export async function generateMetadata() {
+  return { title: 'Título dinámico' }
 }
 ```
 
@@ -219,12 +203,6 @@ export default defineConfig({
 ```
 
 ```ts
-// Loader/handler
-export async function loader({ $server, params }: LoaderContext) {
-  return await $server.api.get<Post>(`/v1/posts/${params.id}`)
-}
-
-// Cliente
 import { $server } from '@devlusoft/devix'
 const me = await $server.api.get<User>('/v1/me')
 ```
@@ -237,10 +215,6 @@ import { query } from '@devlusoft/devix'
 export const getPost = query(async (id: string) => {
   return db.posts.find(id)
 }, 'getPost')
-
-export async function loader({ params }: LoaderContext) {
-  return { post: await getPost(params.slug) }
-}
 ```
 
 Deduplicación automática por request. Caché cliente hidratada desde `window.__DEVIX_QUERIES__`.
@@ -286,7 +260,6 @@ export default defineConfig({
   appDir: 'app',
   publicDir: 'public',
   output: 'server',
-  loaderTimeout: 10_000,
   css: ['./app/styles/global.css'],
   envPrefix: 'PUBLIC_',
   vite: {},

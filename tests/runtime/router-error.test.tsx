@@ -16,8 +16,8 @@ function makeErrorResponse(statusCode: number, message: string, data?: unknown):
     return makeDataResponse({statusCode, message, data}, statusCode)
 }
 
-function makeSuccessResponse(loaderData: unknown = null): Response {
-    return makeDataResponse({loaderData, params: {}, layouts: [], metadata: null})
+function makeSuccessResponse(): Response {
+    return makeDataResponse({params: {}, layouts: [], metadata: null})
 }
 
 let capturedNavigate: ((to: string) => Promise<void>) | null = null
@@ -82,10 +82,8 @@ function renderProvider(Page = TestPage) {
             matchClientRoute={matchClientRoute as any}
             loadErrorPage={loadErrorPage as any}
             getDefaultErrorPage={getDefaultErrorPage as any}
-            initialData={null}
             initialParams={{}}
             initialPage={Page as any}
-            clientEntry='/entry.js'
         />
     ), container)
 }
@@ -220,7 +218,7 @@ describe('router se recupera de error', () => {
 
         vi.stubGlobal('fetch', vi.fn()
             .mockResolvedValueOnce(makeErrorResponse(503, 'Service unavailable'))
-            .mockResolvedValueOnce(makeSuccessResponse({user: 'John'}))
+            .mockResolvedValueOnce(makeSuccessResponse())
         )
 
         renderProvider()

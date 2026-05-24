@@ -2,7 +2,6 @@ import {writeFileSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {build} from 'vite'
 import {devix} from '../vite'
-import {parseDuration} from '../utils/duration'
 import {loadConfig} from "../utils/load-config";
 import {taskRunner} from '@nijil71/lumi-cli'
 
@@ -75,7 +74,6 @@ await taskRunner([
 const runtimeConfig = {
     port: config.port ?? 3000,
     host: config.host ?? false,
-    loaderTimeout: parseDuration(config.loaderTimeout ?? 10_000),
     output: config.output ?? 'server',
 }
 

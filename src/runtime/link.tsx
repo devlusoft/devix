@@ -1,6 +1,8 @@
 import { useContext } from "solid-js"
+import { splitProps } from "solid-js"
 import type { JSX } from "solid-js"
-import { NavigateOptions, RouterContext } from './context'
+import type { NavigateOptions } from './context'
+import { RouterContext } from './context'
 import { resolveTo } from './url'
 
 interface LinkProps extends Omit<JSX.IntrinsicElements["a"], "onClick" | "onMouseEnter" | "onMouseLeave" | "onTouchStart" | "href"> {
@@ -10,8 +12,9 @@ interface LinkProps extends Omit<JSX.IntrinsicElements["a"], "onClick" | "onMous
     viewTransition?: boolean
 }
 
-export function Link({ href, prefetch = 'hover', replace = false, viewTransition = false, children, ...props }: LinkProps) {
+export function Link(props: LinkProps) {
     const router = useContext(RouterContext)
+    const [local, rest] = splitProps(props, ['href', 'prefetch', 'replace', 'viewTransition', 'children', 'class'])
     let hoverTimer: ReturnType<typeof setTimeout> | null = null
 
     const cancelHoverTimer = () => {
@@ -22,12 +25,12 @@ export function Link({ href, prefetch = 'hover', replace = false, viewTransition
     }
 
     const triggerPrefetch = () => {
-        if (!router || prefetch === 'none') return
-        router.prefetchRoute(href)
+        if (!router || local.prefetch === 'none') return
+        router.prefetchRoute(local.href)
     }
 
     const onMouseEnter = () => {
-        if (prefetch === 'none') return
+        if (local.prefetch === 'none') return
         hoverTimer = setTimeout(triggerPrefetch, 50)
     }
 
@@ -44,22 +47,23 @@ export function Link({ href, prefetch = 'hover', replace = false, viewTransition
         cancelHoverTimer()
         if (!router) return
         if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return
-        if (resolveTo(href).kind === 'external') return
+        if (resolveTo(local.href).kind === 'external') return
         e.preventDefault()
-        const options: NavigateOptions = { replace, viewTransition }
-        router.navigate(href, options)
+        const options: NavigateOptions = { replace: local.replace, viewTransition: local.viewTransition }
+        router.navigate(local.href, options)
     }
 
     return (
         <a
-            href={href}
+            href={local.href}
             onClick={onClick}
             onMouseEnter={onMouseEnter}
             onMouseLeave={onMouseLeave}
             onTouchStart={onTouchStart}
-            {...props}
+            class={props.class}
+            {...rest}
         >
-            {children}
+            {local.children}
         </a>
     )
 }

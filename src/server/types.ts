@@ -2,26 +2,16 @@ import type {Component} from "solid-js";
 import {LoaderContext, Metadata, Viewport} from "../types";
 import type {Redirect, RouteError} from "../utils/response";
 
-type InferLoaderData<T> = T extends (...args: any[]) => infer R
-    ? [Awaited<R>] extends [void | undefined | Redirect] ? undefined : Exclude<Awaited<R>, Redirect>
-    : T
-
-type IsParams<T> = [T] extends [Record<string, string>] ? true : false
-
-export interface PageProps<TDataOrParams = unknown, TParams = Record<string, string>> {
-    data: IsParams<TDataOrParams> extends true ? unknown : InferLoaderData<TDataOrParams>
-    params: IsParams<TDataOrParams> extends true
-        ? TDataOrParams extends Record<string, string> ? TDataOrParams : Record<string, string>
-        : TParams
+export interface PageProps<TParams = Record<string, string>, TGuard = unknown> {
+    params: TParams
     url: string
+    guardData: TGuard
 }
 
-export interface LayoutProps<TDataOrParams = unknown, TParams = Record<string, string>> {
+export interface LayoutProps<TParams = Record<string, string>, TGuard = unknown> {
     children: any
-    data: IsParams<TDataOrParams> extends true ? unknown : InferLoaderData<TDataOrParams>
-    params: IsParams<TDataOrParams> extends true
-        ? TDataOrParams extends Record<string, string> ? TDataOrParams : Record<string, string>
-        : TParams
+    params: TParams
+    guardData: TGuard
 }
 
 export interface ErrorProps {
@@ -44,25 +34,24 @@ export interface ApiGlob {
     apiDir: string
 }
 
-interface BaseModule<TData, TParams> {
-    loader?: (ctx: LoaderContext<TParams>) => Promise<TData | Redirect | void> | TData | Redirect | void
+interface BaseModule<TParams> {
     guard?: (ctx: LoaderContext<TParams>) => Promise<string | Redirect | RouteError | Record<string, unknown> | null> | string | Redirect | RouteError | Record<string, unknown> | null
     metadata?: Metadata
-    generateMetadata?: (ctx: LoaderContext<TParams> & { loaderData: TData }) => Promise<Metadata> | Metadata
+    generateMetadata?: (ctx: LoaderContext<TParams>) => Promise<Metadata> | Metadata
     viewport?: Viewport
     generateViewport?: (ctx: LoaderContext<TParams>) => Promise<Viewport> | Viewport
     headers?: Record<string, string>
 }
 
-export interface PageModule<TData = unknown, TParams = Record<string, string>>
-    extends BaseModule<TData, TParams> {
-    default: Component<PageProps<TData, TParams>>
+export interface PageModule<TParams = Record<string, string>>
+    extends BaseModule<TParams> {
+    default: Component<PageProps<TParams>>
     generateStaticParams?: () => Promise<Record<string, string>[]> | Record<string, string>[]
 }
 
-export interface LayoutModule<TData = unknown, TParams = Record<string, string>>
-    extends BaseModule<TData, TParams> {
-    default: Component<LayoutProps<TData, TParams>>
+export interface LayoutModule<TParams = Record<string, string>>
+    extends BaseModule<TParams> {
+    default: Component<LayoutProps<TParams>>
     lang?: string
-    generateLang?: (ctx: LoaderContext<TParams> & { loaderData: TData }) => Promise<string> | string
+    generateLang?: (ctx: LoaderContext<TParams>) => Promise<string> | string
 }

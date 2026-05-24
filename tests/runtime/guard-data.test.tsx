@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
-import {renderToString} from 'solid-js/web'
 import {render} from 'solid-js/web'
 import {useGuardData} from '../../src/runtime'
 import {RouterContext} from '../../src/runtime/context'
@@ -9,8 +8,6 @@ function makeContextValue(overrides: Record<string, unknown> = {}) {
     return {
         pathname: '/',
         params: {},
-        loaderData: null,
-        layoutsData: [],
         guardData: null,
         Page: () => null,
         layouts: [],
@@ -23,16 +20,6 @@ function makeContextValue(overrides: Record<string, unknown> = {}) {
     } as any
 }
 
-describe('useGuardData — SSR safety', () => {
-    it('no interrumpe SSR fuera del RouterProvider (Solid atrapa el error)', () => {
-        let captured: unknown
-        function Page() {
-            captured = useGuardData()
-            return <div />
-        }
-        expect(() => renderToString(() => <Page />)).not.toThrow()
-    })
-})
 
 describe('useGuardData — dentro del RouterContext', () => {
     let container: HTMLDivElement

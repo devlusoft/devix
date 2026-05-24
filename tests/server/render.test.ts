@@ -1,5 +1,5 @@
 import {describe, it, expect, vi} from 'vitest'
-import {render, runLoader} from '../../src/server/render'
+import {render} from '../../src/server/render'
 import {redirect} from '../../src/utils/response'
 import type {PageGlob} from '../../src/server/types'
 
@@ -97,117 +97,6 @@ describe('guard en layout', () => {
     })
 })
 
-describe('guardData — guard pasa datos al loader', () => {
-    it('el loader recibe guardData desde el guard de la página', async () => {
-        let received: unknown
-        const glob = makeGlob({
-            [`${PAGES_DIR}/index.tsx`]: pageEntry({
-                guard: async () => ({user: 'ana'}),
-                loader: async ({guardData}: any) => { received = guardData; return null },
-            }),
-        })
-        await runLoader('http://localhost/', req, glob)
-        expect(received).toEqual({user: 'ana'})
-    })
-
-    it('el loader recibe guardData desde el guard del layout', async () => {
-        let received: unknown
-        const glob = makeGlob(
-            {
-                [`${PAGES_DIR}/dashboard/index.tsx`]: pageEntry({
-                    loader: async ({guardData}: any) => { received = guardData; return null },
-                }),
-            },
-            {
-                [`${PAGES_DIR}/dashboard/layout.tsx`]: layoutEntry({
-                    guard: async () => ({session: 'token-123'}),
-                }),
-            },
-        )
-        await runLoader('http://localhost/dashboard', req, glob)
-        expect(received).toEqual({session: 'token-123'})
-    })
-
-    it('guardData del guard de página sobreescribe el del layout si ambos retornan datos', async () => {
-        let received: unknown
-        const glob = makeGlob(
-            {
-                [`${PAGES_DIR}/dashboard/index.tsx`]: pageEntry({
-                    guard: async () => ({from: 'page'}),
-                    loader: async ({guardData}: any) => { received = guardData; return null },
-                }),
-            },
-            {
-                [`${PAGES_DIR}/dashboard/layout.tsx`]: layoutEntry({
-                    guard: async () => ({from: 'layout'}),
-                }),
-            },
-        )
-        await runLoader('http://localhost/dashboard', req, glob)
-        expect(received).toEqual({from: 'page'})
-    })
-
-    it('guardData es undefined cuando el guard retorna null', async () => {
-        let received: unknown = 'sentinel'
-        const glob = makeGlob({
-            [`${PAGES_DIR}/index.tsx`]: pageEntry({
-                guard: async () => null,
-                loader: async ({guardData}: any) => { received = guardData; return null },
-            }),
-        })
-        await runLoader('http://localhost/', req, glob)
-        expect(received).toBeUndefined()
-    })
-
-    it('runLoader expone guardData en su respuesta', async () => {
-        const glob = makeGlob({
-            [`${PAGES_DIR}/index.tsx`]: pageEntry({
-                guard: async () => ({user: 'ana'}),
-            }),
-        })
-        const result = await runLoader('http://localhost/', req, glob) as any
-        expect(result.guardData).toEqual({user: 'ana'})
-    })
-
-    it('render incluye guardData en __DEVIX_TURBO__', async () => {
-        const glob = makeGlob({
-            [`${PAGES_DIR}/index.tsx`]: pageEntry({
-                guard: async () => ({user: 'ana'}),
-            }),
-        })
-        const result = await render('http://localhost/', req, glob)
-        expect(result.html).toContain('__DEVIX_TURBO__')
-
-        const b64 = result.html.match(/__DEVIX_TURBO__=("?)([A-Za-z0-9+/=]+)\1/)?.[2]
-        expect(b64).toBeTruthy()
-        const turboStr = Buffer.from(b64!, 'base64').toString('utf-8')
-        expect(turboStr).toContain('GUARD_DATA')
-        expect(turboStr).toContain('"user":"ana"')
-    })
-})
-
-describe('loader sin return (void)', () => {
-    it('loaderData es undefined cuando el loader no retorna nada', async () => {
-        const glob = makeGlob({
-            [`${PAGES_DIR}/index.tsx`]: pageEntry({
-                loader: async () => { /* sin return */ },
-            }),
-        })
-        const result = await runLoader('http://localhost/', req, glob)
-        expect(result.loaderData).toBeUndefined()
-    })
-
-    it('renderiza correctamente con loader void', async () => {
-        const glob = makeGlob({
-            [`${PAGES_DIR}/index.tsx`]: pageEntry({
-                loader: async () => { /* sin return */ },
-            }),
-        })
-        const result = await render('http://localhost/', req, glob)
-        expect(result.statusCode).toBe(200)
-    })
-})
-
 describe('redirect() desde guard', () => {
     it('guard de página puede redirigir con redirect()', async () => {
         const glob = makeGlob({
@@ -239,123 +128,12 @@ describe('redirect() respeta el status code', () => {
         expect(result.headers).toMatchObject({Location: '/home'})
     })
 
-    it('redirect con status 307 desde loader de página', async () => {
-        const glob = makeGlob({
-            [`${PAGES_DIR}/index.tsx`]: pageEntry({loader: async () => redirect('/home', 307)}),
-        })
-        const result = await render('http://localhost/', req, glob)
-        expect(result.statusCode).toBe(307)
-        expect(result.headers).toMatchObject({Location: '/home'})
-    })
-
-    it('redirect con status 308 desde loader de layout', async () => {
-        const glob = makeGlob(
-            {[`${PAGES_DIR}/dashboard/index.tsx`]: pageEntry()},
-            {[`${PAGES_DIR}/dashboard/layout.tsx`]: layoutEntry({loader: async () => redirect('/login', 308)})},
-        )
-        const result = await render('http://localhost/dashboard', req, glob)
-        expect(result.statusCode).toBe(308)
-        expect(result.headers).toMatchObject({Location: '/login'})
-    })
-
     it('redirect por string desde guard siempre usa 302', async () => {
         const glob = makeGlob({
             [`${PAGES_DIR}/index.tsx`]: pageEntry({guard: async () => '/login'}),
         })
         const result = await render('http://localhost/', req, glob)
         expect(result.statusCode).toBe(302)
-    })
-})
-
-describe('redirect() desde loader', () => {
-    it('loader de página puede redirigir con redirect()', async () => {
-        const glob = makeGlob({
-            [`${PAGES_DIR}/index.tsx`]: pageEntry({loader: async () => redirect('/home')}),
-        })
-        const result = await render('http://localhost/', req, glob)
-        expect(result.statusCode).toBe(302)
-        expect(result.headers).toMatchObject({Location: '/home'})
-    })
-
-    it('loader de layout puede redirigir con redirect()', async () => {
-        const glob = makeGlob(
-            {[`${PAGES_DIR}/dashboard/index.tsx`]: pageEntry()},
-            {[`${PAGES_DIR}/dashboard/layout.tsx`]: layoutEntry({loader: async () => redirect('/login')})},
-        )
-        const result = await render('http://localhost/dashboard', req, glob)
-        expect(result.statusCode).toBe(302)
-        expect(result.headers).toMatchObject({Location: '/login'})
-    })
-
-    it('loader de página puede redirigir en runLoader', async () => {
-        const glob = makeGlob({
-            [`${PAGES_DIR}/index.tsx`]: pageEntry({loader: async () => redirect('/home')}),
-        })
-        const result = await runLoader('http://localhost/', req, glob)
-        expect(result).toMatchObject({redirect: '/home', redirectStatus: 302})
-    })
-})
-
-describe('layout loader sin return (void)', () => {
-    it('layoutsData tiene null cuando el layout loader no retorna nada', async () => {
-        const glob = makeGlob(
-            {[`${PAGES_DIR}/dashboard/index.tsx`]: pageEntry()},
-            {[`${PAGES_DIR}/dashboard/layout.tsx`]: layoutEntry({loader: async () => { /* void */ }})},
-        )
-        const result = await runLoader('http://localhost/dashboard', req, glob)
-        expect(result.layouts![0].loaderData).toBeUndefined()
-    })
-
-    it('renderiza correctamente con layout loader void', async () => {
-        const glob = makeGlob(
-            {[`${PAGES_DIR}/dashboard/index.tsx`]: pageEntry()},
-            {[`${PAGES_DIR}/dashboard/layout.tsx`]: layoutEntry({loader: async () => { /* void */ }})},
-        )
-        const result = await render('http://localhost/dashboard', req, glob)
-        expect(result.statusCode).toBe(200)
-    })
-})
-
-describe('guardData — guard retorna null no borra guardData previo', () => {
-    it('guardData del layout se mantiene si el guard de la página retorna null', async () => {
-        let received: unknown
-        const glob = makeGlob(
-            {
-                [`${PAGES_DIR}/dashboard/index.tsx`]: pageEntry({
-                    guard: async () => null,
-                    loader: async ({guardData}: any) => { received = guardData; return null },
-                }),
-            },
-            {
-                [`${PAGES_DIR}/dashboard/layout.tsx`]: layoutEntry({
-                    guard: async () => ({session: 'abc'}),
-                }),
-            },
-        )
-        await runLoader('http://localhost/dashboard', req, glob)
-        expect(received).toEqual({session: 'abc'})
-    })
-})
-
-describe('generateLang recibe loaderData del layout raíz', () => {
-    it('generateLang del layout raíz recibe su propio loaderData', async () => {
-        let receivedLoaderData: unknown
-        const glob = makeGlob(
-            {[`${PAGES_DIR}/dashboard/index.tsx`]: pageEntry()},
-            {
-                [`${PAGES_DIR}/dashboard/layout.tsx`]: layoutEntry({
-                    loader: async () => ({locale: 'es'}),
-                    generateLang: async ({loaderData}: any) => {
-                        receivedLoaderData = loaderData
-                        return loaderData.locale
-                    },
-                }),
-            },
-        )
-        const result = await render('http://localhost/dashboard', req, glob)
-        expect(result.statusCode).toBe(200)
-        expect(receivedLoaderData).toEqual({locale: 'es'})
-        expect(result.html).toContain('lang="es"')
     })
 })
 

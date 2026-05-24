@@ -44,17 +44,6 @@ describe('registerSsrRoute', () => {
         expect(options.server).toBeUndefined()
     })
 
-    it('propaga loaderTimeout a renderStream()', async () => {
-        const app = new Hono()
-        const renderModule = makeRenderModule()
-        const apiModule = makeApiModule()
-
-        registerSsrRoute(app, {renderModule, apiModule, loaderTimeout: 5000})
-
-        await app.request('http://x/page')
-        const [, , options] = renderModule.renderStream.mock.calls[0]
-        expect(options.loaderTimeout).toBe(5000)
-    })
 })
 
 describe('registerApiRoutes', () => {

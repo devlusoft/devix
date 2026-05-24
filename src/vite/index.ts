@@ -2,8 +2,7 @@ import {UserConfig, Plugin, mergeConfig} from 'vite'
 import type {DevixConfig} from '../config'
 import solid from "vite-plugin-solid";
 import {fileURLToPath} from 'node:url'
-import {dirname, relative, resolve} from 'node:path'
-import {createRequire} from 'node:module'
+import {dirname, resolve} from 'node:path'
 import {generateEntryClient} from './codegen/entry-client'
 import {generateClientRoutes} from './codegen/client-routes'
 import {generateRender} from './codegen/render'
@@ -11,14 +10,11 @@ import {generateApi} from './codegen/api'
 import {scanApiFiles} from "./codegen/scan-api";
 import {generateRoutesDts} from "./codegen/routes-dts";
 import {writeRoutesDts} from "./codegen/write-routes-dts";
-import {parseSync} from 'oxc-parser'
 import {devixLog} from "../utils/log"
-import {deletePageTypes, scanAndWritePageTypes, writePageTypes} from "./codegen/page-types";
 import {generateServerDts, writeServerDts} from "./codegen/server-dts";
-import {scanActions} from "./codegen/scan-actions";
-import {generateActionsDts} from "./codegen/actions-dts";
-import {writeActionsDts} from "./codegen/write-actions-dts";
+import {parseSync} from 'oxc-parser'
 import {generateActions} from "./codegen/actions";
+import {maybeTransformServerOnly} from "./codegen/transform-server-only";
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -30,7 +26,7 @@ const VIRTUAL_CONTEXT = 'virtual:devix/context'
 const VIRTUAL_SERVER_ENTRY = 'virtual:devix/server-entry'
 const VIRTUAL_ACTIONS = 'virtual:devix/actions'
 
-const SERVER_EXPORTS = new Set(['loader', 'guard', 'generateStaticParams', 'headers'])
+const SERVER_EXPORTS = new Set(['guard', 'generateStaticParams', 'headers'])
 
 export function devix(config: DevixConfig): UserConfig {
     const appDir = config.appDir ?? 'app'
@@ -75,82 +71,86 @@ export function devix(config: DevixConfig): UserConfig {
             if (options?.ssr) return
 
             const resolvedPagesDir = resolve(process.cwd(), pagesDir)
-            if (!id.startsWith(resolvedPagesDir)) return
+            let pageCode = code
+            let pageChanged = false
 
-            const ast = parseSync(id, code, {sourceType: 'module'})
+            if (id.startsWith(resolvedPagesDir)) {
+                const ast = parseSync(id, code, {sourceType: 'module'})
 
-            const replacements: { start: number; end: number; replacement: string }[] = []
+                const replacements: { start: number; end: number; replacement: string }[] = []
 
-            for (const node of ast.program.body) {
-                if (node.type !== 'ExportNamedDeclaration') continue
+                for (const node of ast.program.body) {
+                    if (node.type !== 'ExportNamedDeclaration') continue
 
-                if (!node.declaration && node.specifiers) {
-                    const matchingSpecs: { spec: any; idx: number }[] = []
-                    for (let i = 0; i < node.specifiers.length; i++) {
-                        const spec = node.specifiers[i]
-                        if (spec.exported.type === 'Identifier' && (SERVER_EXPORTS.has(spec.exported.name) || (spec.local.type === 'Identifier' && SERVER_EXPORTS.has(spec.local.name)))) {
-                            matchingSpecs.push({spec, idx: i})
-                        }
-                    }
-
-                    if (matchingSpecs.length > 0) {
-                        if (matchingSpecs.length === node.specifiers.length) {
-                            replacements.push({start: node.start, end: node.end, replacement: ''})
-                        } else {
-                            for (const {spec} of matchingSpecs) {
-                                const after = code.slice(spec.end)
-                                const comma = after.match(/^\s*,/)
-                                const end = comma ? spec.end + comma[0].length : spec.end
-                                replacements.push({start: spec.start, end, replacement: ''})
+                    if (!node.declaration && node.specifiers) {
+                        const matchingSpecs: { spec: any; idx: number }[] = []
+                        for (let i = 0; i < node.specifiers.length; i++) {
+                            const spec = node.specifiers[i]
+                            if (spec.exported.type === 'Identifier' && (SERVER_EXPORTS.has(spec.exported.name) || (spec.local.type === 'Identifier' && SERVER_EXPORTS.has(spec.local.name)))) {
+                                matchingSpecs.push({spec, idx: i})
                             }
                         }
-                    }
-                    continue
-                }
 
-                const decl = node.declaration!
-
-                if (decl.type === 'FunctionDeclaration' && decl.id && SERVER_EXPORTS.has(decl.id.name)) {
-                    replacements.push({start: node.start, end: node.end, replacement: `export const ${decl.id.name} = undefined`})
-                    continue
-                }
-
-                if (decl.type === 'VariableDeclaration') {
-                    for (const declarator of decl.declarations) {
-                        if (declarator.id.type === 'Identifier' && SERVER_EXPORTS.has(declarator.id.name)) {
-                            if (declarator.init) {
-                                replacements.push({start: declarator.init.start, end: declarator.init.end, replacement: 'undefined'})
-                            }
-                        }
-                        if (declarator.id.type === 'ObjectPattern') {
-                            let found = false
-                            for (const prop of declarator.id.properties) {
-                                if (prop.type === 'Property' && prop.key.type === 'Identifier' && SERVER_EXPORTS.has(prop.key.name)) {
-                                    found = true
-                                    const after = code.slice(prop.end)
+                        if (matchingSpecs.length > 0) {
+                            if (matchingSpecs.length === node.specifiers.length) {
+                                replacements.push({start: node.start, end: node.end, replacement: ''})
+                            } else {
+                                for (const {spec} of matchingSpecs) {
+                                    const after = code.slice(spec.end)
                                     const comma = after.match(/^\s*,/)
-                                    const end = comma ? prop.end + comma[0].length : prop.end
-                                    replacements.push({start: prop.start, end, replacement: ''})
+                                    const end = comma ? spec.end + comma[0].length : spec.end
+                                    replacements.push({start: spec.start, end, replacement: ''})
                                 }
                             }
-                            if (found && declarator.init) {
-                                replacements.push({start: declarator.init.start, end: declarator.init.end, replacement: 'undefined'})
+                        }
+                        continue
+                    }
+
+                    const decl = node.declaration!
+
+                    if (decl.type === 'FunctionDeclaration' && decl.id && SERVER_EXPORTS.has(decl.id.name)) {
+                        replacements.push({start: node.start, end: node.end, replacement: `export const ${decl.id.name} = undefined`})
+                        continue
+                    }
+
+                    if (decl.type === 'VariableDeclaration') {
+                        for (const declarator of decl.declarations) {
+                            if (declarator.id.type === 'Identifier' && SERVER_EXPORTS.has(declarator.id.name)) {
+                                if (declarator.init) {
+                                    replacements.push({start: declarator.init.start, end: declarator.init.end, replacement: 'undefined'})
+                                }
+                            }
+                            if (declarator.id.type === 'ObjectPattern') {
+                                let found = false
+                                for (const prop of declarator.id.properties) {
+                                    if (prop.type === 'Property' && prop.key.type === 'Identifier' && SERVER_EXPORTS.has(prop.key.name)) {
+                                        found = true
+                                        const after = code.slice(prop.end)
+                                        const comma = after.match(/^\s*,/)
+                                        const end = comma ? prop.end + comma[0].length : prop.end
+                                        replacements.push({start: prop.start, end, replacement: ''})
+                                    }
+                                }
+                                if (found && declarator.init) {
+                                    replacements.push({start: declarator.init.start, end: declarator.init.end, replacement: 'undefined'})
+                                }
                             }
                         }
                     }
                 }
+
+                if (replacements.length > 0) {
+                    replacements.sort((a, b) => b.start - a.start)
+                    for (const {start, end, replacement} of replacements) {
+                        pageCode = pageCode.slice(0, start) + replacement + pageCode.slice(end)
+                    }
+                    pageChanged = true
+                }
             }
 
-            if (replacements.length === 0) return
-
-            replacements.sort((a, b) => b.start - a.start)
-
-            let result = code
-            for (const {start, end, replacement} of replacements) {
-                result = result.slice(0, start) + replacement + result.slice(end)
-            }
-
-            return {code: result, map: null}
+            const qaResult = maybeTransformServerOnly(pageChanged ? pageCode : code, id, appDir)
+            if (qaResult) return qaResult
+            if (pageChanged) return {code: pageCode, map: null}
         },
 
         buildStart() {
@@ -158,31 +158,15 @@ export function devix(config: DevixConfig): UserConfig {
             const entries = scanApiFiles(appDir, root)
             writeRoutesDts(generateRoutesDts(entries, `${appDir}/api`), root)
             writeServerDts(generateServerDts(config.server), root)
-            const actionEntries = scanActions(appDir, root)
-            writeActionsDts(generateActionsDts(actionEntries, appDir), root)
-            const {warnings} = scanAndWritePageTypes(appDir, root)
-            for (const w of warnings) devixLog.warn(w.replace(/^\[devix\] /, ''))
         },
 
         configureServer(server) {
             const root = process.cwd()
 
-            const initial = scanAndWritePageTypes(appDir, root)
-            for (const w of initial.warnings) console.warn(w)
-
             const regenerateDts = () => {
                 const entries = scanApiFiles(appDir, root)
                 writeRoutesDts(generateRoutesDts(entries, `${appDir}/api`), root)
             }
-
-            const regenerateActionsDts = () => {
-                const actionEntries = scanActions(appDir, root)
-                writeActionsDts(generateActionsDts(actionEntries, appDir), root)
-            }
-
-            const isPageFile = (file: string) => file.startsWith(resolve(root, pagesDir)) && !file.endsWith('layout.tsx') && !file.endsWith('error.tsx')
-
-            const pageRelPath = (file: string) => relative(root, file).replace(/\\/g, '/')
 
             const invalidateVirtualModule = (id: string) => {
                 const mod = server.moduleGraph.getModuleById(`\0${id}`)
@@ -197,46 +181,24 @@ export function devix(config: DevixConfig): UserConfig {
                 }
             })
 
-            const writePageTypesAndLog = (file: string) => {
-                try {
-                    const {warnings} = writePageTypes(pageRelPath(file), root)
-                    for (const w of warnings) devixLog.warn(w.replace(/^\[devix\] /, ''))
-                } catch {
-                    /* ignorar archivos no procesables */
-                }
-            }
-
             server.watcher.on('add', (file) => {
                 if (file.startsWith(resolve(root, pagesDir))) invalidateVirtualModule(VIRTUAL_RENDER)
-                if (isPageFile(file)) writePageTypesAndLog(file)
                 if (file.includes(`${appDir}/api`)) {
                     invalidateVirtualModule(VIRTUAL_API)
                     regenerateDts()
                 }
                 if (file.includes(`${appDir}/actions`)) {
                     invalidateVirtualModule(VIRTUAL_ACTIONS)
-                    regenerateActionsDts()
                 }
             })
             server.watcher.on('unlink', (file) => {
                 if (file.startsWith(resolve(root, pagesDir))) invalidateVirtualModule(VIRTUAL_RENDER)
-                if (isPageFile(file)) deletePageTypes(pageRelPath(file), root)
                 if (file.includes(`${appDir}/api`)) {
                     invalidateVirtualModule(VIRTUAL_API)
                     regenerateDts()
                 }
                 if (file.includes(`${appDir}/actions`)) {
                     invalidateVirtualModule(VIRTUAL_ACTIONS)
-                    regenerateActionsDts()
-                }
-            })
-            server.watcher.on('change', (file) => {
-                if (isPageFile(file)) writePageTypesAndLog(file)
-                if (file.includes(`${appDir}/api`) && !file.endsWith('middleware.ts')) {
-                    regenerateDts()
-                }
-                if (file.includes(`${appDir}/actions`)) {
-                    regenerateActionsDts()
                 }
             })
         },

@@ -14,36 +14,15 @@ export const getPost = query(async (id: string) => {
 
 El primer argumento es la función de fetch. El segundo es el nombre único de la query.
 
-## Uso en loader
-
-```ts
-import { getPost } from '~/queries/posts'
-import type { LoaderContext } from '@devlusoft/devix'
-
-export async function loader({ params }: LoaderContext<{ slug: string }>) {
-  const post = await getPost(params.slug)
-  return { post }
-}
-```
-
 ## Cómo funciona
 
 ### Server-side
 
-Cada request SSR crea un `QueryCache` propio mediante `AsyncLocalStorage`. Si dos loaders (o un loader y un layout) llaman a la misma query con los mismos argumentos, la segunda llamada **no ejecuta la función** — espera la Promise ya en curso.
+Cada request SSR crea un `QueryCache` propio mediante `AsyncLocalStorage`. Si dos componentes o páginas llaman a la misma query con los mismos argumentos durante el mismo SSR, la segunda llamada **no ejecuta la función** — espera la Promise ya en curso.
 
 ```ts
-// layout.tsx
-export async function loader({ params }: LoaderContext) {
-  const post = await getPost(params.slug)  // inicia fetch
-  return { post: post.title }
-}
-
-// page.tsx — mismo request
-export async function loader({ params }: LoaderContext) {
-  const post = await getPost(params.slug)  // reuse: misma Promise
-  return { post }
-}
+await getPost('123')  // inicia fetch
+await getPost('123')  // reuse: misma Promise
 ```
 
 ### Client-side
@@ -59,6 +38,25 @@ Los resultados de queries resueltas durante SSR se serializan en `window.__DEVIX
 
 En el cliente, si la query no está en caché, hace un fetch RPC al servidor. El endpoint `/_devix/query` busca la query registrada, la ejecuta con los args, y retorna el resultado serializado.
 
+## Seguridad
+
+El cuerpo de `query(fn, name)` **nunca llega al bundle cliente**. devix detecta automáticamente la llamada en el build de cliente y reemplaza `fn` por un stub que lanza error:
+
+```ts
+// Esto NUNCA toca el bundle cliente:
+export const getMe = query(async () => {
+  const token = getCookie('session')
+  return db.users.findByToken(token)
+}, 'me')
+
+// El cliente recibe:
+export const getMe = query(async (...$a) => {
+  throw new Error("server-only code")
+}, 'me')
+```
+
+Los imports que solo usaba `fn` se tree-shakean automáticamente. Esto funciona en cualquier archivo — no requiere convención de directorios.
+
 ## API
 
 ```ts
@@ -72,6 +70,20 @@ query<T, A extends unknown[]>(fn: (...args: A) => Promise<T>, name: string): (..
 | retorno | Wrapper con la misma firma que `fn` |
 
 El wrapper chequea caché antes de ejecutar. En server usa el `QueryCache` del request activo. En cliente usa el caché hidratado + RPC.
+
+## Cookies dentro de queries
+
+Dentro de una query puedes leer cookies del request activo sin pasar parámetros:
+
+```ts
+export const getMe = query(async () => {
+  const token = getCookie('session')
+  if (!token) return null
+  return verifyToken(token)
+}, 'me')
+```
+
+Esto funciona porque el handler `/_devix/query` mantiene un `AsyncLocalStorage` con el `Request` original. Ver [Cookies](./cookies.md) para la API completa.
 
 ## Server-side cache scope
 

@@ -1,13 +1,12 @@
 import {renderToString, generateHydrationScript} from "solid-js/web";
 import {buildHeadNodes} from '../runtime/head'
-import {ServerApp} from '../runtime/server-app'
+import {RouterProvider} from '../runtime/router-provider'
+import {__setFrame} from '../runtime/request-context'
 import {buildPages, matchPage, collectLayoutChain, PagesResult} from './pages-router'
 import {resolveMetadata, mergeMetadata} from '../runtime/metadata'
 import type {PageModule, LayoutModule, PageGlob} from './types'
 import type {Manifest} from "vite";
 import {escapeAttr, safeJsonStringify} from "../utils/html";
-import {withTimeout} from "../utils/async";
-import {collectEncode, stringToBase64} from "../utils/turbo-serializer";
 import {isRedirect, isLoaderError, errorToBody, NotFoundError, RedirectError, LoaderError} from "../utils/response";
 import type {Viewport} from "../types";
 import type {ServerBackendConfig} from "../config";
@@ -32,7 +31,7 @@ function extractRedirect(result: unknown): { url: string, status: number, replac
     return null
 }
 
-async function resolvePageData(pathname: string, request: Request, glob: PageGlob, timeout: number, serverConfig?: Record<string, ServerBackendConfig>) {
+async function resolvePageData(pathname: string, request: Request, glob: PageGlob, serverConfig?: Record<string, ServerBackendConfig>) {
     const cacheKey = Object.keys(glob.pages).sort().join('\0') + '|' + Object.keys(glob.layouts).sort().join('\0')
     if (!pagesCache || pagesCacheKey !== cacheKey) {
         pagesCache = buildPages(Object.keys(glob.pages), Object.keys(glob.layouts), glob.pagesDir)
@@ -71,33 +70,9 @@ async function resolvePageData(pathname: string, request: Request, glob: PageGlo
         if (result !== null && result !== undefined) guardData = result
     }
 
-    const ctx = {params, request, guardData, $server}
-
-    const rawLoaderData = pageMod.loader
-        ? await withTimeout(Promise.resolve(pageMod.loader(ctx)), timeout)
-        : null
-
-    if (isRedirect(rawLoaderData)) return {
-        redirect: rawLoaderData.url,
-        redirectStatus: rawLoaderData.status,
-        redirectReplace: rawLoaderData.replace
-    }
-    if (isLoaderError(rawLoaderData)) return {loaderError: rawLoaderData}
-    const loaderData = rawLoaderData
-
-    const rawLayoutsData = await withTimeout(
-        Promise.all(layoutMods.map(mod => mod.loader ? mod.loader(ctx) : null)),
-        timeout
-    )
-    for (const raw of rawLayoutsData) {
-        if (isRedirect(raw)) return {redirect: raw.url, redirectStatus: raw.status, redirectReplace: raw.replace}
-        if (isLoaderError(raw)) return {loaderError: raw}
-    }
-    const layoutsData = rawLayoutsData
-
-    const pageMeta = await resolveMetadata(pageMod, {...ctx, loaderData})
+    const pageMeta = await resolveMetadata(pageMod, {params, request, guardData, $server})
     const layoutsMeta = await Promise.all(
-        layoutMods.map((mod, i) => resolveMetadata(mod, {...ctx, loaderData: layoutsData[i]}))
+        layoutMods.map(mod => resolveMetadata(mod, {params, request, guardData, $server}))
     )
 
     const metadata = mergeMetadata(...layoutsMeta.map(m => m.metadata), pageMeta.metadata)
@@ -105,28 +80,28 @@ async function resolvePageData(pathname: string, request: Request, glob: PageGlo
 
     const rootLayoutMod = layoutMods[0]
     const lang = rootLayoutMod?.generateLang
-        ? await rootLayoutMod.generateLang({...ctx, loaderData: layoutsData[0]})
+        ? await rootLayoutMod.generateLang({params, request, guardData, $server})
         : rootLayoutMod?.lang ?? 'en'
 
-    return {pageMod, layoutMods, params, loaderData, layoutsData, guardData, metadata, viewport, lang}
+    return {pageMod, layoutMods, params, guardData, metadata, viewport, lang}
 }
 
 export async function runLoader(url: string, request: Request, glob: PageGlob, options?: {
-    loaderTimeout?: number;
     server?: Record<string, ServerBackendConfig>
 }) {
+    __setFrame({request, responseHeaders: new Headers()})
     const {pathname} = new URL(url, 'http://localhost')
     let result: Awaited<ReturnType<typeof resolvePageData>>
     try {
-        const timeout = options?.loaderTimeout ?? 10_000
-        result = await resolvePageData(pathname, request, glob, timeout, options?.server)
+        result = await resolvePageData(pathname, request, glob, options?.server)
     } catch (err) {
+        __setFrame(null)
         console.error('[devix] render error:', err)
-        return {error: true as const, loaderData: null, params: {}, layouts: [], metadata: null, viewport: undefined}
+        return {error: true as const, params: {}, metadata: null, viewport: undefined}
     }
 
     if (!result) {
-        return {loaderData: null, params: {}, layouts: [], metadata: null, viewport: undefined}
+        return {params: {}, metadata: null, viewport: undefined}
     }
 
     if ('redirect' in result) {
@@ -141,11 +116,9 @@ export async function runLoader(url: string, request: Request, glob: PageGlob, o
         return {loaderError: result.loaderError}
     }
 
-    const {loaderData, params, layoutsData, guardData, metadata, viewport} = result
+    const {params, guardData, metadata, viewport} = result
     return {
-        loaderData,
         params,
-        layouts: layoutsData.map(loaderData => ({loaderData})),
         guardData,
         metadata,
         viewport,
@@ -156,7 +129,7 @@ export async function render(
     url: string,
     request: Request,
     glob: PageGlob,
-    options?: { manifest?: Manifest, loaderTimeout?: number, server?: Record<string, ServerBackendConfig> },
+    options?: { manifest?: Manifest, server?: Record<string, ServerBackendConfig> },
 ) {
     const clientEntry = options?.manifest
         ? `/${Object.values(options.manifest).find(chunk => chunk.isEntry)?.file}`
@@ -171,30 +144,28 @@ export async function render(
 
     const {pathname} = new URL(url, 'http://localhost')
 
+    __setFrame({request, responseHeaders: new Headers()})
+
     let result: Awaited<ReturnType<typeof resolvePageData>>
     try {
-        const timeout = options?.loaderTimeout ?? 10_000
         result = await runWithQueryCache(
-            () => resolvePageData(pathname, request, glob, timeout, options?.server),
-            queryCache
+            () => resolvePageData(pathname, request, glob, options?.server),
+            queryCache,
+            request,
         )
     } catch (err) {
+        __setFrame(null)
         console.error('[devix] render error:', err)
         const msg = err instanceof Error ? err.message : String(err)
         const stack = err instanceof Error ? (err.stack || '') : ''
-        const ov = buildDevErrorOverlay([{message: `Loader crashed: ${msg}`, stack}])
+        const ov = buildDevErrorOverlay([{message: `SSR error: ${msg}`, stack}])
         const html = `<html lang="en"><head><meta charset="utf-8"><title>SSR Error</title></head><body>${ov}</body></html>`
         return {html, statusCode: 500, headers: {}}
     }
 
     if (!result) {
-        const dataScript = `<script>window.__DEVIX__=${safeJsonStringify({
-            metadata: null,
-            viewport: undefined,
-            clientEntry
-        })};window.__LOADER_DATA__=null;window.__LAYOUTS_DATA__=[];</script>`
         const clientScript = `<script type="module" src="${clientEntry}"></script>`
-        const html = `<html lang="en"><head><meta charset="utf-8">${cssLinks}${dataScript}</head><body><div id="devix-root"></div>${clientScript}</body></html>`
+        const html = `<html lang="en"><head><meta charset="utf-8">${cssLinks}</head><body><div id="devix-root"></div>${clientScript}</body></html>`
         return {html, statusCode: 404, headers: {}}
     }
 
@@ -204,17 +175,12 @@ export async function render(
 
     if ('loaderError' in result) {
         const errBody = errorToBody(result.loaderError!)
-        const dataScript = `<script>window.__DEVIX__=${safeJsonStringify({
-            metadata: null,
-            viewport: undefined,
-            clientEntry
-        })};window.__LOADER_DATA__=null;window.__LAYOUTS_DATA__=[];window.__LOADER_ERROR__=${safeJsonStringify(errBody)};</script>`
         const clientScript = `<script type="module" src="${clientEntry}"></script>`
-        const html = `<html lang="en"><head><meta charset="utf-8">${cssLinks}${dataScript}</head><body><div id="devix-root"></div>${clientScript}</body></html>`
+        const html = `<html lang="en"><head><meta charset="utf-8">${cssLinks}</head><body><div id="devix-root">${safeJsonStringify(errBody)}</div>${clientScript}</body></html>`
         return {html, statusCode: errBody.statusCode, headers: {}}
     }
 
-    const {pageMod, layoutMods, params, loaderData, layoutsData, guardData, metadata, viewport, lang} = result
+    const {pageMod, layoutMods, params, guardData, metadata, viewport, lang} = result
 
     const ssrErrors: SsrError[] = []
     if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
@@ -227,8 +193,9 @@ export async function render(
     let renderFailed = false
     try {
         content = runWithQueryCache(
-            () => renderToString(() => <ServerApp pathname={pathname} search={search} params={params} loaderData={loaderData} layoutsData={layoutsData} guardData={guardData} Page={pageMod.default} layouts={layoutMods.map(m => m.default)} metadata={metadata ?? null} viewport={viewport} clientEntry={clientEntry} />),
-            queryCache
+            () => renderToString(() => <RouterProvider pathname={pathname} search={search} initialParams={params} initialGuardData={guardData} initialPage={pageMod.default} initialLayouts={layoutMods.map(m => m.default)} />),
+            queryCache,
+            request,
         )
     } catch (err) {
         renderFailed = true
@@ -242,45 +209,9 @@ export async function render(
         delete (globalThis as any).__DEVIX_SSR_ERRORS__
     }
 
-    trackPromises(loaderData as Record<string, unknown>)
-    for (const ld of layoutsData) trackPromises(ld as Record<string, unknown>)
-
-    await Promise.race([
-        Promise.allSettled(
-            [...Object.values(loaderData ?? {}), ...layoutsData.flatMap(d => Object.values(d ?? {}))]
-                .filter(v => v instanceof Promise)
-        ),
-        new Promise(r => setTimeout(r, 50)),
-    ])
-
-    const [syncLoader, deferredLoaderKeys] = separateDeferred(loaderData as Record<string, unknown> | null)
-    const syncLayouts = layoutsData.map(d => separateDeferred(d as Record<string, unknown> | null)[0])
     const headTags = metadata ? renderToString(() => <>{buildHeadNodes(metadata, viewport)}</>) : ''
     const hydrationScript = generateHydrationScript()
 
-    const turboStr = await collectEncode({
-        LOADER_DATA: syncLoader ?? null,
-        LAYOUTS_DATA: syncLayouts,
-        GUARD_DATA: guardData ?? null,
-    })
-    const syncB64 = stringToBase64(turboStr)
-    const deferredScript = deferredLoaderKeys?.length
-        ? `window.__DEVIX_DEFERRED__=${safeJsonStringify(deferredLoaderKeys)};`
-        : ''
-    const queryEntries: Record<string, unknown> = {}
-    for (const [key, promise] of queryCache.entries()) {
-        try {
-            queryEntries[key] = await promise
-        } catch {}
-    }
-    const queriesScript = Object.keys(queryEntries).length
-        ? `window.__DEVIX_QUERIES__=${safeJsonStringify(queryEntries)};`
-        : ''
-    const dataScript = `<script>window.__DEVIX__=${safeJsonStringify({
-        metadata,
-        viewport,
-        clientEntry
-    })};window.__DEVIX_TURBO__=${safeJsonStringify(syncB64)};${deferredScript}${queriesScript}</script>`
     const clientScript = `<script type="module" src="${clientEntry}"></script>`
     const customHeaders: Record<string, string> = pageMod.headers ?? {}
 
@@ -291,7 +222,7 @@ export async function render(
         return {html, statusCode: 500, headers: {}}
     }
 
-    const html = `<html lang="${escapeAttr(lang)}"><head><meta charset="utf-8">${hydrationScript}${headTags}${cssLinks}${dataScript}</head><body><div id="devix-root">${content}</div>${clientScript}${devOverlay}</body></html>`
+    const html = `<html lang="${escapeAttr(lang)}"><head><meta charset="utf-8">${hydrationScript}${headTags}${cssLinks}</head><body><div id="devix-root">${content}</div>${clientScript}${devOverlay}</body></html>`
 
     return {html, statusCode: 200, headers: customHeaders}
 }
@@ -322,7 +253,6 @@ export async function getStaticRoutes(glob: PageGlob): Promise<string[]> {
 
 export async function renderStream(url: string, request: Request, glob: PageGlob, options?: {
     manifest?: Manifest,
-    loaderTimeout?: number,
     server?: Record<string, ServerBackendConfig>
 },): Promise<{ stream: PassThrough, statusCode: number, headers: Record<string, string> }> {
     const clientEntry = options?.manifest
@@ -338,14 +268,17 @@ export async function renderStream(url: string, request: Request, glob: PageGlob
 
     const {pathname} = new URL(url, 'http://localhost')
 
+    __setFrame({request, responseHeaders: new Headers()})
+
     let result: Awaited<ReturnType<typeof resolvePageData>>
     try {
-        const timeout = options?.loaderTimeout ?? 10_000
         result = await runWithQueryCache(
-            () => resolvePageData(pathname, request, glob, timeout, options?.server),
-            queryCache
+            () => resolvePageData(pathname, request, glob, options?.server),
+            queryCache,
+            request,
         )
     } catch (err) {
+        __setFrame(null)
         console.error('[devix] render error:', err)
         throw err
     }
@@ -367,120 +300,47 @@ export async function renderStream(url: string, request: Request, glob: PageGlob
         throw new LoaderError(errorToBody(result.loaderError!))
     }
 
-    const {pageMod, layoutMods, params, loaderData, layoutsData, guardData, metadata, viewport, lang} = result
+    const {pageMod, layoutMods, params, guardData, metadata, viewport, lang} = result
     const search = new URL(url, 'http://localhost').search
 
     const headTags = metadata ? renderToString(() => <>{buildHeadNodes(metadata, viewport)}</>) : ''
 
-    trackPromises(loaderData as Record<string, unknown>)
-    for (const ld of layoutsData) trackPromises(ld as Record<string, unknown>)
-
-    await Promise.race([
-        Promise.allSettled(
-            [...Object.values(loaderData ?? {}), ...layoutsData.flatMap(d => Object.values(d ?? {}))]
-                .filter(v => v instanceof Promise)
-        ),
-        new Promise(r => setTimeout(r, 50)),
-    ])
-
-    const deferredLoaderKeys = getDeferredKeys(loaderData as Record<string, unknown> | null)
-    const [syncLoader] = separateDeferred(loaderData as Record<string, unknown> | null)
-    const syncLayouts = layoutsData.map(d => separateDeferred(d as Record<string, unknown> | null)[0])
-
-    const turboStr = await collectEncode({
-        LOADER_DATA: syncLoader ?? null,
-        LAYOUTS_DATA: syncLayouts,
-        GUARD_DATA: guardData ?? null,
-    })
-    const syncB64 = stringToBase64(turboStr)
-    const deferredScript = deferredLoaderKeys?.length
-        ? `window.__DEVIX_DEFERRED__=${safeJsonStringify(deferredLoaderKeys)};`
-        : ''
-    const queryEntries: Record<string, unknown> = {}
-    for (const [key, promise] of queryCache.entries()) {
-        try {
-            queryEntries[key] = await promise
-        } catch {}
-    }
-    const queriesScript = Object.keys(queryEntries).length
-        ? `window.__DEVIX_QUERIES__=${safeJsonStringify(queryEntries)};`
-        : ''
-    const dataScript = `<script>window.__DEVIX__=${safeJsonStringify({
-        metadata,
-        viewport,
-        clientEntry,
-    })};window.__DEVIX_TURBO__=${safeJsonStringify(syncB64)};${deferredScript}${queriesScript}</script>`
-
-    const head = `<!DOCTYPE html><html lang="${escapeAttr(lang)}"><head><meta charset="utf-8">${headTags}${cssLinks}${dataScript}</head><body><div id="devix-root">`
+    const head = `<!DOCTYPE html><html lang="${escapeAttr(lang)}"><head><meta charset="utf-8">${headTags}${cssLinks}</head><body><div id="devix-root">`
     const tail = `</div></body></html>`
 
-    const content = () => <ServerApp pathname={pathname} search={search} params={params} loaderData={loaderData} layoutsData={layoutsData} guardData={guardData} Page={pageMod.default} layouts={layoutMods.map(m => m.default)} metadata={metadata ?? null} viewport={viewport} clientEntry={clientEntry} />
-    const {stream} = createHtmlStream(
-        content,
-        head,
-        tail,
-        {
-            bootstrapModules: [clientEntry],
-            onError: (err) => console.error('[devix] Streaming error:', err),
-        },
+    const content = () => <RouterProvider pathname={pathname} search={search} initialParams={params} initialGuardData={guardData} initialPage={pageMod.default} initialLayouts={layoutMods.map(m => m.default)} />
+
+    const {stream} = runWithQueryCache(
+        () => createHtmlStream(
+            content,
+            head,
+            tail,
+            {
+                bootstrapModules: [clientEntry],
+                onError: (err) => {
+                    console.error('[devix] Streaming error:', err)
+                    __setFrame(null)
+                },
+            },
+        ),
+        queryCache,
+        request,
     )
+
+    const cleanup = () => {
+        __setFrame(null)
+    }
+    stream.on('end', cleanup)
+    stream.on('close', cleanup)
     return {stream, statusCode: 200, headers: pageMod.headers ?? {}}
-}
-
-function trackPromises(obj: Record<string, unknown>) {
-    if (!obj) return
-    for (const key of Object.keys(obj)) {
-        const value = obj[key]
-        if (value instanceof Promise) {
-            let settled: { value: unknown } | undefined
-            const tracked = value.then(
-                v => { settled = {value: v}; return v },
-                err => { throw err },
-            )
-            ;(tracked as any)._dvSettled = () => settled
-            obj[key] = tracked
-        }
-    }
-}
-
-function getDeferredKeys<T extends Record<string, unknown>>(obj: T | null | undefined): string[] | null {
-    if (!obj) return null
-    const deferred: string[] = []
-    for (const [key, value] of Object.entries(obj)) {
-        if (value instanceof Promise) {
-            const s = (value as any)._dvSettled?.()
-            if (!s) deferred.push(key)
-        }
-    }
-    return deferred.length > 0 ? deferred : null
-}
-
-function separateDeferred<T extends Record<string, unknown>>(obj: T | null | undefined): [T | null, string[] | null] {
-    if (!obj) return [null, null]
-
-    const sync: Record<string, unknown> = {}
-    const deferred: string[] = []
-
-    for (const [key, value] of Object.entries(obj)) {
-        if (value instanceof Promise) {
-            const s = (value as any)._dvSettled?.()
-            if (s) {
-                sync[key] = s.value
-            } else {
-                deferred.push(key)
-            }
-        } else {
-            sync[key] = value
-        }
-    }
-
-    return [sync as T, deferred.length > 0 ? deferred : null]
 }
 
 interface SsrError {
     message: string
     stack: string
 }
+
+const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '')
 
 function buildDevErrorOverlay(errors: SsrError[]): string {
     return `
@@ -518,9 +378,9 @@ function buildDevErrorOverlay(errors: SsrError[]): string {
 <div id="dov-b">
 ${errors.map((e, i) => `
 ${i > 0 ? '<div class="dov-sep"></div>' : ''}
-<div class="dov-msg">${escapeAttr(e.message)}</div>
+<div class="dov-msg">${escapeAttr(stripAnsi(e.message))}</div>
 <div class="dov-lbl">Stack trace</div>
-<pre class="dov-stk">${escapeAttr(e.stack || '(no stack)')}</pre>
+<pre class="dov-stk">${escapeAttr(stripAnsi(e.stack || '(no stack)'))}</pre>
 `).join('')}
 </div>
 <div id="dov-ft">

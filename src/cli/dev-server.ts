@@ -7,7 +7,6 @@ import { devix } from '../vite'
 import { registerApiRoutes } from '../server/routes'
 import { printDevBanner } from "../utils/banner"
 import { collectCss } from "../server/collect-css"
-import { parseDuration } from "../utils/duration"
 import {loadConfig} from "../utils/load-config";
 import {devixLog} from "../utils/log";
 
@@ -63,6 +62,7 @@ boot.stop()
 const app = new Hono()
 
 app.use('*', async (ctx, next) => {
+    if (ctx.req.path === '/_devix/query') return next()
     const t = Date.now()
     await next()
     const ms = Date.now() - t
@@ -76,7 +76,6 @@ registerApiRoutes(app, { renderModule, apiModule, actionsModule, server: config.
 app.get('*', async (c: Context) => {
   try {
     const { html, statusCode, headers } = await renderModule.render(c.req.url, c.req.raw, {
-      loaderTimeout: parseDuration(config.loaderTimeout ?? 10_000),
       server: config.server,
     })
     const cssUrls = await collectCss(vite)

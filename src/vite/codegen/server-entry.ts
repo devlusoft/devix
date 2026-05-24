@@ -84,7 +84,7 @@ import { readFileSync } from 'node:fs'
           /* config sin server — sigue normal */
       }
       registerApiRoutes(app, { renderModule, apiModule, actionsModule, manifest, server: userServerConfig })
-      registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig.loaderTimeout, server: userServerConfig })
+      registerSsrRoute(app, { renderModule, apiModule, manifest, server: userServerConfig })
   }                                                                                                           
    
   const server = serve({ fetch: app.fetch, port, hostname: host }, (info) =>                                  

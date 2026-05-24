@@ -32,8 +32,6 @@ function makeContextValue(overrides: Record<string, unknown> = {}) {
     return {
         pathname: '/',
         params: {},
-        loaderData: null,
-        layoutsData: [],
         guardData: null,
         Page: () => null,
         layouts: [],

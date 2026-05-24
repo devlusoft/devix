@@ -26,7 +26,7 @@ await build({
         solid: {hydratable: true, generate: "ssr"},
         typescript: {onlyRemoveTypeImports: true},
     })],
-    sourcemap: true,
+    sourcemap: false,
     minify: true,
 })
 
@@ -43,7 +43,7 @@ await build({
         __DEVIX_VERSION__: JSON.stringify(pkg.version),
     },
     jsx: 'preserve',
-    sourcemap: true,
+    sourcemap: false,
     minify: false,
 })
 
@@ -78,13 +78,12 @@ await build({
     })],
     outbase: 'src',
     outExtension: {'.js': '.jsx'},
-    sourcemap: true,
+    sourcemap: false,
     minify: true,
 })
 
 execSync('npx tsc -p tsconfig.build.json', {stdio: 'inherit'})
 
-for (const f of globSync('dist/**/*.map')) rmSync(f)
 for (const f of globSync('dist/server/*.jsx')) rmSync(f)
 
 console.log('✓ devix built')

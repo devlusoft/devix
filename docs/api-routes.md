@@ -234,6 +234,8 @@ try {
 
 ## Cookies
 
+En API routes **no hay `AsyncLocalStorage`**, así que siempre se usa el modo explícito (ver [Cookies](./cookies.md)):
+
 ```ts
 import { getCookie, setCookie, deleteCookie, json, type RouteHandler } from '@devlusoft/devix'
 
@@ -259,7 +261,11 @@ export const DELETE: RouteHandler = async () => {
 }
 ```
 
-`getCookie(request, name)` lee una cookie del request. `setCookie(headers, name, value, options)` y `deleteCookie(headers, name)` escriben en los headers de la respuesta.
+| Función | Parámetros |
+|---|---|
+| `getCookie(request, name)` | Request nativo + nombre |
+| `setCookie(headers, name, value, opts?)` | Headers de respuesta + nombre + valor + opciones |
+| `deleteCookie(headers, name, opts?)` | Headers de respuesta + nombre |
 
 ## Middleware
 

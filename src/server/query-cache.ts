@@ -1,5 +1,12 @@
 import {AsyncLocalStorage} from 'node:async_hooks'
 import {setQueryExecutor} from '../runtime/query'
+import {__setContextStore} from '../runtime/request-context'
+
+export interface Store {
+  cache: QueryCache
+  request: Request
+  responseHeaders: Headers
+}
 
 export class QueryCache {
   readonly #map = new Map<string, Promise<unknown>>()
@@ -17,14 +24,20 @@ export class QueryCache {
   }
 }
 
-const als = new AsyncLocalStorage<QueryCache>()
+const als = new AsyncLocalStorage<Store>()
+__setContextStore(als)
 
 export function getCurrentCache(): QueryCache | null {
-  return als.getStore() ?? null
+  return als.getStore()?.cache ?? null
 }
 
-export function runWithQueryCache<T>(fn: () => T, cache?: QueryCache): T {
-  return als.run(cache ?? new QueryCache(), fn)
+export function runWithQueryCache<T>(fn: () => T, cache?: QueryCache, request?: Request, responseHeaders?: Headers): T {
+  const store: Store = {
+    cache: cache ?? new QueryCache(),
+    request: request ?? new Request('http://localhost'),
+    responseHeaders: responseHeaders ?? new Headers(),
+  }
+  return als.run(store, fn)
 }
 
 export function initQueryCache(): void {

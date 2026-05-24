@@ -91,7 +91,7 @@ api: {
 
 ### `prepare` (opcional)
 
-Hook que corre antes de cada request. Recibe `{ request, headers, url }`:
+Hook que corre antes de cada request. Recibe `{ request, headers, url }`. **No está dentro del `AsyncLocalStorage`** de queries/actions, así que las cookies siempre deben pasarse explícitamente (ver [Cookies](./cookies.md)):
 
 - `request` — `Request` del cliente (server-side: el request del loader/handler)
 - `headers` — `Headers` mutables que se enviarán al backend

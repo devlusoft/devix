@@ -1,5 +1,4 @@
 import {createContext, Component, type Context} from "solid-js";
-import type {Metadata, Viewport} from "../types";
 import type {LayoutProps, PageProps} from "../server/types";
 
 export interface NavigateOptions {
@@ -11,11 +10,8 @@ export interface RouterContextValue {
     pathname: string
     search: string
     params: Record<string, string>
-    guardData: unknown
     Page: Component<PageProps>
     layouts: Component<LayoutProps>[]
-    metadata: Metadata | null
-    viewport?: Viewport
     navigate: (to: string, options?: NavigateOptions) => Promise<void>
     revalidate: () => Promise<void>
     prefetchRoute: (href: string) => void

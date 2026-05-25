@@ -78,10 +78,6 @@ function collectTags(metadata: Metadata, viewport?: Viewport): MetaTag[] {
     return tags
 }
 
-export function HeadSlot(_props: { metadata: Metadata | null, viewport?: Viewport }) {
-    return null
-}
-
 export function buildHeadNodes(metadata: Metadata, viewport?: Viewport): JSX.Element {
     const tags = collectTags(metadata, viewport)
 

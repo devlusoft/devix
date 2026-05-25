@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import {ErrorBoundary, createEffect, createSignal, onCleanup, Show} from "solid-js";
 import type {Component, JSX} from "solid-js";
 import type {ErrorProps} from "../server/types";
@@ -32,7 +33,7 @@ export function DevixErrorBoundary(props: {
                         {props.ErrorPage
                             ? <props.ErrorPage {...errorProps} />
                             : <h1>{errorProps.statusCode}</h1>}
-                        <DevErrorOverlay err={err}/>
+                        {import.meta.env.DEV && <DevErrorOverlay err={err}/>}
                     </>
                 )
             }}

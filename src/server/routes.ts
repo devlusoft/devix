@@ -1,16 +1,15 @@
 import type {Context, Hono} from 'hono'
-import type {ContentfulStatusCode, RedirectStatusCode} from 'hono/utils/http-status'
+import type {ContentfulStatusCode} from 'hono/utils/http-status'
 import type {Manifest} from 'vite'
 import {errorToBody} from "../utils/response"
 import type {ServerBackendConfig} from "../config"
 import {handleProxyRequest} from "./server-proxy"
 import {Readable} from "node:stream";
-import {safeJsonStringify} from "../utils/html";
 import {createTurboResponse, decodeFromRequest} from "../utils/turbo-serializer";
 import {getQueryRegistry} from "../runtime/query";
 import {runWithQueryCache} from "./query-cache";
 import {__setFrame} from "../runtime/request-context";
-import {devixLog} from "../utils/log";
+import {c as color} from '@nijil71/lumi-cli'
 
 interface ServerOptions {
     renderModule: any
@@ -89,12 +88,12 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, server, a
                 res.headers.append(k, v)
             }
             const ms = Date.now() - t
-            devixLog.info(`200 POST /_devix/query [${body.map(b => b.name).join(', ')}] ${ms}ms`)
+            console.log(`[devix] ${color.sage}200${color.r} ${color.b}POST${color.r} /_devix/query ${color.fog}[${body.map(b => b.name).join(', ')}] ${ms}ms${color.r}`)
             return res
         } catch (e) {
             console.error('[devix] query RPC error:', e)
             const ms = Date.now() - t
-            devixLog.info(`500 POST /_devix/query [error] ${ms}ms`)
+            console.log(`[devix] ${color.signal}500${color.r} ${color.b}POST${color.r} /_devix/query ${color.fog}[error] ${ms}ms${color.r}`)
             return c.json({statusCode: 500, message: 'Internal Server Error'}, 500)
         }
     })
@@ -114,7 +113,7 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, server, a
 export function registerSsrRoute(app: Hono, {renderModule, manifest, server}: ServerOptions) {
     app.get('*', async (c: Context) => {
         try {
-            const {stream, statusCode, headers} = await renderModule.renderStream(c.req.url, c.req.raw, {
+            const {stream, statusCode, headers} = await renderModule.render(c.req.url, c.req.raw, {
                 manifest,
                 server
             })
@@ -123,18 +122,7 @@ export function registerSsrRoute(app: Hono, {renderModule, manifest, server}: Se
                 status: statusCode,
                 headers: {'Content-Type': 'text/html', ...headers}
             })
-        } catch (e: any) {
-            if (e?.name === 'RedirectError') {
-                return c.redirect(e.url, e.status as RedirectStatusCode)
-            }
-            if (e?.name === 'NotFoundError') {
-                return c.text('Not Found', 404)
-            }
-            if (e?.name === 'LoaderError') {
-                const errorScript = `<script>window.__LOADER_ERROR__=${safeJsonStringify(e.body)};</script>`
-                const html = `<html lang="en"><head><meta charset="utf-8">${errorScript}</head><body><div id="devix-root"></div></body></html>`
-                return c.html(html, e.statusCode as ContentfulStatusCode)
-            }
+        } catch (e) {
             console.error(e)
             return c.text('Internal Server Error', 500)
         }

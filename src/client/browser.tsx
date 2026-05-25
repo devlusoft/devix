@@ -1,16 +1,13 @@
 import {hydrate} from 'solid-js/web'
 import {RouterProvider} from '@devlusoft/devix'
 import {initClientQueryCache} from '../runtime/query-client'
+import {decode} from 'turbo-stream'
 
-declare global {
-    interface Window {
-        __LOADER_ERROR__?: {
-            statusCode: number
-            message: string
-            code?: string
-            data?: unknown
-        }
-    }
+interface LoaderError {
+    statusCode: number
+    message: string
+    code?: string
+    data?: unknown
 }
 
 interface MatchResult {
@@ -25,14 +22,29 @@ interface BootstrapOptions {
     getDefaultErrorPage: () => any
 }
 
+async function decodeGuardData(): Promise<unknown> {
+    const el = document.getElementById('__DEVIX_GUARD__')
+    if (!el?.textContent) return undefined
+    const stream = new ReadableStream({
+        start(controller) {
+            controller.enqueue(el.textContent!)
+            controller.close()
+        }
+    })
+    return await decode(stream)
+}
+
 export async function bootstrap({matchClientRoute, loadErrorPage, getDefaultErrorPage}: BootstrapOptions) {
     const root = document.getElementById('devix-root')!
+    const errorAttr = root.getAttribute('data-error')
+    const initialError: LoaderError | null = errorAttr ? JSON.parse(errorAttr) : null
+    const initialGuardData = await decodeGuardData()
 
     initClientQueryCache()
     const matched = matchClientRoute(window.location.pathname)
 
-    if (window.__LOADER_ERROR__) {
-        const {statusCode, message, code, data} = window.__LOADER_ERROR__
+    if (initialError || !matched) {
+        const error = initialError ?? {statusCode: 404, message: 'Not found'} as const
         const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
         hydrate(() => (
             <RouterProvider
@@ -41,47 +53,35 @@ export async function bootstrap({matchClientRoute, loadErrorPage, getDefaultErro
                 getDefaultErrorPage={getDefaultErrorPage}
                 initialParams={{}}
                 initialPage={() => null}
-                initialError={{statusCode, message, code, data}}
+                initialError={error}
                 initialErrorPage={ErrorPage}
             />
         ), root)
-    } else if (matched) {
-        const [pageMod, ...layoutMods] = await Promise.all([
-            matched.load(),
-            ...matched.loadLayouts.map(l => l()),
-        ])
+        return
+    }
 
-        hydrate(() => (
-            <RouterProvider
-                matchClientRoute={matchClientRoute}
-                loadErrorPage={loadErrorPage}
-                getDefaultErrorPage={getDefaultErrorPage}
-                initialParams={matched.params}
-                initialPage={pageMod.default}
-                initialLayouts={layoutMods.map(m => m.default)}
-            />
-        ), root)
+    const [pageMod, ...layoutMods] = await Promise.all([
+        matched.load(),
+        ...matched.loadLayouts.map(l => l()),
+    ])
 
-        if (window.location.hash) {
-            const id = window.location.hash.slice(1)
-            const scrollBehavior = getComputedStyle(document.documentElement).scrollBehavior
-            requestAnimationFrame(() => {
-                document.getElementById(id)?.scrollIntoView({behavior: scrollBehavior as ScrollBehavior})
-            })
-        }
-    } else {
-        const ErrorPage = await loadErrorPage() ?? getDefaultErrorPage()
-        hydrate(() => (
-            <RouterProvider
-                matchClientRoute={matchClientRoute}
-                loadErrorPage={loadErrorPage}
-                getDefaultErrorPage={getDefaultErrorPage}
-                initialParams={{}}
-                initialPage={() => null}
-                initialLayouts={[]}
-                initialError={{statusCode: 404, message: 'Not found'}}
-                initialErrorPage={ErrorPage}
-            />
-        ), root)
+    hydrate(() => (
+        <RouterProvider
+            matchClientRoute={matchClientRoute}
+            loadErrorPage={loadErrorPage}
+            getDefaultErrorPage={getDefaultErrorPage}
+            initialGuardData={initialGuardData}
+            initialParams={matched.params}
+            initialPage={pageMod.default}
+            initialLayouts={layoutMods.map(m => m.default)}
+        />
+    ), root)
+
+    if (window.location.hash) {
+        const id = window.location.hash.slice(1)
+        const scrollBehavior = getComputedStyle(document.documentElement).scrollBehavior
+        requestAnimationFrame(() => {
+            document.getElementById(id)?.scrollIntoView({behavior: scrollBehavior as ScrollBehavior})
+        })
     }
 }

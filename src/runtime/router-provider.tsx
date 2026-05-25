@@ -1,18 +1,12 @@
-import {batch, Component, createComponent, createEffect, createMemo, createSignal, onCleanup, Show, useContext, type JSX} from "solid-js";
+import {batch, createComponent, createEffect, createMemo, createSignal, on, onCleanup, Show, useContext, type Accessor, type Component, type JSX} from "solid-js";
 import type {ErrorProps, LayoutProps, PageProps} from "../server/types";
-import type {Redirect} from "../utils/response";
-import type {Metadata, Viewport} from "../types";
-
-const DEFAULT_VIEWPORT: Viewport = {width: 'device-width', initialScale: 1}
 import type {NavigateOptions} from "./context"
 import {RouterContext, type RouterContextValue} from "./context";
 import {DevixErrorBoundary} from "./error-boundary";
 import {createRouterContext, type RouterContextSignals, type RouterActions} from "./router-context";
 import {resolveTo} from "./url";
 import {decodeResponse} from "../utils/turbo-serializer";
-
-const [ssrFallback, setSsrFallback] = createSignal<RouterContextValue | null>(null)
-export {setSsrFallback}
+import {getFrame} from "./request-context";
 
 export interface ClientRouteMatcher {
     matchClientRoute: (pathname: string) => {
@@ -25,49 +19,43 @@ export interface ClientRouteMatcher {
 }
 
 export function useRouter() {
-    return useContext(RouterContext) ?? ssrFallback()
+    return useContext(RouterContext)
 }
 
 export function usePathname() {
-    const ctx = useContext(RouterContext) ?? ssrFallback()
-    return () => ctx?.pathname ?? '/'
+    const ctx = useContext(RouterContext)
+    if (ctx) return () => ctx.pathname
+    const frame = getFrame()
+    if (frame) {
+        const {pathname} = new URL(frame.request.url)
+        return () => pathname
+    }
+    return () => '/'
 }
 
 const noopNavigate = () => Promise.resolve()
 const noopRevalidate = () => Promise.resolve()
 
 export function useNavigate() {
-    const ctx = useContext(RouterContext) ?? ssrFallback()
+    const ctx = useContext(RouterContext)
     return ctx?.navigate ?? noopNavigate
 }
 
 export function useRevalidate() {
-    const ctx = useContext(RouterContext) ?? ssrFallback()
+    const ctx = useContext(RouterContext)
     return ctx?.revalidate ?? noopRevalidate
 }
 
 export function useParams<T extends Record<string, string>>() {
-    const ctx = useContext(RouterContext) ?? ssrFallback()
+    const ctx = useContext(RouterContext)
     if (!ctx) throw new Error("useParams must be used within a router")
-    return ctx.params as T
+    return () => ctx.params as T
 }
 
-type GuardDataReturn<TGuard> =
-    TGuard extends (...args: any[]) => infer R
-        ? Exclude<Awaited<R>, string | Redirect | null | undefined | {
-            readonly statusCode: number;
-            readonly message: string
-        }>
-        : unknown
 
-export function useGuardData<TGuard = unknown>(): GuardDataReturn<TGuard> {
-    const ctx = useContext(RouterContext) ?? ssrFallback()
-    if (!ctx) return undefined as GuardDataReturn<TGuard>
-    return ctx.guardData as GuardDataReturn<TGuard>
-}
 
 export function useSearchParams(): [() => URLSearchParams, (params: Record<string, string | undefined>) => void] {
-    const ctx = useContext(RouterContext) ?? ssrFallback()
+    const ctx = useContext(RouterContext)
     const search = ctx?.search ?? ''
     const searchParams = createMemo(() => new URLSearchParams(search))
     const setSearchParams = (params: Record<string, string | undefined>) => {
@@ -95,8 +83,6 @@ export interface RouterProviderProps {
     initialPage: Component<PageProps>
     initialLayouts?: Component<LayoutProps>[]
     initialGuardData?: unknown
-    initialMeta?: Metadata | null
-    initialViewport?: Viewport
     initialError?: ErrorProps
     initialErrorPage?: Component<ErrorProps>
     matchClientRoute?: (pathname: string) => {
@@ -114,15 +100,12 @@ export function RouterProvider(props: RouterProviderProps) {
     const [pathname, setPathname] = createSignal(isSsr ? props.pathname! : window.location.pathname)
     const [search, setSearch] = createSignal(isSsr ? (props.search ?? '') : window.location.search)
     const [params, setParams] = createSignal(props.initialParams)
-    const [guardData, setGuardData] = createSignal(props.initialGuardData ?? null)
     const [Page, setPage] = createSignal<Component<PageProps>>(props.initialPage)
     const [layouts, setLayouts] = createSignal<Component<LayoutProps>[]>(props.initialLayouts ?? [])
-    const [metadata, setMetadata] = createSignal<Metadata | null>(props.initialMeta ?? null)
-    const [viewport, setViewport] = createSignal<Viewport | undefined>(props.initialViewport)
     const [pendingError, setPendingError] = createSignal<ErrorProps | undefined>(props.initialError)
     const [ErrorPage, setErrorPage] = createSignal<Component<ErrorProps> | undefined>(props.initialErrorPage)
-    const [navKey, setNavKey] = createSignal(1)
     const [isNavigating, setIsNavigating] = createSignal(false)
+    let [_guardData, setGuardData] = createSignal(props.initialGuardData ?? null)
 
     let navigatingController: AbortController | null = null
     let revalidatingController: AbortController | null = null
@@ -172,7 +155,7 @@ export function RouterProvider(props: RouterProviderProps) {
             if (!matched) {
                 const fallbackEP = await props.loadErrorPage!() ?? props.getDefaultErrorPage!()
                 batch(() => {
-                    setNavKey(k => k + 1)
+
                     setPathname(newPathname)
                     setSearch(newSearch)
                     setPendingError({statusCode: 404, message: 'Not found'})
@@ -197,16 +180,15 @@ export function RouterProvider(props: RouterProviderProps) {
                     return
                 }
 
+                if (data.metadata?.title) document.title = data.metadata.title
                 batch(() => {
-                    setNavKey(k => k + 1)
+
                     setPathname(newPathname)
                     setSearch(newSearch)
                     setParams(data.params ?? {})
                     setGuardData(data.guardData ?? null)
                     setPage(() => pageMod.default)
                     setLayouts(layoutMods.map(m => m.default))
-                    setMetadata(data.metadata ?? null)
-                    setViewport(data.viewport ?? DEFAULT_VIEWPORT)
                 })
             } else {
                 const pagePromise = matched.load()
@@ -234,7 +216,7 @@ export function RouterProvider(props: RouterProviderProps) {
 
                     const fallbackEP = await props.loadErrorPage!() ?? props.getDefaultErrorPage!()
                     batch(() => {
-                        setNavKey(k => k + 1)
+    
                         setPathname(newPathname)
                         setSearch(newSearch)
                         setPendingError({
@@ -255,7 +237,7 @@ export function RouterProvider(props: RouterProviderProps) {
                 } catch {
                     const fallbackEP = await props.loadErrorPage!() ?? props.getDefaultErrorPage!()
                     batch(() => {
-                        setNavKey(k => k + 1)
+    
                         setPathname(newPathname)
                         setSearch(newSearch)
                         setPendingError({statusCode: 500, message: 'Failed to decode server response'})
@@ -282,7 +264,7 @@ export function RouterProvider(props: RouterProviderProps) {
                     const fallbackEP = await props.loadErrorPage!() ?? props.getDefaultErrorPage!()
                     console.error('[router] page load error:', err)
                     batch(() => {
-                        setNavKey(k => k + 1)
+    
                         setPathname(newPathname)
                         setSearch(newSearch)
                         setPendingError({statusCode: 500, message: 'Failed to load page module'})
@@ -291,16 +273,15 @@ export function RouterProvider(props: RouterProviderProps) {
                     return
                 }
 
+                if (data.metadata?.title) document.title = data.metadata.title
                 batch(() => {
-                    setNavKey(k => k + 1)
+
                     setPathname(newPathname)
                     setSearch(newSearch)
                     setParams(data.params ?? {})
                     setGuardData(data.guardData ?? null)
                     setPage(() => pageComp)
                     setLayouts(layoutMods.map(m => m.default))
-                    setMetadata(data.metadata ?? null)
-                    setViewport(data.viewport ?? DEFAULT_VIEWPORT)
                 })
             }
 
@@ -372,21 +353,12 @@ export function RouterProvider(props: RouterProviderProps) {
                 await navigate(data.redirect, {replace: data.redirectReplace})
                 return
             }
+            if (data.metadata?.title) document.title = data.metadata.title
             batch(() => {
-                setNavKey(k => k + 1)
                 setGuardData(data.guardData ?? null)
                 setParams(data.params ?? params())
-                setMetadata(data.metadata ?? metadata())
-                setViewport(data.viewport ?? viewport())
             })
         }
-
-        createEffect(() => {
-            const meta = metadata()
-            if (meta?.title && document.title !== meta.title) {
-                document.title = meta.title
-            }
-        })
 
         createEffect(() => {
             const handlePop = () => {
@@ -405,16 +377,17 @@ export function RouterProvider(props: RouterProviderProps) {
     }
 
     const signals: RouterContextSignals = {
-        pathname, search, params, guardData,
-        Page, layouts, metadata, viewport,
+        pathname, search, params,
+        Page, layouts,
         isNavigating, pendingError, ErrorPage,
-        _navKey: navKey,
     }
 
     const actions: RouterActions = { navigate, revalidate, prefetchRoute }
 
     const routerState = createRouterContext(signals, actions)
-    setSsrFallback(routerState)
+
+    const [navKey, setNavKey] = createSignal(1)
+    createEffect(on(Page, () => setNavKey(k => k + 1)))
 
     return (
         <RouterContext.Provider value={routerState}>
@@ -425,7 +398,7 @@ export function RouterProvider(props: RouterProviderProps) {
                             page={Page()}
                             layouts={layouts()}
                             params={params()}
-                            guardData={guardData()}
+                            guardData={_guardData}
                             pathname={pathname()}
                         />}
                     </Show>
@@ -445,7 +418,7 @@ function Outlet(props: {
     page: Component<PageProps>
     layouts: Component<LayoutProps>[]
     params: Record<string, string>
-    guardData: unknown
+    guardData: Accessor<unknown>
     pathname: string
 }) {
   const comp = buildOutlet(props)
@@ -456,24 +429,22 @@ function buildOutlet(props: {
   page: Component<PageProps>
   layouts: Component<LayoutProps>[]
   params: Record<string, string>
-  guardData: unknown
+  guardData: Accessor<unknown>
   pathname: string
 }): () => JSX.Element {
-  const {page, layouts, params, guardData, pathname} = props
-
-  let outlet: () => JSX.Element = () => createComponent(page, {
-    get params() { return params },
-    get guardData() { return guardData },
-    url: pathname,
+  let outlet: () => JSX.Element = () => createComponent(props.page, {
+    get params() { return props.params },
+    get guardData() { return <T,>() => (props.guardData() ?? {}) as T },
+    url: props.pathname,
   })
 
-  for (let i = layouts.length - 1; i >= 0; i--) {
-    const L = layouts[i]
+  for (let i = props.layouts.length - 1; i >= 0; i--) {
+    const L = props.layouts[i]
     const childOutlet = outlet
     outlet = () => createComponent(L, {
-      get params() { return params },
-      get guardData() { return guardData },
       get children() { return childOutlet() },
+      get params() { return props.params },
+      get guardData() { return <T,>() => (props.guardData() ?? {}) as T },
     })
   }
 

@@ -2,7 +2,7 @@ import {PassThrough, Transform, TransformCallback} from "node:stream"
 import {renderToStream} from "solid-js/web";
 import {JSX} from "solid-js";
 
-class HtmlTailInjector extends Transform {
+export class HtmlTailInjector extends Transform {
     private readonly tail: Buffer
 
     constructor(tail: string) {
@@ -39,6 +39,12 @@ export function createHtmlStream(
     tail: string,
     options?: CreateHtmlStreamOptions,
 ): CreateHtmlStreamResult {
+    if (options?.bootstrapModules?.length) {
+        const scriptTags = options.bootstrapModules
+            .map(src => `<script type="module" src="${src}"></script>`)
+            .join('')
+        tail = tail.replace('</body>', scriptTags + '</body>')
+    }
     const output = new PassThrough()
     const injector = new HtmlTailInjector(tail)
 

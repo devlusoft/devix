@@ -44,7 +44,7 @@ app.use('*', async (ctx, next) => {
     const status = ctx.res.status
     const col = status < 300 ? c.sage : status < 400 ? c.amber : c.signal
     const time = new Date().toISOString().slice(11, 19)
-    devixLog.info(`${c.fog}${time}${c.r} ${col}${status}${c.r} ${c.b}${ctx.req.method}${c.r} ${ctx.req.path} ${c.fog}${ms}ms${c.r}`)
+    console.log(`[devix] ${c.fog}${time}${c.r} ${col}${status}${c.r} ${c.b}${ctx.req.method}${c.r} ${ctx.req.path} ${c.fog}${ms}ms${c.r}`)
 })
 
 const clientRoot = join(process.cwd(), 'dist/client')

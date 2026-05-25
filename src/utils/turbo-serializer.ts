@@ -13,10 +13,6 @@ export async function collectEncode(data: unknown, signal?: AbortSignal): Promis
     return result
 }
 
-export function stringToBase64(str: string): string {
-    return Buffer.from(str, 'utf-8').toString('base64')
-}
-
 export function createTurboResponse(data: unknown, signal?: AbortSignal): Response {
     const readable = encode(data, { signal })
     const encoder = new TextEncoder()
@@ -53,13 +49,3 @@ export async function decodeFromRequest(request: Request): Promise<any> {
     return decode(stringStream)
 }
 
-export async function decodeBase64(base64: string): Promise<any> {
-    return decode(new ReadableStream<string>({
-        start(controller) {
-            controller.enqueue(atob(base64))
-            controller.close()
-        }
-    }))
-}
-
-export { encode, decode }

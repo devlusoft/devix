@@ -5,7 +5,7 @@ import {registerApiRoutes, registerSsrRoute} from '../../src/server/routes'
 
 function makeRenderModule() {
     return {
-        renderStream: vi.fn().mockResolvedValue({stream: new PassThrough(), statusCode: 200, headers: {}}),
+        render: vi.fn().mockResolvedValue({stream: new PassThrough(), statusCode: 200, headers: {}}),
         runLoader: vi.fn().mockResolvedValue({}),
     }
 }
@@ -17,7 +17,7 @@ function makeApiModule() {
 }
 
 describe('registerSsrRoute', () => {
-    it('propaga `server` config a renderStream() para SSR', async () => {
+    it('propaga `server` config a render() para SSR', async () => {
         const app = new Hono()
         const renderModule = makeRenderModule()
         const apiModule = makeApiModule()
@@ -27,12 +27,12 @@ describe('registerSsrRoute', () => {
 
         await app.request('http://x/page')
 
-        expect(renderModule.renderStream).toHaveBeenCalledOnce()
-        const [, , options] = renderModule.renderStream.mock.calls[0]
+        expect(renderModule.render).toHaveBeenCalledOnce()
+        const [, , options] = renderModule.render.mock.calls[0]
         expect(options.server).toBe(server)
     })
 
-    it('si no se pasa `server`, renderStream() recibe undefined', async () => {
+    it('si no se pasa `server`, render() recibe undefined', async () => {
         const app = new Hono()
         const renderModule = makeRenderModule()
         const apiModule = makeApiModule()
@@ -40,7 +40,7 @@ describe('registerSsrRoute', () => {
         registerSsrRoute(app, {renderModule, apiModule})
 
         await app.request('http://x/page')
-        const [, , options] = renderModule.renderStream.mock.calls[0]
+        const [, , options] = renderModule.render.mock.calls[0]
         expect(options.server).toBeUndefined()
     })
 

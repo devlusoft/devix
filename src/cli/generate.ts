@@ -1,4 +1,5 @@
 import {readFileSync, mkdirSync, writeFileSync, rmSync} from 'node:fs'
+import {Readable} from 'node:stream'
 import {resolve, join} from 'node:path'
 import type {Manifest} from 'vite'
 import { pathToFileURL } from "node:url"
@@ -34,7 +35,9 @@ let skipped = 0
 
 for (const url of urls) {
     const fullUrl = `http://localhost${url}`
-    const {html, statusCode} = await renderModule.render(fullUrl, new Request(fullUrl), {manifest})
+    const {stream, statusCode} = await renderModule.render(fullUrl, new Request(fullUrl), {manifest})
+    const webStream = Readable.toWeb(stream) as ReadableStream
+    const html = await new Response(webStream).text()
 
     if (statusCode !== 200) {
         bar.increment(1, `Skipping ${url} — ${statusCode}`)
@@ -47,7 +50,7 @@ for (const url of urls) {
         : join(process.cwd(), 'dist/client', url, 'index.html')
 
     mkdirSync(join(outPath, '..'), {recursive: true})
-    writeFileSync(outPath, `<!DOCTYPE html>${html}`, 'utf-8')
+    writeFileSync(outPath, html, 'utf-8')
 
     const data = await renderModule.runLoader(fullUrl, new Request(fullUrl), {manifest})
     const dataPath = url === '/'

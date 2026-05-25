@@ -1,9 +1,30 @@
 import {describe, it, expect, vi} from 'vitest'
+import {PassThrough, Readable} from 'node:stream'
+
+vi.mock('solid-js/web', async (importOriginal) => {
+    const mod: any = await importOriginal()
+    return {
+        ...mod,
+        renderToStream: (fn: () => any) => {
+            const stream = new PassThrough()
+            const html = mod.renderToString(fn)
+            stream.end(html)
+            return stream
+        }
+    }
+})
+
+import {render as _render} from '../../src/server/render'
+
+async function render(url: string, request: Request, glob: any, options?: any) {
+    const result = await _render(url, request, glob, options)
+    const webStream = Readable.toWeb(result.stream) as ReadableStream
+    const html = await new Response(webStream).text()
+    return {html, statusCode: result.statusCode, headers: result.headers}
+}
 
 describe('render', () => {
     it('wrappea la página dentro del layout', async () => {
-        const {render} = await import('../../src/server/render')
-
         const glob = {
             pagesDir: 'app/pages',
             pages: {
@@ -24,8 +45,6 @@ describe('render', () => {
     })
 
     it('retorna 404 si no hay página', async () => {
-        const {render} = await import('../../src/server/render')
-
         const glob = {
             pagesDir: 'app/pages',
             pages: {},
@@ -37,8 +56,6 @@ describe('render', () => {
     })
 
     it('retorna redirect si el guard lo indica', async () => {
-        const {render} = await import('../../src/server/render')
-
         const glob = {
             pagesDir: 'app/pages',
             pages: {
@@ -57,8 +74,6 @@ describe('render', () => {
 })
 
 it('incluye metadata en el head', async () => {
-    const {render} = await import('../../src/server/render')
-
     const glob = {
         pagesDir: 'app/pages',
         pages: {
@@ -75,8 +90,6 @@ it('incluye metadata en el head', async () => {
 })
 
 it('usa el lang del layout raíz', async () => {
-    const {render} = await import('../../src/server/render')
-
     const glob = {
         pagesDir: 'app/pages',
         pages: {
@@ -97,8 +110,6 @@ it('usa el lang del layout raíz', async () => {
 })
 
 it('usa generateLang dinámico del layout raíz', async () => {
-    const {render} = await import('../../src/server/render')
-
     const glob = {
         pagesDir: 'app/pages',
         pages: {
@@ -119,8 +130,6 @@ it('usa generateLang dinámico del layout raíz', async () => {
 })
 
 it('metadata de página sobreescribe metadata del layout', async () => {
-    const {render} = await import('../../src/server/render')
-
     const glob = {
         pagesDir: 'app/pages',
         pages: {
@@ -142,8 +151,6 @@ it('metadata de página sobreescribe metadata del layout', async () => {
 })
 
 it('lang por defecto es "en" si no hay layout', async () => {
-    const {render} = await import('../../src/server/render')
-
     const glob = {
         pagesDir: 'app/pages',
         pages: {
@@ -159,7 +166,6 @@ it('lang por defecto es "en" si no hay layout', async () => {
 })
 
 it('el guard recibe params correctamente', async () => {
-    const {render} = await import('../../src/server/render')
     const guard = vi.fn().mockResolvedValue(null)
 
     const glob = {
@@ -180,7 +186,6 @@ it('el guard recibe params correctamente', async () => {
 })
 
 it('el guard bloquea el render si retorna redirect', async () => {
-    const {render} = await import('../../src/server/render')
     const pageDefault = vi.fn()
 
     const glob = {

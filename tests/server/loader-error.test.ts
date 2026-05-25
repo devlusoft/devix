@@ -1,7 +1,29 @@
 import {describe, it, expect, vi} from 'vitest'
-import {render, runLoader} from '../../src/server/render'
+import {PassThrough, Readable} from 'node:stream'
+
+vi.mock('solid-js/web', async (importOriginal) => {
+    const mod: any = await importOriginal()
+    return {
+        ...mod,
+        renderToStream: (fn: () => any) => {
+            const stream = new PassThrough()
+            const html = mod.renderToString(fn)
+            stream.end(html)
+            return stream
+        }
+    }
+})
+
+import {render as _render, runLoader} from '../../src/server/render'
 import {error} from '../../src/utils/response'
 import type {PageGlob} from '../../src/server/types'
+
+async function render(url: string, request: Request, glob: PageGlob, options?: any) {
+    const result = await _render(url, request, glob, options)
+    const webStream = Readable.toWeb(result.stream) as ReadableStream
+    const html = await new Response(webStream).text()
+    return {html, statusCode: result.statusCode, headers: result.headers}
+}
 
 const PAGES_DIR = 'app/pages'
 const req = new Request('http://localhost/test')

@@ -2,16 +2,16 @@ import type {Component} from "solid-js";
 import {LoaderContext, Metadata, Viewport} from "../types";
 import type {Redirect, RouteError} from "../utils/response";
 
-export interface PageProps<TParams = Record<string, string>, TGuard = unknown> {
+export interface PageProps<TParams = Record<string, string>> {
     params: TParams
     url: string
-    guardData: TGuard
+    guardData: <T>() => T
 }
 
-export interface LayoutProps<TParams = Record<string, string>, TGuard = unknown> {
+export interface LayoutProps<TParams = Record<string, string>> {
     children: any
     params: TParams
-    guardData: TGuard
+    guardData: <T>() => T
 }
 
 export interface ErrorProps {

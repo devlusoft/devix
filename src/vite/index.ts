@@ -3,10 +3,12 @@ import type {DevixConfig} from '../config'
 import solid from "vite-plugin-solid";
 import {fileURLToPath} from 'node:url'
 import {dirname, resolve} from 'node:path'
+import {createRequire} from 'node:module'
 import {generateEntryClient} from './codegen/entry-client'
 import {generateClientRoutes} from './codegen/client-routes'
 import {generateRender} from './codegen/render'
 import {generateApi} from './codegen/api'
+import {generateServerEntry} from './codegen/server-entry'
 import {scanApiFiles} from "./codegen/scan-api";
 import {generateRoutesDts} from "./codegen/routes-dts";
 import {writeRoutesDts} from "./codegen/write-routes-dts";
@@ -17,6 +19,7 @@ import {generateActions} from "./codegen/actions";
 import {maybeTransformServerOnly} from "./codegen/transform-server-only";
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const _require = createRequire(import.meta.url)
 
 const VIRTUAL_ENTRY_CLIENT = 'virtual:devix/entry-client.jsx'
 const VIRTUAL_CLIENT_ROUTES = 'virtual:devix/client-routes.jsx'
@@ -51,6 +54,11 @@ export function devix(config: DevixConfig): UserConfig {
             if (id === VIRTUAL_CONTEXT) return `\0${VIRTUAL_CONTEXT}`
             if (id === VIRTUAL_SERVER_ENTRY) return `\0${VIRTUAL_SERVER_ENTRY}`
             if (id === VIRTUAL_ACTIONS) return `\0${VIRTUAL_ACTIONS}`
+            if (id === '@hono/node-server' || id === '@hono/node-server/serve-static' || id === 'hono') {
+                try {
+                    return _require.resolve(id)
+                } catch { /* fall through */ }
+            }
         },
 
         load(id) {
@@ -62,6 +70,14 @@ export function devix(config: DevixConfig): UserConfig {
                 return generateRender({pagesDir, renderPath})
             if (id === `\0${VIRTUAL_API}`)
                 return generateApi({apiPath, appDir})
+            if (id === `\0${VIRTUAL_SERVER_ENTRY}`)
+                return generateServerEntry({
+                    routesPath: resolve(__dirname, '../server/routes').replace(/\\/g, '/'),
+                    envPath: resolve(__dirname, '../utils/env').replace(/\\/g, '/'),
+                    honoServerPath: '@hono/node-server',
+                    honoServerStaticPath: '@hono/node-server/serve-static',
+                    honoPath: 'hono',
+                })
             if (id === `\0${VIRTUAL_ACTIONS}`)
                 return generateActions({actionsPath, appDir})
         },
@@ -205,7 +221,7 @@ export function devix(config: DevixConfig): UserConfig {
     }
 
     const base: UserConfig = {
-        plugins: [solid({ssr: true}), virtualPlugin],
+        plugins: [solid({ssr: true, hot: false}), virtualPlugin],
         publicDir: resolve(process.cwd(), config.publicDir ?? 'public'),
         ssr: {noExternal: ['@devlusoft/devix', 'solid-js', 'solid-js/web', 'seroval', 'seroval-plugins']},
         ...(config.envPrefix ? {envPrefix: config.envPrefix} : {}),

@@ -57,6 +57,15 @@ await taskRunner([
             await build({
                 ...baseConfig,
                 configFile: false,
+                ssr: {
+                    ...baseConfig.ssr,
+                    noExternal: [
+                        ...((baseConfig.ssr as any)?.noExternal ?? []),
+                        '@hono/node-server',
+                        '@hono/node-server/serve-static',
+                        'hono',
+                    ],
+                },
                 build: {
                     ssr: true,
                     outDir: 'dist/server',

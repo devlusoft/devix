@@ -1,4 +1,4 @@
-export {useRouter, usePathname, useNavigate, useRevalidate, useParams, useSearchParams, useGuardData, RouterProvider} from "./router-provider"
+export {useRouter, usePathname, useNavigate, useRevalidate, useParams, useSearchParams, RouterProvider} from "./router-provider"
 
 export {Link} from "./link"
 
@@ -13,7 +13,6 @@ export type {CookieOptions} from '../utils/cookies'
 export {json, text, redirect, error} from '../utils/response'
 export {query} from './query'
 export {createAsync} from './create-async'
-export {AwaitData} from './await-data'
 export type {JsonResponse, Redirect, RedirectOptions, RouteError, ErrorOptions, ErrorBody} from '../utils/response'
 export {createHandler} from './create-handler'
 export type {DevixHandler} from './create-handler'
@@ -23,7 +22,6 @@ export type {BackendClient, ServerFetchOptions} from './server-client'
 export {action, callServerAction} from './action'
 export type {ActionCtx} from './action'
 export {DevixError} from './error-boundary'
-export {decode as decodeTurbo} from 'turbo-stream'
 export { decodeResponse } from '../utils/turbo-serializer'
 export type {DevixErrorOptions} from './error-boundary'
 export type {HttpMethod} from './fetch'

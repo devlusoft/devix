@@ -1,12 +1,11 @@
-export {useRouter, usePathname, useNavigate, useRevalidate, useParams, useSearchParams, RouterProvider} from "./router-provider"
-
-export {Link} from "./link"
-
 export {ClientOnly, clientOnly} from "./client-only"
 
-export type { Metadata, MetadataIcon, Viewport, LoaderContext, GuardFunction } from '../types'
-export type { NavigateOptions } from './context'
-export type { PageProps, LayoutProps, PageModule, LayoutModule, ErrorProps } from '../server/types'
+export {MetaProvider, useHead, Title, Style, Meta, Base, Stylesheet} from './meta'
+export {Link} from './link'
+export type {MetaContextType} from './meta'
+
+export type { LoaderContext, GuardFunction } from '../types'
+export type { PageProps, LayoutProps, RootLayoutProps, PageModule, LayoutModule, ErrorProps } from '../server/types'
 export type { RouteHandler, RouteResult, MiddlewareModule } from './api-context'
 export {getCookie, setCookie, deleteCookie} from '../utils/cookies'
 export type {CookieOptions} from '../utils/cookies'

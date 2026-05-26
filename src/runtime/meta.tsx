@@ -1,0 +1,272 @@
+import {
+  Component,
+  createContext,
+  createRenderEffect,
+  createUniqueId,
+  JSX,
+  onCleanup,
+  ParentComponent,
+  sharedConfig,
+  useContext
+} from "solid-js";
+import { escape, isServer, spread, ssr, useAssets } from "solid-js/web";
+
+export const MetaContext = createContext<MetaContextType>();
+
+
+
+interface TagDescription {
+  tag: string;
+  props: Record<string, unknown>;
+  setting?: { close?: boolean; escape?: boolean };
+  id: string;
+  name?: string;
+  ref?: Element;
+}
+
+export interface MetaContextType {
+  addTag: (tag: TagDescription) => number;
+  removeTag: (tag: TagDescription, index: number) => void;
+}
+
+const cascadingTags = ["title", "meta"];
+
+const titleTagProperties: string[] = [];
+
+const metaTagProperties: string[] =
+  ["name", "http-equiv", "content", "charset", "media"]
+    .concat(["property"]);
+
+const getTagKey = (tag: TagDescription, properties: string[]) => {
+  const tagProps = Object.fromEntries(
+    properties
+      .filter(k => k in tag.props)
+      .map(k => [k, tag.props[k]])
+      .sort()
+  );
+
+  if (Object.hasOwn(tagProps, "name") || Object.hasOwn(tagProps, "property")) {
+    tagProps.name = tagProps.name || tagProps.property;
+    delete tagProps.property;
+  }
+
+  return tag.tag + JSON.stringify(tagProps);
+};
+
+function initClientProvider() {
+  if (!sharedConfig.context) {
+    const ssrTags = document.head.querySelectorAll(`[data-sm]`);
+    Array.prototype.forEach.call(ssrTags, (ssrTag: Node) => ssrTag.parentNode!.removeChild(ssrTag));
+  }
+
+  const cascadedTagInstances = new Map();
+
+  function getElement(tag: TagDescription) {
+    if (tag.ref) {
+      return tag.ref;
+    }
+    let el = document.querySelector(`[data-sm="${tag.id}"]`);
+    if (el) {
+      if (el.tagName.toLowerCase() !== tag.tag) {
+        if (el.parentNode) {
+          el.parentNode.removeChild(el);
+        }
+        el = document.createElement(tag.tag);
+      }
+      el.removeAttribute("data-sm");
+    } else {
+      el = document.createElement(tag.tag);
+    }
+    return el;
+  }
+
+  return {
+    addTag(tag: TagDescription) {
+      if (cascadingTags.indexOf(tag.tag) !== -1) {
+        const properties = tag.tag === "title" ? titleTagProperties : metaTagProperties;
+        const tagKey = getTagKey(tag, properties);
+
+        if (!cascadedTagInstances.has(tagKey)) {
+          cascadedTagInstances.set(tagKey, []);
+        }
+
+        let instances = cascadedTagInstances.get(tagKey);
+        let index = instances.length;
+
+        instances = [...instances, tag];
+
+        cascadedTagInstances.set(tagKey, instances);
+
+        let element = getElement(tag);
+        tag.ref = element;
+
+        spread(element, tag.props);
+
+        let lastVisited = null;
+        for (var i = index - 1; i >= 0; i--) {
+          if (instances[i] != null) {
+            lastVisited = instances[i];
+            break;
+          }
+        }
+
+        if (element.parentNode != document.head) {
+          document.head.appendChild(element);
+        }
+        if (lastVisited && lastVisited.ref && lastVisited.ref.parentNode) {
+          document.head!.removeChild(lastVisited.ref);
+        }
+
+        return index;
+      }
+
+      let element = getElement(tag);
+      tag.ref = element;
+
+      spread(element, tag.props);
+
+      if (element.parentNode != document.head) {
+        document.head.appendChild(element);
+      }
+
+      return -1;
+    },
+    removeTag(tag: TagDescription, index: number) {
+      const properties = tag.tag === "title" ? titleTagProperties : metaTagProperties;
+      const tagKey = getTagKey(tag, properties);
+
+      if (tag.ref) {
+        const t = cascadedTagInstances.get(tagKey);
+        if (t) {
+          if (tag.ref.parentNode) {
+            tag.ref.parentNode.removeChild(tag.ref);
+            for (let i = index - 1; i >= 0; i--) {
+              if (t[i] != null) {
+                document.head.appendChild(t[i].ref);
+                break;
+              }
+            }
+          }
+
+          t[index] = null;
+          cascadedTagInstances.set(tagKey, t);
+        } else {
+          if (tag.ref.parentNode) {
+            tag.ref.parentNode.removeChild(tag.ref);
+          }
+        }
+      }
+    }
+  };
+}
+
+function initServerProvider() {
+  const tags: Array<TagDescription> = [];
+  useAssets(() => ssr(renderTags(tags)) as any);
+
+  return {
+    addTag(tagDesc: TagDescription) {
+      if (cascadingTags.indexOf(tagDesc.tag) !== -1) {
+        const properties = tagDesc.tag === "title" ? titleTagProperties : metaTagProperties;
+        const tagDescKey = getTagKey(tagDesc, properties);
+        const index = tags.findIndex(
+          prev => prev.tag === tagDesc.tag && getTagKey(prev, properties) === tagDescKey
+        );
+        if (index !== -1) {
+          tags.splice(index, 1);
+        }
+      }
+      tags.push(tagDesc);
+      return tags.length;
+    },
+    removeTag(tag: TagDescription, index: number) {}
+  };
+}
+
+export const MetaProvider: ParentComponent = props => {
+  const actions = !isServer
+    ? initClientProvider()
+    : initServerProvider();
+
+  return <MetaContext.Provider value={actions!}>{props.children}</MetaContext.Provider>;
+};
+
+const MetaTag = (
+  tag: string,
+  props: { [k: string]: any },
+  setting?: { escape?: boolean; close?: boolean }
+) => {
+  useHead({
+    tag,
+    props,
+    setting,
+    id: createUniqueId(),
+    get name() {
+      return props.name || props.property;
+    }
+  });
+
+  return null;
+};
+
+export function useHead(tagDesc: TagDescription) {
+  const c = useContext(MetaContext);
+  if (!c) throw new Error("<MetaProvider /> should be in the tree");
+
+  createRenderEffect(() => {
+    const index = c!.addTag(tagDesc);
+    onCleanup(() => c!.removeTag(tagDesc, index));
+  });
+}
+
+function renderTags(tags: Array<TagDescription>) {
+  function flattenChildren(children: unknown): unknown | string {
+    if (Array.isArray(children)) {
+      return children.map(child => flattenChildren(child)).join("");
+    }
+    return children;
+  }
+
+  return tags
+    .map(tag => {
+      const keys = Object.keys(tag.props);
+      const props = keys
+        .map(k =>
+          k === "children"
+            ? ""
+            : ` ${k}="${
+                escape(tag.props[k] as string)
+              }"`
+        )
+        .join("");
+
+      const children = flattenChildren(tag.props.children);
+
+      if (tag.setting?.close) {
+        return `<${tag.tag} data-sm="${tag.id}"${props}>${
+          tag.setting?.escape ? escape(children as string) : children || ""
+        }</${tag.tag}>`;
+      }
+      return `<${tag.tag} data-sm="${tag.id}"${props}/>`;
+    })
+    .join("");
+}
+
+export const Title: Component<JSX.HTMLAttributes<HTMLTitleElement>> = props =>
+  MetaTag("title", props, { escape: true, close: true });
+
+export const Style: Component<JSX.StyleHTMLAttributes<HTMLStyleElement>> = props =>
+  MetaTag("style", props, { close: true });
+
+export const Meta: Component<JSX.MetaHTMLAttributes<HTMLMetaElement>> = props =>
+  MetaTag("meta", props);
+
+export const Link: Component<JSX.LinkHTMLAttributes<HTMLLinkElement>> = props =>
+  MetaTag("link", props);
+
+export const Base: Component<JSX.BaseHTMLAttributes<HTMLBaseElement>> = props =>
+  MetaTag("base", props);
+
+export const Stylesheet: Component<
+  Omit<JSX.LinkHTMLAttributes<HTMLLinkElement>, "rel">
+> = props => <Link rel="stylesheet" {...props} />;

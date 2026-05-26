@@ -59,11 +59,12 @@ export function buildPages(pageKeys: string[], layoutKeys: string[], pagesDir: s
     return {pages, layouts}
 }
 
-export function collectLayoutChain(pageKey: string, layouts: Layout[]): Layout[] {
+export function collectLayoutChain(pageKey: string, layouts: Layout[], pagesDir: string): Layout[] {
     const pageDir = keyToDir(pageKey)
+    const rootKey = `${pagesDir}/layout.tsx`
 
     return layouts
-        .filter(layout => pageDir.startsWith(layout.dir))
+        .filter(layout => pageDir.startsWith(layout.dir) && layout.key !== rootKey)
         .sort((a, b) => a.dir.split('/').length - b.dir.split('/').length)
 }
 

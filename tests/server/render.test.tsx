@@ -1,15 +1,22 @@
 import {describe, it, expect, vi} from 'vitest'
-import {PassThrough, Readable} from 'node:stream'
 
 vi.mock('solid-js/web', async (importOriginal) => {
     const mod: any = await importOriginal()
     return {
         ...mod,
         renderToStream: (fn: () => any) => {
-            const stream = new PassThrough()
-            const html = mod.renderToString(fn)
-            stream.end(html)
-            return stream
+            const tempDiv = document.createElement('div')
+            const dispose = mod.render(fn, tempDiv)
+            const html = tempDiv.innerHTML
+            dispose()
+            return {
+                pipeTo: (writable: WritableStream) => {
+                    const encoder = new TextEncoder()
+                    const writer = writable.getWriter()
+                    writer.write(encoder.encode(html))
+                    writer.close()
+                }
+            }
         }
     }
 })
@@ -18,8 +25,7 @@ import {render as _render} from '../../src/server/render'
 
 async function render(url: string, request: Request, glob: any, options?: any) {
     const result = await _render(url, request, glob, options)
-    const webStream = Readable.toWeb(result.stream) as ReadableStream
-    const html = await new Response(webStream).text()
+    const html = await new Response(result.stream).text()
     return {html, statusCode: result.statusCode, headers: result.headers}
 }
 

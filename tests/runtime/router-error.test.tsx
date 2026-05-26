@@ -79,11 +79,14 @@ afterEach(() => {
 function renderProvider(Page = TestPage) {
     dispose = render(() => (
         <RouterProvider
+            page={Page as any}
+            layouts={[]}
+            params={{}}
+            guardData={() => ({})}
+            pathname="/"
+            search=""
+            errorPage={undefined}
             matchClientRoute={matchClientRoute as any}
-            loadErrorPage={loadErrorPage as any}
-            getDefaultErrorPage={getDefaultErrorPage as any}
-            initialParams={{}}
-            initialPage={Page as any}
         />
     ), container)
 }

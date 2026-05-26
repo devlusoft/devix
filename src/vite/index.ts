@@ -1,14 +1,14 @@
-import {UserConfig, Plugin, mergeConfig} from 'vite'
+import {type UserConfig, type Plugin, type ViteDevServer, mergeConfig} from 'vite'
+import {nitro} from "nitro/vite";
 import type {DevixConfig} from '../config'
 import solid from "vite-plugin-solid";
 import {fileURLToPath} from 'node:url'
 import {dirname, resolve} from 'node:path'
 import {createRequire} from 'node:module'
+import {mkdirSync, writeFileSync} from 'node:fs'
 import {generateEntryClient} from './codegen/entry-client'
-import {generateClientRoutes} from './codegen/client-routes'
-import {generateRender} from './codegen/render'
+import {generateEntryServer} from './codegen/entry-server'
 import {generateApi} from './codegen/api'
-import {generateServerEntry} from './codegen/server-entry'
 import {scanApiFiles} from "./codegen/scan-api";
 import {generateRoutesDts} from "./codegen/routes-dts";
 import {writeRoutesDts} from "./codegen/write-routes-dts";
@@ -17,69 +17,173 @@ import {generateServerDts, writeServerDts} from "./codegen/server-dts";
 import {parseSync} from 'oxc-parser'
 import {generateActions} from "./codegen/actions";
 import {maybeTransformServerOnly} from "./codegen/transform-server-only";
+import {collectCss} from "../server/collect-css";
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const _require = createRequire(import.meta.url)
 
 const VIRTUAL_ENTRY_CLIENT = 'virtual:devix/entry-client.jsx'
-const VIRTUAL_CLIENT_ROUTES = 'virtual:devix/client-routes.jsx'
-const VIRTUAL_RENDER = 'virtual:devix/render'
+const VIRTUAL_ENTRY_SERVER = 'virtual:devix/entry-server'
 const VIRTUAL_API = 'virtual:devix/api'
-const VIRTUAL_CONTEXT = 'virtual:devix/context'
-const VIRTUAL_SERVER_ENTRY = 'virtual:devix/server-entry'
 const VIRTUAL_ACTIONS = 'virtual:devix/actions'
+const VIRTUAL_APP = 'virtual:devix/app'
 
 const SERVER_EXPORTS = new Set(['guard', 'generateStaticParams', 'headers'])
+
+function writeEntryServer(pagesDir: string, outPath: string, _require: NodeRequire) {
+    const raw = generateEntryServer({pagesDir})
+    const solidRequire = createRequire(_require.resolve('vite-plugin-solid'))
+    const babel = solidRequire('@babel/core')
+    const presetSolid = solidRequire('babel-preset-solid')
+    const result = babel.transformSync(raw, {
+        presets: [[presetSolid, {generate: 'ssr', hydratable: true}]],
+        filename: 'entry-server.tsx',
+        configFile: false,
+        babelrc: false,
+        sourceMaps: false,
+    })
+    mkdirSync(dirname(outPath), { recursive: true })
+    writeFileSync(outPath, result.code)
+}
+
+let viteDevServer: ViteDevServer | null = null
 
 export function devix(config: DevixConfig): UserConfig {
     const appDir = config.appDir ?? 'app'
     const pagesDir = `${appDir}/pages`
     const cssUrls = (config.css ?? []).map(u => u.startsWith('/') ? u : `/${u.replace(/^\.\//, '')}`)
 
-    const renderPath = resolve(__dirname, '../server/render').replace(/\\/g, '/')
     const apiPath = resolve(__dirname, '../server/api').replace(/\\/g, '/')
     const actionsPath = resolve(__dirname, '../server/actions').replace(/\\/g, '/')
-    const matcherPath = resolve(__dirname, '../runtime/client-router.js').replace(/\\/g, '/')
-    
-
+    const entryServerPath = resolve(process.cwd(), '.devix', 'entry-server.js')
     const virtualPlugin: Plugin = {
         name: 'devix',
         enforce: 'pre',
 
         resolveId(id, _importer, _) {
             if (id === VIRTUAL_ENTRY_CLIENT) return `\0${VIRTUAL_ENTRY_CLIENT}`
-            if (id === VIRTUAL_CLIENT_ROUTES) return `\0${VIRTUAL_CLIENT_ROUTES}`
-            if (id === VIRTUAL_RENDER) return `\0${VIRTUAL_RENDER}`
+            if (id === VIRTUAL_ENTRY_SERVER) return entryServerPath
             if (id === VIRTUAL_API) return `\0${VIRTUAL_API}`
-            if (id === VIRTUAL_CONTEXT) return `\0${VIRTUAL_CONTEXT}`
-            if (id === VIRTUAL_SERVER_ENTRY) return `\0${VIRTUAL_SERVER_ENTRY}`
             if (id === VIRTUAL_ACTIONS) return `\0${VIRTUAL_ACTIONS}`
-            if (id === '@hono/node-server' || id === '@hono/node-server/serve-static' || id === 'hono') {
-                try {
-                    return _require.resolve(id)
-                } catch { /* fall through */ }
+            if (id === VIRTUAL_APP) return `\0${VIRTUAL_APP}`
+
+            const ass = id.match(/^(.+)\?assets=(.+)$/)
+            if (ass) {
+                const base = ass[1]
+                if (base === VIRTUAL_ENTRY_CLIENT) return `\0${id}`
             }
         },
 
-        load(id) {
+        async load(id) {
             if (id === `\0${VIRTUAL_ENTRY_CLIENT}`)
                 return generateEntryClient({cssUrls})
-            if (id === `\0${VIRTUAL_CLIENT_ROUTES}`)
-                return generateClientRoutes({pagesDir, matcherPath})
-            if (id === `\0${VIRTUAL_RENDER}`)
-                return generateRender({pagesDir, renderPath})
             if (id === `\0${VIRTUAL_API}`)
                 return generateApi({apiPath, appDir})
-            if (id === `\0${VIRTUAL_SERVER_ENTRY}`)
-                return generateServerEntry({
-                    routesPath: resolve(__dirname, '../server/routes').replace(/\\/g, '/'),
-                    envPath: resolve(__dirname, '../utils/env').replace(/\\/g, '/'),
-                    honoServerPath: '@hono/node-server',
-                    honoServerStaticPath: '@hono/node-server/serve-static',
-                    honoPath: 'hono',
-                })
             if (id === `\0${VIRTUAL_ACTIONS}`)
                 return generateActions({actionsPath, appDir})
+            if (id === `\0${VIRTUAL_ENTRY_CLIENT}?assets=client`) {
+                if (viteDevServer) {
+                    const cssFromServer = await collectCss(viteDevServer)
+                    const allCss = [...cssUrls]
+                    for (const u of cssFromServer) {
+                        if (!allCss.includes(u)) allCss.push(u)
+                    }
+                    const virtualEntryUrl = '/@id/__x00__' + VIRTUAL_ENTRY_CLIENT
+                    return `export default ${JSON.stringify({
+                        entry: virtualEntryUrl,
+                        css: allCss.map(function(u: string) { return {href: u} }),
+                    })}`
+                }
+            }
+
+            if (id === `\0${VIRTUAL_APP}`) {
+                const result = [
+'import {createComponent} from \'solid-js\'',
+'',
+'const _pages = import.meta.glob([\'/' + pagesDir + '/**/*.tsx\', \'!**/error.tsx\', \'!**/layout.tsx\'])',
+'const _layouts = import.meta.glob(\'/' + pagesDir + '/**/layout.tsx\')',
+'var _PAGES_DIR = \'/' + pagesDir + '\'',
+'',
+'function _fileToPattern(filePath) {',
+'  var rel = \'/\' + filePath.slice(filePath.indexOf(\'/pages/\') + \'/pages/\'.length)',
+'    .replace(/\\.(tsx|ts|jsx|js)$/, \'\')',
+'    .replace(/\\(.*?\\)\\//g, \'\')',
+'    .replace(/^index$|\\/index$/, \'\')',
+'    .replace(/\\[([^\\]]+)\\]/g, \':$1\')',
+'  return rel || \'/\'',
+'}',
+'',
+'function _collectLayoutChain(pageFile, layoutFiles) {',
+'  var parts = pageFile.split(\'/\')',
+'  var chain = []',
+'  var _pagesDirLen = _PAGES_DIR.split(\'/\').length',
+'  for (var i = _pagesDirLen + 1; i <= parts.length - 1; i++) {',
+'    var dir = parts.slice(0, i).join(\'/\')',
+'    var lp = dir + \'/layout.tsx\'',
+'    var lpts = dir + \'/layout.ts\'',
+'    if (layoutFiles[lp]) chain.push(layoutFiles[lp])',
+'    else if (layoutFiles[lpts]) chain.push(layoutFiles[lpts])',
+'  }',
+'  return chain',
+'}',
+'',
+'var _routes = Object.keys(_pages).filter(function(f) {',
+'  return !f.split(\'/\').pop().startsWith(\'layout\')',
+'}).map(function(file) {',
+'  var pattern = _fileToPattern(file)',
+'  var paramNames = []',
+'  var m; var re = /:([^/]+)/g',
+'  while ((m = re.exec(pattern)) !== null) paramNames.push(m[1])',
+'  return {pattern: pattern, params: paramNames, load: _pages[file], loadLayouts: _collectLayoutChain(file, _layouts)}',
+'}).sort(function(a, b) {',
+'  var aS = a.pattern.split(\'/\').filter(Boolean).length',
+'  var bS = b.pattern.split(\'/\').filter(Boolean).length',
+'  for (var i = 0; i < Math.max(aS, bS); i++) {',
+'    var aSegs = a.pattern.split(\'/\').filter(Boolean)',
+'    var bSegs = b.pattern.split(\'/\').filter(Boolean)',
+'    var aV = i < aS ? (aSegs[i].startsWith(\':\') ? 1 : 2) : 0',
+'    var bV = i < bS ? (bSegs[i].startsWith(\':\') ? 1 : 2) : 0',
+'    if (aV !== bV) return bV - aV',
+'  }',
+'  return b.pattern.length - a.pattern.length',
+'})',
+'',
+'export function resolveRoute(pathname) {',
+'  for (var i = 0; i < _routes.length; i++) {',
+'    var route = _routes[i]',
+'    var re = new RegExp(\'^\' + route.pattern.replace(/:[^/]+/g, \'([^/]+)\').replace(/\\//g, \'\\\\/\') + \'$\')',
+'    var m = pathname.match(re)',
+'    if (m) {',
+'      var params = {}',
+'      for (var j = 0; j < route.params.length; j++) params[route.params[j]] = decodeURIComponent(m[j + 1])',
+'      return {load: route.load, loadLayouts: route.loadLayouts, params: params}',
+'    }',
+'  }',
+'  return null',
+'}',
+'',
+'function LayoutStack(props) {',
+'  var idx = props.index || 0',
+'  if (idx < props.layouts.length) {',
+'    var L = props.layouts[idx]',
+'    return createComponent(L, {',
+'      params: props.params,',
+'      guardData: props.guardData,',
+'      children: createComponent(LayoutStack, { ...props, index: idx + 1 }),',
+'    })',
+'  }',
+'  return createComponent(props.page, {',
+'    params: props.params,',
+'    guardData: props.guardData,',
+'  })',
+'}',
+'',
+'export default function App(props) {',
+'  return createComponent(LayoutStack, props)',
+'}',
+]
+                return result.join('\n')
+            }
         },
 
 
@@ -170,6 +274,7 @@ export function devix(config: DevixConfig): UserConfig {
         },
 
         buildStart() {
+            writeEntryServer(pagesDir, entryServerPath, _require)
             const root = process.cwd()
             const entries = scanApiFiles(appDir, root)
             writeRoutesDts(generateRoutesDts(entries, `${appDir}/api`), root)
@@ -177,7 +282,9 @@ export function devix(config: DevixConfig): UserConfig {
         },
 
         configureServer(server) {
+            viteDevServer = server
             const root = process.cwd()
+            const rootLayoutPath = resolve(root, pagesDir, 'layout.tsx')
 
             const regenerateDts = () => {
                 const entries = scanApiFiles(appDir, root)
@@ -189,16 +296,25 @@ export function devix(config: DevixConfig): UserConfig {
                 if (mod) server.moduleGraph.invalidateModule(mod)
             }
 
+            const invalidateModuleByPath = (filePath: string) => {
+                const mod = server.moduleGraph.getModuleById(filePath)
+                if (mod) server.moduleGraph.invalidateModule(mod)
+            }
+
             server.watcher.add(resolve(root, 'devix.config.ts'))
             server.watcher.on('change', (file) => {
                 if (file === resolve(root, 'devix.config.ts')) {
                     devixLog.info('Config changed, restarting...')
                     process.exit(75)
                 }
+                if (file === rootLayoutPath) {
+                    writeEntryServer(pagesDir, entryServerPath, _require)
+                    invalidateModuleByPath(entryServerPath)
+                    devixLog.info('Root layout changed, entry-server regenerated')
+                }
             })
 
             server.watcher.on('add', (file) => {
-                if (file.startsWith(resolve(root, pagesDir))) invalidateVirtualModule(VIRTUAL_RENDER)
                 if (file.includes(`${appDir}/api`)) {
                     invalidateVirtualModule(VIRTUAL_API)
                     regenerateDts()
@@ -208,7 +324,6 @@ export function devix(config: DevixConfig): UserConfig {
                 }
             })
             server.watcher.on('unlink', (file) => {
-                if (file.startsWith(resolve(root, pagesDir))) invalidateVirtualModule(VIRTUAL_RENDER)
                 if (file.includes(`${appDir}/api`)) {
                     invalidateVirtualModule(VIRTUAL_API)
                     regenerateDts()
@@ -221,9 +336,18 @@ export function devix(config: DevixConfig): UserConfig {
     }
 
     const base: UserConfig = {
-        plugins: [solid({ssr: true, hot: false}), virtualPlugin],
+        plugins: [solid({ssr: true, hot: false}), virtualPlugin, nitro()],
+        esbuild: {jsx: 'preserve', jsxImportSource: 'solid-js'},
         publicDir: resolve(process.cwd(), config.publicDir ?? 'public'),
         ssr: {noExternal: ['@devlusoft/devix', 'solid-js', 'solid-js/web', 'seroval', 'seroval-plugins']},
+        environments: {
+            ssr: {
+                build: {rollupOptions: {input: entryServerPath}},
+            },
+            client: {
+                build: {rollupOptions: {input: 'virtual:devix/entry-client.jsx'}},
+            },
+        },
         ...(config.envPrefix ? {envPrefix: config.envPrefix} : {}),
     }
 

@@ -1,11 +1,19 @@
-import type { LayoutProps } from '@devlusoft/devix'
+import type { RootLayoutProps } from '@devlusoft/devix'
 
 export const lang = 'es'
 
-export default function RootLayout(props: LayoutProps) {
+export default function RootLayout(props: RootLayoutProps) {
   return (
-    <div>
-      {props.children}
-    </div>
+    <html lang={props.lang}>
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {props.assets}
+      </head>
+      <body>
+        {props.children}
+        {props.scripts}
+      </body>
+    </html>
   )
 }

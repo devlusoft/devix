@@ -117,8 +117,8 @@ export function registerSsrRoute(app: Hono, {renderModule, manifest, server}: Se
                 manifest,
                 server
             })
-            const webStream = Readable.toWeb(stream) as ReadableStream
-            return new Response(webStream, {
+            const responseStream = stream instanceof Readable ? Readable.toWeb(stream) as ReadableStream : stream
+            return new Response(responseStream, {
                 status: statusCode,
                 headers: {'Content-Type': 'text/html', ...headers}
             })

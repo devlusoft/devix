@@ -35,11 +35,13 @@ afterEach(() => {
 function renderProvider() {
     dispose = render(() => (
         <RouterProvider
+            page={TestPage as any}
+            layouts={[]}
+            params={{}}
+            guardData={() => ({})}
+            pathname="/"
+            search=""
             matchClientRoute={matchClientRoute as any}
-            loadErrorPage={loadErrorPage as any}
-            getDefaultErrorPage={getDefaultErrorPage as any}
-            initialParams={{}}
-            initialPage={TestPage as any}
         />
     ), container)
 }

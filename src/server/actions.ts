@@ -3,24 +3,11 @@ import {errorToBody, isRedirect, isLoaderError} from '../utils/response'
 import {createTurboResponse, decodeFromRequest} from '../utils/turbo-serializer'
 import {runWithQueryCache} from './query-cache'
 import {__setFrame} from '../runtime/request-context'
-
-interface ActionsGlob {
-    actions: Record<string, () => Promise<Record<string, Function>>>
-}
-
-function normalizeActionKey(key: string): string {
-    const idx = key.indexOf('/actions/')
-    if (idx === -1) return key
-    return key
-        .slice(idx + '/actions/'.length)
-        .replace(/\.(ts|tsx)$/, '')
-        .replace(/\//g, '_')
-}
+import {getAction} from './actions-registry'
 
 export async function handleActionRequest(
     url: string,
     request: Request,
-    glob: ActionsGlob,
 ): Promise<Response> {
     const responseHeaders = new Headers()
 
@@ -33,42 +20,20 @@ export async function handleActionRequest(
 
     try {
         const {pathname} = new URL(url, 'http://localhost')
+        const actionId = pathname.split('/').pop()
+        if (!actionId) return applyHeaders(new Response('Not Found', {status: 404}))
 
-        const match = pathname.match(/^\/_devix\/actions\/(.+?)\/(.+)$/)
-        if (!match) return applyHeaders(new Response('Not Found', {status: 404}))
-
-        const fileRel = match[1]
-        const fnName = match[2]
-
-        const actionKeys = Object.keys(glob.actions)
-        const matchedKey = actionKeys.find(k => normalizeActionKey(k) === fileRel)
-        if (!matchedKey) return applyHeaders(new Response('Not Found', {status: 404}))
-
-        const mod = await glob.actions[matchedKey]() as Record<string, Function>
-        const fn = mod[fnName]
+        const fn = getAction(actionId)
         if (typeof fn !== 'function') return applyHeaders(new Response('Not Found', {status: 404}))
 
-        const ct = request.headers.get('Content-Type') ?? ''
-        let args: unknown[] = []
-        if (request.method !== 'GET' && request.body) {
-            if (ct.includes('multipart/form-data') || ct.includes('application/x-www-form-urlencoded')) {
-                args = [await request.formData()]
-            } else if (ct.includes('application/octet-stream') || ct.includes('application/x-turbo')) {
-                const decoded = await decodeFromRequest(request)
-                args = Array.isArray(decoded) ? decoded : [decoded]
-            } else if (ct.includes('application/json')) {
-                const decoded = await request.json()
-                args = Array.isArray(decoded) ? decoded : [decoded]
-            } else {
-                args = [await request.text()]
-            }
-        }
+        const args = await decodeFromRequest(request)
+        const argsArray = Array.isArray(args) ? args : [args]
 
         let result: unknown
         __setFrame({request, responseHeaders})
         try {
             result = await runWithQueryCache(
-                () => fn(...args),
+                () => fn(...argsArray),
                 undefined,
                 request,
                 responseHeaders,
@@ -135,3 +100,4 @@ export async function handleActionRequest(
         }), {status: 500, headers: {'Content-Type': 'application/json'}}))
     }
 }
+

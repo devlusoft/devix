@@ -49,7 +49,6 @@ await build({
 
 const serverEntries = [
     'src/server/render.tsx',
-    'src/server/stream-html.ts',
     'src/server/api.ts',
     'src/server/actions.ts',
     'src/server/routes.ts',

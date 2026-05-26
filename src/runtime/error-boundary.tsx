@@ -1,14 +1,46 @@
 /// <reference types="vite/client" />
-import {ErrorBoundary, createEffect, createSignal, onCleanup, Show} from "solid-js";
-import type {Component, JSX} from "solid-js";
+import {catchError, ErrorBoundary as SolidErrorBoundary, createEffect, createSignal, onCleanup, Show} from "solid-js";
+import type {Component, ParentProps, JSX} from "solid-js";
 import type {ErrorProps} from "../server/types";
+
+export function TopErrorBoundary(props: ParentProps) {
+  let isError = false;
+  const res = catchError(() => props.children, (err) => {
+    console.error(err);
+    isError = !!err;
+  });
+  return isError ? (
+    <span style="font-size:1.5em;text-align:center;position:fixed;left:0px;bottom:55%;width:100%;">
+      500 | Internal Server Error
+    </span>
+  ) : (
+    res
+  );
+}
+
+export function ErrorBoundary(props: { children: JSX.Element }) {
+  return (
+    <SolidErrorBoundary
+      fallback={(err: unknown) => {
+        console.error(err);
+        return (
+          <span style="font-size:1.5em;text-align:center;position:fixed;left:0px;bottom:55%;width:100%;">
+            Error | Uncaught Exception
+          </span>
+        );
+      }}
+    >
+      {props.children}
+    </SolidErrorBoundary>
+  );
+}
 
 export function DevixErrorBoundary(props: {
     ErrorPage?: Component<ErrorProps>
     children: JSX.Element
 }) {
     return (
-        <ErrorBoundary
+        <SolidErrorBoundary
             fallback={(err: unknown) => {
                 const msg = err instanceof Error ? err.message : String(err)
                 const stack = err instanceof Error ? (err.stack || '') : ''
@@ -39,7 +71,7 @@ export function DevixErrorBoundary(props: {
             }}
         >
             {props.children}
-        </ErrorBoundary>
+        </SolidErrorBoundary>
     )
 }
 

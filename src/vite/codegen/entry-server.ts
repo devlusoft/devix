@@ -40,12 +40,25 @@ const _glob = {
     pagesDir: '/${pagesDir}',
 }
 
+var _RS = '\u001b[0m', _FG = '\u001b[2m', _BD = '\u001b[1m', _GN = '\u001b[32m', _YW = '\u001b[33m', _RD = '\u001b[31m'
+
+function _logReq(method, path, status, ms) {
+  var col = status < 300 ? _GN : status < 400 ? _YW : _RD
+  var t = new Date().toISOString().slice(11, 19)
+  console.log(_FG + t + _RS + ' ' + col + status + _RS + ' ' + _BD + method + _RS + ' ' + path + ' ' + _FG + ms + 'ms' + _RS)
+}
+
 export default {
     async fetch(request) {
+        var _start = Date.now()
+        var _url = new URL(request.url)
         try {
-            return await handleRequest(request)
+            var _res = await handleRequest(request)
+            _logReq(request.method, _url.pathname, _res.status, Date.now() - _start)
+            return _res
         } catch (e) {
             console.error('[devix] handler error:', e)
+            _logReq(request.method, _url.pathname, 500, Date.now() - _start)
             return new Response('Internal Server Error', {status: 500})
         }
     },

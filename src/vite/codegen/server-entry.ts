@@ -46,6 +46,17 @@ const host = typeof runtimeConfig.host === 'string'
 const clientRoot = resolve(__dir, '../client')
 const app = new Hono()
 
+var _DEV_RESET = '\u001b[0m', _DEV_FOG = '\u001b[2m', _DEV_BOLD = '\u001b[1m', _DEV_GREEN = '\u001b[32m', _DEV_YELLOW = '\u001b[33m', _DEV_RED = '\u001b[31m'
+app.use('*', async (c, next) => {
+    var _start = Date.now()
+    await next()
+    var _ms = Date.now() - _start
+    var _status = c.res.status
+    var _col = _status < 300 ? _DEV_GREEN : _status < 400 ? _DEV_YELLOW : _DEV_RED
+    var _time = new Date().toISOString().slice(11, 19)
+    console.log(_DEV_FOG + _time + _DEV_RESET + ' ' + _col + _status + _DEV_RESET + ' ' + _DEV_BOLD + c.req.method + _DEV_RESET + ' ' + c.req.path + ' ' + _DEV_FOG + _ms + 'ms' + _DEV_RESET)
+})
+
 if (runtimeConfig.output === 'static') {
     app.get('/_devix/data/*', (c) => {
         const pathname = c.req.path.replace(/^\\/_devix\\/data/, '') || '/'

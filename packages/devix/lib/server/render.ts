@@ -6,7 +6,8 @@ import { compose } from '../hydration/compose'
 import { renderToStream } from '../streaming/render-to-stream'
 
 const HYDRATION_BOOTSTRAP = generateHydrationScript()
-const HYDRATION_MODULE = '<script type="module" src="/' + '@id/' + 'virtual:devix-hydration"></script>'
+const HYDRATION_MODULE =
+  '<script type="module" src="/' + '@id/' + 'virtual:devix-hydration"></script>'
 
 export async function renderSSR(
   server: ViteDevServer,

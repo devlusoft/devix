@@ -1,100 +1,25 @@
 {
-  "name": "@devlusoft/devix",
-  "version": "0.7.0-alpha.4",
-  "type": "module",
-  "description": "A lightweight Solid SSR meta-framework — devix",
-  "author": "devlusoft",
-  "license": "MIT",
-  "homepage": "https://github.com/devlusoft/devix#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/devlusoft/devix.git"
-  },
+  "name": "devix",
+  "private": true,
+  "packageManager": "pnpm@11.5.1",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
-  "keywords": [
-    "ssr",
-    "meta-framework",
-    "vite",
-    "file-based-routing",
-    "fullstack",
-    "devix",
-    "devlusoft"
-  ],
-  "bin": {
-    "devix": "bin/devix.js"
-  },
-  "types": "./dist/runtime/index.d.ts",
-  "exports": {
-    ".": {
-      "solid": {
-        "types": "./dist/runtime/index.d.ts",
-        "default": "./dist/source/runtime/index.jsx"
-      },
-      "types": "./dist/runtime/index.d.ts",
-      "default": "./dist/runtime/index.js"
-    },
-    "./config": {
-      "types": "./dist/config.d.ts",
-      "default": "./dist/config.js"
-    },
-    "./client/browser": {
-      "types": "./dist/client/browser.d.ts",
-      "default": "./dist/client/browser.js"
-    },
-    "./client/default-error": {
-      "types": "./dist/client/default-error.d.ts",
-      "default": "./dist/client/default-error.js"
-    },
-    "./runtime/context": {
-      "types": "./dist/runtime/context.d.ts",
-      "default": "./dist/runtime/context.js"
-    },
-    "./server": {
-      "types": "./dist/server/public-index.d.ts",
-      "default": "./dist/server/public-index.js"
-    }
-  },
-  "files": [
-    "dist",
-    "bin"
+  "workspaces": [
+    "packages/*"
   ],
   "scripts": {
-    "build": "node --import tsx/esm build.ts",
-    "prepublishOnly": "pnpm run build",
-    "dev": "tsc --watch",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "start": "node --import tsx/esm src/cli/index.ts start"
-  },
-  "peerDependencies": {
-    "vite": ">=8.0.11"
-  },
-  "dependencies": {
-    "@hono/node-server": "1.19.13",
-    "@nijil71/lumi-cli": "1.0.11",
-    "esbuild": "0.27.4",
-    "hono": "4.12.18",
-    "nitro": "3.0.260522-beta",
-    "oxc-parser": "0.121.0",
-    "solid-js": "1.9.13",
-    "turbo-stream": "3.2.0",
-    "vite-plugin-solid": "2.11.12"
-  },
-  "packageManager": "pnpm@11.1.1",
-  "pnpm": {
-    "overrides": {
-      "picomatch": ">=4.0.4"
-    }
+    "test": "pnpm -r --if-present exec vitest run",
+    "test:e2e": "playwright test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "biome check",
+    "lint:fix": "pnpm -r --if-present lint:fix"
   },
   "devDependencies": {
-    "@types/node": "25.5.0",
-    "esbuild-plugin-solid": "^0.6.0",
-    "jsdom": "29.0.0",
-    "tsx": "4.21.0",
-    "typescript": "5.9.3",
-    "vite": "8.0.11",
-    "vitest": "4.1.0"
+    "@biomejs/biome": "2.4.16",
+    "@playwright/test": "1.60.0",
+    "@types/node": "25.9.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
   }
 }

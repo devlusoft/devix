@@ -1,7 +1,9 @@
 import { resolve } from 'node:path'
+import solid from 'vite-plugin-solid'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  plugins: [solid({ ssr: true })],
   resolve: {
     alias: {
       '@devlusoft/devix': resolve(__dirname, './lib/index.ts'),
@@ -11,7 +13,6 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     passWithNoTests: true,
-    include: ['packages/**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['./local/**', '**/node_modules/**', '**/dist/**'],
+    exclude: ['**/node_modules/**', '**/dist/**'],
   },
 })

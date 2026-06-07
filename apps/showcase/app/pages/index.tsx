@@ -13,6 +13,8 @@ export default function Home() {
         <A href="/blog">Go to blog →</A>
         {' · '}
         <A href="/data">Go to data (streaming) →</A>
+        {' · '}
+        <A href="/transitions/red">View transitions →</A>
       </p>
     </>
   )

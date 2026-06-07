@@ -84,13 +84,13 @@ describe('generateRoutesModule', () => {
 })
 
 describe('generateRoutesModule — nested layouts', () => {
-  it('should NOT emit get children() for routes without children (besides the wrapper Router)', () => {
+  it('should NOT emit get children() for routes without children (besides the wrapper Router and the per-Route ClickInterceptor)', () => {
     const result = buildResult({
       routes: [fixture({ path: '/about', file: 'about.tsx', isIndex: false })],
     })
     const out = generateRoutesModule(result)
     const matches = out.match(/get children\(\)/g) ?? []
-    expect(matches).toHaveLength(1)
+    expect(matches).toHaveLength(2)
   })
 
   it('should emit nested Route with get children() for layout + index', () => {
@@ -110,7 +110,7 @@ describe('generateRoutesModule — nested layouts', () => {
     expect(out).toContain('"/app/pages/blog/layout.tsx"')
     expect(out).toContain('"/app/pages/blog/index.tsx"')
     const matches = out.match(/get children\(\)/g) ?? []
-    expect(matches).toHaveLength(2)
+    expect(matches).toHaveLength(4)
   })
 
   it('should emit all children under one layout', () => {
@@ -164,7 +164,7 @@ describe('generateRoutesModule — nested layouts', () => {
     expect(out).toContain('"/app/pages/blog/posts/index.tsx"')
 
     const childMatches = out.match(/get children\(\)/g) ?? []
-    expect(childMatches).toHaveLength(3)
+    expect(childMatches).toHaveLength(6)
 
     const routeMatches = out.match(/createComponent\(Route,/g) ?? []
     expect(routeMatches).toHaveLength(3)
@@ -211,5 +211,81 @@ describe('generateRoutesModule — nested layouts', () => {
     expect(out).toContain('"/app/pages/blog/layout.tsx"')
     const routeMatches = out.match(/createComponent\(Route,/g) ?? []
     expect(routeMatches).toHaveLength(3)
+  })
+})
+
+describe('generateRoutesModule — view transitions wrapper', () => {
+  it('should import ClickInterceptor from the framework subpath', () => {
+    const out = generateRoutesModule(buildResult({}))
+    expect(out).toContain(
+      `import { ClickInterceptor } from '@devlusoft/devix/router/view-transitions/click-interceptor'`,
+    )
+  })
+
+  it('should wrap each Route component in createComponent(ClickInterceptor, ...)', () => {
+    const result = buildResult({
+      routes: [fixture({ path: '/about', file: 'about.tsx', isIndex: false })],
+    })
+    const out = generateRoutesModule(result)
+    expect(out).toMatch(/createComponent\(ClickInterceptor,/)
+  })
+
+  it('should place the ClickInterceptor inside the Route component, not as a Router sibling', () => {
+    const result = buildResult({
+      routes: [fixture({ path: '/about', file: 'about.tsx', isIndex: false })],
+    })
+    const out = generateRoutesModule(result)
+    const routeIdx = out.indexOf('createComponent(Route,')
+    const interceptorIdx = out.indexOf('createComponent(ClickInterceptor,')
+    expect(routeIdx).toBeGreaterThan(-1)
+    expect(interceptorIdx).toBeGreaterThan(routeIdx)
+  })
+
+  it('should preserve route count when wrapping components in ClickInterceptor', () => {
+    const result = buildResult({
+      routes: [
+        fixture({ path: '/a', file: 'a.tsx', isIndex: false }),
+        fixture({ path: '/b', file: 'b.tsx', isIndex: false }),
+      ],
+    })
+    const out = generateRoutesModule(result)
+    const routeMatches = out.match(/createComponent\(Route,/g) ?? []
+    expect(routeMatches).toHaveLength(2)
+  })
+
+  it('should emit one ClickInterceptor per route (one per leaf, one per layout)', () => {
+    const result = buildResult({
+      routes: [
+        fixture({ path: '/about', file: 'about.tsx', isIndex: false }),
+        fixture({ path: '/data', file: 'data.tsx', isIndex: false }),
+      ],
+    })
+    const out = generateRoutesModule(result)
+    const interceptorMatches = out.match(/createComponent\(ClickInterceptor,/g) ?? []
+    expect(interceptorMatches).toHaveLength(2)
+  })
+
+  it('should integrate with the real showcase manifest end-to-end', () => {
+    const manifestResult = buildManifest({
+      files: [
+        'index.tsx',
+        'data.tsx',
+        'blog/layout.tsx',
+        'blog/index.tsx',
+        'blog/[slug].tsx',
+        'transitions/red.tsx',
+        'transitions/blue.tsx',
+      ],
+    })
+    const out = generateRoutesModule(manifestResult)
+    expect(out).toContain('path: "/transitions/red"')
+    expect(out).toContain('path: "/transitions/blue"')
+    expect(out).toContain('"/app/pages/transitions/red.tsx"')
+    expect(out).toContain('"/app/pages/transitions/blue.tsx"')
+    expect(out).toMatch(/createComponent\(ClickInterceptor,/)
+    const routeMatches = out.match(/createComponent\(Route,/g) ?? []
+    expect(routeMatches.length).toBeGreaterThanOrEqual(7)
+    const interceptorMatches = out.match(/createComponent\(ClickInterceptor,/g) ?? []
+    expect(interceptorMatches.length).toBe(routeMatches.length)
   })
 })

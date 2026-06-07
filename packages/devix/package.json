@@ -6,7 +6,8 @@
     "devix": "./bin/devix.mjs"
   },
   "exports": {
-    ".": "./lib/index.ts"
+    ".": "./lib/index.ts",
+    "./router/view-transitions/click-interceptor": "./lib/router/view-transitions/click-interceptor.tsx"
   },
   "files": [
     "dist"

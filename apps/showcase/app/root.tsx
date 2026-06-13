@@ -1,4 +1,4 @@
-import type { DevixRootProps } from "@devlusoft/devix"
+import type { DevixRootProps } from '@devlusoft/devix'
 
 export default function Root(props: DevixRootProps) {
   return (
@@ -8,8 +8,8 @@ export default function Root(props: DevixRootProps) {
         <title>Devix Showcase</title>
       </head>
       <body>
-      {props.children}
-      {props.scripts}
+        {props.children}
+        {props.scripts}
       </body>
     </html>
   )

@@ -26,6 +26,8 @@ export function action<P extends unknown[], R>(
 
 function createStandaloneEvent() {
   return {
+    request: new Request('http://localhost/'),
+    response: { headers: new Headers() },
     router: {
       cache: new Map<string, unknown>(),
       data: {} as Record<string, unknown>,

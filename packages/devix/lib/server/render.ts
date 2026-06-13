@@ -1,6 +1,7 @@
 import type { ServerResponse } from 'node:http'
 import type { Component } from 'solid-js'
 import type { ViteDevServer } from 'vite'
+import { createRequestEvent, runWithRequestEvent } from '../data/request-context'
 import { compose, type DevixRootProps } from '../hydration/compose'
 import { renderToStream } from '../streaming/render-to-stream'
 
@@ -26,17 +27,34 @@ export async function renderSSR(opts: {
     throw new Error('devix: renderSSR requires either server or Root+Routes')
   }
 
-  opts.res.setHeader('Content-Type', 'text/html; charset=utf-8')
-  opts.res.statusCode = 200
-  opts.res.write('<!DOCTYPE html>')
-  const stream = renderToStream(() => compose(Root, Routes, opts.url))
-  const writable = {
-    write: (chunk: string) => {
-      opts.res.write(chunk)
-    },
-    end: () => {
-      opts.res.end()
-    },
-  }
-  stream.pipe(writable as { write: (v: string) => void })
+  const event = createRequestEvent(opts.url)
+
+  return new Promise((resolve, reject) => {
+    runWithRequestEvent(event, () => {
+      const writable = {
+        write: (chunk: string) => {
+          opts.res.write(chunk)
+        },
+        end: () => {
+          opts.res.end()
+        },
+      }
+
+      const stream = renderToStream(() => compose(Root, Routes, opts.url), {
+        onShellReady() {
+          for (const [key, value] of event.response.headers.entries()) {
+            opts.res.setHeader(key, value)
+          }
+          opts.res.setHeader('Content-Type', 'text/html; charset=utf-8')
+          opts.res.statusCode = 200
+          opts.res.write('<!DOCTYPE html>')
+          resolve()
+        },
+        onError: reject,
+      })
+      stream.pipe(writable as { write: (v: string) => void })
+
+      return stream
+    })
+  })
 }

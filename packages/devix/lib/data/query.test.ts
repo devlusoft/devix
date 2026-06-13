@@ -1,34 +1,77 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { sharedConfig } from 'solid-js'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { query } from './query'
-import { clearServerFns, getServerFn } from './server-registry'
 
-beforeEach(() => {
-  clearServerFns()
-})
+type SharedConfigClient = typeof sharedConfig & {
+  has?: (id: string) => boolean
+  load?: (id: string) => unknown
+}
 
-describe('query (server branch)', () => {
-  it('registers the function in the server-registry under `query:<name>`', () => {
-    const original = (x: string) => `echo:${x}`
-    query(original, 'echo')
+type HydrationRegistry = { r: Record<string, unknown> }
 
-    expect(getServerFn('query:echo')).toBe(original)
+function getClientConfig(): SharedConfigClient {
+  return sharedConfig as SharedConfigClient
+}
+
+function getHY(): HydrationRegistry {
+  return (globalThis as unknown as { _$HY?: HydrationRegistry })._$HY ?? { r: {} }
+}
+
+describe('query', () => {
+  beforeEach(() => {
+    const cfg = getClientConfig()
+    cfg.context = undefined
+    cfg.has = undefined
+    cfg.load = undefined
+    vi.stubGlobal('_$HY', undefined)
   })
 
-  it('invokes the callback directly when called', async () => {
-    const fn = query((x: number) => x * 2, 'double')
-    const result = await fn(5)
-    expect(result).toBe(10)
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
-  it('passes positional args correctly', async () => {
-    const fn = query((a: string, b: number, c: boolean) => `${a}-${b}-${c}`, 'concat')
-    const result = await fn('x', 7, true)
-    expect(result).toBe('x-7-true')
+  it('executes and serializes on the server', async () => {
+    const fn = vi.fn(async (id: string) => ({ id, name: 'Alice' }))
+    const getUser = query(fn, 'getUser')
+
+    const serialized: Record<string, unknown> = {}
+    getClientConfig().context = {
+      async: true,
+      noHydrate: false,
+      serialize: (key: string, value: unknown) => {
+        serialized[key] = value
+      },
+    } as unknown as NonNullable<typeof sharedConfig.context>
+
+    const result = await getUser('1')
+
+    expect(fn).toHaveBeenCalledWith('1')
+    expect(result).toEqual({ id: '1', name: 'Alice' })
+    expect(Object.keys(serialized)).toHaveLength(1)
   })
 
-  it('awaits async callbacks', async () => {
-    const fn = query(async (x: number) => x * 2, 'double-async')
-    const result = await fn(5)
-    expect(result).toBe(10)
+  it('returns hydrated data on the client without executing fn', async () => {
+    vi.stubGlobal('window', {})
+    vi.stubGlobal('_$HY', { r: { 'devix:query:getUser:["1"]': { id: '1', name: 'Bob' } } })
+    const cfg = getClientConfig()
+    cfg.has = (id: string) => id in getHY().r
+    cfg.load = (id: string) => getHY().r[id]
+
+    const getUser = query(undefined, 'getUser')
+    const result = await getUser('1')
+
+    expect(result).toEqual({ id: '1', name: 'Bob' })
+  })
+
+  it('throws on the client when data is not hydrated', async () => {
+    vi.stubGlobal('window', {})
+    vi.stubGlobal('_$HY', { r: {} })
+    const cfg = getClientConfig()
+    cfg.has = (id: string) => id in getHY().r
+    cfg.load = (id: string) => getHY().r[id]
+
+    const getUser = query(undefined, 'getUser')
+
+    await expect(getUser('1')).rejects.toThrow('can only run on the server')
   })
 })

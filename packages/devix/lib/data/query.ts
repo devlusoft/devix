@@ -1,34 +1,53 @@
-import { getRequestEvent, runWithRequestEvent } from './request-context'
-import { registerServerFn } from './server-registry'
-import { clientTransport } from './transport'
+import { sharedConfig } from 'solid-js'
 
-type ServerFn = (...args: unknown[]) => unknown | Promise<unknown>
+type QueryFn<P extends unknown[], R> = (...args: P) => R | Promise<R>
 
-export function query<P extends unknown[], R>(
-  fn: (...args: P) => R | Promise<R>,
-  name: string,
-): (...args: P) => Promise<R> {
-  const id = `query:${name}`
-  const serverFn = fn as unknown as ServerFn
-  registerServerFn(serverFn, id)
-
-  if (typeof window === 'undefined') {
-    return (async (...args: P) => {
-      const event = getRequestEvent() ?? createStandaloneEvent()
-      return runWithRequestEvent(event, () => serverFn(...args) as Promise<R> | R)
-    }) as (...args: P) => Promise<R>
-  }
-
-  return (async (...args: P) => clientTransport.current<R>(id, args as unknown[])) as (
-    ...args: P
-  ) => Promise<R>
+type SharedConfigContext = {
+  async?: boolean
+  noHydrate?: boolean
+  serialize?: (id: string, p: unknown, wait?: boolean) => void
 }
 
-function createStandaloneEvent() {
-  return {
-    router: {
-      cache: new Map<string, unknown>(),
-      data: {} as Record<string, unknown>,
-    },
+type SharedConfigClient = typeof sharedConfig & {
+  has?: (id: string) => boolean
+  load?: (id: string) => unknown
+}
+
+export function query<P extends unknown[], R>(
+  fn: QueryFn<P, R> | undefined,
+  name: string,
+): (...args: P) => Promise<R> {
+  return (async (...args: P) => {
+    const key = `devix:query:${name}:${hashKey(args)}`
+    const clientConfig = sharedConfig as SharedConfigClient
+
+    if (typeof window !== 'undefined' && clientConfig.has?.(key) && clientConfig.load) {
+      return clientConfig.load(key) as R
+    }
+
+    if (typeof window !== 'undefined') {
+      throw new Error(`devix: query "${name}" can only run on the server`)
+    }
+
+    if (fn === undefined) {
+      throw new Error(`devix: query "${name}" has no server implementation`)
+    }
+
+    const res = fn(...args)
+    const ctx = sharedConfig.context as SharedConfigContext | undefined
+
+    if (ctx?.async && !ctx.noHydrate) {
+      ctx.serialize?.(key, res)
+    }
+
+    return res
+  }) as (...args: P) => Promise<R>
+}
+
+function hashKey(args: unknown[]): string {
+  try {
+    return JSON.stringify(args)
+  } catch {
+    return String(args)
   }
 }

@@ -2,7 +2,7 @@ type ServerFn = (...args: unknown[]) => unknown
 
 const registry = new Map<string, ServerFn>()
 
-export function registerServerFn<R extends (...args: any[]) => any>(fn: R, id: string): R {
+export function registerServerFn<R extends (...args: unknown[]) => unknown>(fn: R, id: string): R {
   registry.set(id, fn as ServerFn)
   return fn
 }

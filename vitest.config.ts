@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [solid({ ssr: true })],
   resolve: {
     alias: {
-      '@devlusoft/devix': resolve(__dirname, './lib/index.ts'),
+      '@devlusoft/devix': resolve(__dirname, './packages/devix/lib/index.ts'),
     },
   },
   test: {
@@ -14,6 +14,6 @@ export default defineConfig({
     environment: 'node',
     passWithNoTests: true,
     include: ['packages/**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['./local/**', '**/node_modules/**', '**/dist/**', '**/*.e2e.test.ts'],
+    exclude: ['./local/**', '**/node_modules/**', '**/dist/**', '**/*.e2e.test.{ts,tsx}'],
   },
 })

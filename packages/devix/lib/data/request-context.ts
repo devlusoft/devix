@@ -1,19 +1,22 @@
 import { RequestContext as SolidRequestContext } from 'solid-js/web'
 
 export type RouterEvent = {
+  request: Request
+  response: { headers: Headers }
   router: {
     cache: Map<string, unknown>
     data: Record<string, unknown>
-    dataOnly?: unknown
+    dataOnly?: boolean | string[]
   }
   serverOnly?: boolean
-  request?: Request
 }
 
 let currentEvent: RouterEvent | undefined
 
-export function createRequestEvent(): RouterEvent {
+export function createRequestEvent(url: string): RouterEvent {
   return {
+    request: new Request(`http://localhost${url}`),
+    response: { headers: new Headers() },
     router: {
       cache: new Map(),
       data: {},

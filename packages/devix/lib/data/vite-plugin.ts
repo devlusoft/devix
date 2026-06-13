@@ -26,7 +26,7 @@ export function dataTransform(): Plugin {
       if (id.includes('node_modules')) return null
       if (this.environment?.name === 'ssr') return null
 
-      let mod
+      let mod: ReturnType<typeof parseModule>
       try {
         mod = parseModule(code)
       } catch {
@@ -35,8 +35,8 @@ export function dataTransform(): Plugin {
 
       let touched = false
       for (const exp of Object.values(mod.exports)) {
-        if (isServerFactoryCall(exp)) {
-          exp.$args![0] = undefined
+        if (isServerFactoryCall(exp) && Array.isArray(exp.$args) && exp.$args.length > 0) {
+          exp.$args[0] = undefined
           touched = true
         }
       }

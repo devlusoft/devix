@@ -8,10 +8,13 @@ export type DevixRootProps = {
   scripts?: JSX.Element
 }
 
+const DEFAULT_CLIENT_ENTRY = '/@id/virtual:devix-hydration'
+
 export function compose(
   Root: Component<DevixRootProps>,
   Routes: Component<{ url?: string }>,
   url: string,
+  clientEntry: string = DEFAULT_CLIENT_ENTRY,
 ) {
   return createComponent(Root, {
     get assets() {
@@ -21,7 +24,7 @@ export function compose(
       return createComponent(Dynamic, {
         component: 'script',
         type: 'module',
-        src: '/@id/virtual:devix-hydration',
+        src: clientEntry,
       })
     },
     get children() {

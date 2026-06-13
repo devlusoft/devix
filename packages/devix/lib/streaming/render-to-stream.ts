@@ -9,7 +9,7 @@ export type RenderToStreamOptions = {
 }
 
 export type StreamRender = {
-  pipe: (writable: { write: (v: string) => void }) => void
+  pipe: (writable: { write: (v: string) => void; end?: () => void }) => void
   pipeTo: (writable: WritableStream) => Promise<void>
 }
 

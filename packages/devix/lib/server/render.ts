@@ -1,9 +1,8 @@
 import type { ServerResponse } from 'node:http'
 import type { Component } from 'solid-js'
 import type { ViteDevServer } from 'vite'
-import { createRequestEvent, runWithRequestEvent } from '../data/request-context'
-import { compose, type DevixRootProps } from '../hydration/compose'
-import { renderToStream } from '../streaming/render-to-stream'
+import type { DevixRootProps } from '../hydration/compose'
+import { createRenderFn } from './render-shared'
 
 export async function renderSSR(opts: {
   server?: ViteDevServer
@@ -27,34 +26,22 @@ export async function renderSSR(opts: {
     throw new Error('devix: renderSSR requires either server or Root+Routes')
   }
 
-  const event = createRequestEvent(opts.url)
+  const { stream, getHeaders, onShellReady } = createRenderFn(Root, Routes, opts.url)
 
-  return new Promise((resolve, reject) => {
-    runWithRequestEvent(event, () => {
-      const writable = {
-        write: (chunk: string) => {
-          opts.res.write(chunk)
-        },
-        end: () => {
-          opts.res.end()
-        },
+  return new Promise((resolve) => {
+    onShellReady(() => {
+      for (const [key, value] of getHeaders().entries()) {
+        opts.res.setHeader(key, value)
       }
+      opts.res.setHeader('Content-Type', 'text/html; charset=utf-8')
+      opts.res.statusCode = 200
+      opts.res.write('<!DOCTYPE html>')
+      resolve()
+    })
 
-      const stream = renderToStream(() => compose(Root, Routes, opts.url), {
-        onShellReady() {
-          for (const [key, value] of event.response.headers.entries()) {
-            opts.res.setHeader(key, value)
-          }
-          opts.res.setHeader('Content-Type', 'text/html; charset=utf-8')
-          opts.res.statusCode = 200
-          opts.res.write('<!DOCTYPE html>')
-          resolve()
-        },
-        onError: reject,
-      })
-      stream.pipe(writable as { write: (v: string) => void })
-
-      return stream
+    stream.pipe({
+      write: (chunk: string) => opts.res.write(chunk),
+      end: () => opts.res.end(),
     })
   })
 }

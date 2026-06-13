@@ -1,13 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { handleServerFunction } from '../data/server-fn-handler'
+import { devixServer } from './plugin'
+import { renderSSR } from './render'
 
 vi.mock('./render', () => ({
   renderSSR: vi.fn(),
 }))
 
-import { devixServer } from './plugin'
-import { renderSSR } from './render'
+vi.mock('../data/server-fn-handler', () => ({
+  handleServerFunction: vi.fn(),
+}))
 
 const renderSSRMock = vi.mocked(renderSSR)
+const handleServerFunctionMock = vi.mocked(handleServerFunction)
 
 type Middleware = (
   req: unknown,
@@ -209,5 +214,40 @@ describe('devixServer middleware — error path', () => {
 
     expect(next).toHaveBeenCalledWith(err)
     expect(server.ssrFixStacktrace).toHaveBeenCalledWith(err)
+  })
+})
+
+describe('devixServer middleware — server functions', () => {
+  beforeEach(() => {
+    renderSSRMock.mockReset()
+    handleServerFunctionMock.mockReset()
+  })
+
+  it('dispatches POST /_server to handleServerFunction with req, res, and server', async () => {
+    const { server, middleware } = setupMiddleware()
+    const { req, res, next } = makeReqRes({
+      method: 'POST',
+      url: '/_server',
+    })
+
+    await middleware(req, res, next)
+
+    expect(handleServerFunctionMock).toHaveBeenCalledTimes(1)
+    expect(handleServerFunctionMock).toHaveBeenCalledWith(req, res, server)
+    expect(renderSSRMock).not.toHaveBeenCalled()
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('dispatches POST /_server?ignored=query to handleServerFunction (path-only match)', async () => {
+    const { middleware } = setupMiddleware()
+    const { req, res, next } = makeReqRes({
+      method: 'POST',
+      url: '/_server?some=query',
+    })
+
+    await middleware(req, res, next)
+
+    expect(handleServerFunctionMock).toHaveBeenCalledTimes(1)
+    expect(next).not.toHaveBeenCalled()
   })
 })

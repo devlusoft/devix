@@ -1,4 +1,5 @@
 import type { Plugin } from 'vite'
+import { handleServerFunction } from '../data/server-fn-handler'
 import { renderSSR } from './render'
 
 export function devixServer(): Plugin {
@@ -13,7 +14,7 @@ export function devixServer(): Plugin {
           const method = req.method ?? 'GET'
 
           if (method === 'POST' && url.split('?')[0] === '/_server') {
-            return next()
+            return handleServerFunction(req, res, server)
           }
 
           if (method !== 'GET' && method !== 'HEAD') return next()

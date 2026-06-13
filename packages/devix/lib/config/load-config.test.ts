@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { loadConfig } from './load-config'
+import {loadConfig, loadRuntimeConfig} from './load-config'
 
 let cwd: string
 
@@ -42,5 +42,52 @@ describe('loadConfig', () => {
     )
     const config = await loadConfig(cwd)
     expect(config.vite.resolve?.alias).toEqual({ '@': './src' })
+  })
+})
+
+describe('loadRuntimeConfig', () => {
+  it('returns defaults when dist/devix.config.json is missing', () => {
+    const cfg = loadRuntimeConfig(cwd)
+    expect(cfg.port).toBe(3000)
+    expect(cfg.host).toBe('0.0.0.0')
+    expect(cfg.output).toBe('server')
+  })
+
+  it('reads port/host/output from dist/devix.config.json', async () => {
+    await writeFile(
+      join(cwd, 'devix.config.json'),
+      JSON.stringify({ port: 8080, host: '127.0.0.1', output: 'server' }),
+    )
+    const cfg = loadRuntimeConfig(cwd)
+    expect(cfg.port).toBe(8080)
+    expect(cfg.host).toBe('127.0.0.1')
+    expect(cfg.output).toBe('server')
+  })
+
+  it('falls back to defaults for partial configs', async () => {
+    await writeFile(join(cwd, 'devix.config.json'), JSON.stringify({ port: 4000 }))
+    const cfg = loadRuntimeConfig(cwd)
+    expect(cfg.port).toBe(4000)
+    expect(cfg.host).toBe('0.0.0.0')
+  })
+})
+
+describe('loadConfig — new fields', () => {
+  it('resolves port/host/output from user config', async () => {
+    await writeFile(
+      join(cwd, 'devix.config.ts'),
+      `export default { port: 4000, host: 'localhost', output: 'server' }`,
+    )
+    const config = await loadConfig(cwd)
+    expect(config.port).toBe(4000)
+    expect(config.host).toBe('localhost')
+    expect(config.output).toBe('server')
+  })
+
+  it('falls back to defaults when port/host/output are missing', async () => {
+    const config = await loadConfig(cwd)
+    expect(config.port).toBe(3000)
+    expect(config.host).toBe('0.0.0.0')
+    expect(config.output).toBe('server')
   })
 })

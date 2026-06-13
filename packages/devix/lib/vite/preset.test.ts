@@ -5,6 +5,9 @@ import { preset } from './preset'
 const baseConfig: ResolvedDevixConfig = {
   outDir: 'dist',
   base: '/',
+  port: 3000,
+  host: '0.0.0.0',
+  output: 'server',
   vite: {},
 }
 

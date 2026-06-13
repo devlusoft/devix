@@ -3,15 +3,15 @@ import type { JSX } from 'solid-js'
 import { describe, expect, it } from 'vitest'
 import { renderSSR } from './render'
 
-describe('renderSSR e2e', () => {
-  it('serves HTML with DOCTYPE and rendered content via real http server', async () => {
+describe('renderSSR streaming', () => {
+  it('responds 200 with Transfer-Encoding: chunked and DOCTYPE-prefixed body', async () => {
     const Root = (props: { children?: JSX.Element }) => (
       <html lang="en">
         <head></head>
         <body>{props.children}</body>
       </html>
     )
-    const Routes = () => <h1>hi</h1>
+    const Routes = () => <h1>streaming-hello</h1>
 
     const server = createServer((_req: IncomingMessage, res: ServerResponse) => {
       renderSSR({ Root, Routes, url: '/', res }).catch((err) => {
@@ -26,9 +26,10 @@ describe('renderSSR e2e', () => {
     try {
       const response = await fetch(`http://localhost:${port}/`)
       expect(response.status).toBe(200)
+      expect(response.headers.get('transfer-encoding')).toBe('chunked')
       const body = await response.text()
       expect(body).toMatch(/^<!DOCTYPE html>/)
-      expect(body).toMatch(/<h1[^>]*>hi<\/h1>/)
+      expect(body).toMatch(/<h1[^>]*>streaming-hello<\/h1>/)
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()))
     }

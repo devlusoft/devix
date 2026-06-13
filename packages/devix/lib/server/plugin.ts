@@ -49,7 +49,7 @@ export function devixServer(): Plugin {
 
           try {
             const event = createRequestEvent()
-            await runWithRequestEvent(event, () => renderSSR({server, url, res}))
+            await runWithRequestEvent(event, () => renderSSR({ server, url, res }))
           } catch (err) {
             server.ssrFixStacktrace(err as Error)
             next(err)
@@ -60,10 +60,7 @@ export function devixServer(): Plugin {
   }
 }
 
-async function handleServerFn(
-  req: IncomingMessage,
-  res: ServerResponse,
-): Promise<void> {
+async function handleServerFn(req: IncomingMessage, res: ServerResponse): Promise<void> {
   try {
     const id = req.headers['x-server-id']
     if (typeof id !== 'string' || id.length === 0) {

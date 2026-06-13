@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events'
 import type { ServerResponse } from 'node:http'
 import type { JSX } from 'solid-js'
 import { describe, expect, it } from 'vitest'
@@ -8,12 +9,14 @@ type ServerResponseMock = {
   writes: string[]
   setHeaders: Record<string, string>
   ended: () => boolean
+  waitForEnd: () => Promise<void>
 }
 
 function mockResponse(): ServerResponseMock {
   const writes: string[] = []
   const setHeaders: Record<string, string> = {}
   let ended = false
+  const emitter = new EventEmitter()
   const res = {
     setHeader(name: string, value: string) {
       setHeaders[name] = value
@@ -28,9 +31,24 @@ function mockResponse(): ServerResponseMock {
     },
     end: () => {
       ended = true
+      emitter.emit('end')
+    },
+    once: (event: string, listener: () => void) => {
+      emitter.once(event, listener)
+      return res
+    },
+    on: (event: string, listener: () => void) => {
+      emitter.on(event, listener)
+      return res
     },
   } as unknown as ServerResponse
-  return { res, writes, setHeaders, ended: () => ended }
+  return {
+    res,
+    writes,
+    setHeaders,
+    ended: () => ended,
+    waitForEnd: () => new Promise<void>((resolve) => emitter.once('end', resolve)),
+  }
 }
 
 function mockServer(ssrLoadModule: (id: string) => unknown) {
@@ -49,8 +67,9 @@ describe('renderSSR — happy path', () => {
       return {}
     })
 
-    const { res, writes, setHeaders, ended } = mockResponse()
+    const { res, writes, setHeaders, ended, waitForEnd } = mockResponse()
     await renderSSR({ server, url: '/', res })
+    await waitForEnd()
 
     expect(setHeaders['Content-Type']).toBe('text/html; charset=utf-8')
     expect(writes.length).toBeGreaterThan(0)
@@ -66,8 +85,9 @@ describe('renderSSR — happy path', () => {
       return {}
     })
 
-    const { res, writes } = mockResponse()
+    const { res, writes, waitForEnd } = mockResponse()
     await renderSSR({ server, url: '/', res })
+    await waitForEnd()
 
     const html = writes.join('')
     expect(typeof html).toBe('string')
@@ -87,8 +107,9 @@ describe('renderSSR — happy path', () => {
       return {}
     })
 
-    const { res, writes } = mockResponse()
+    const { res, writes, waitForEnd } = mockResponse()
     await renderSSR({ server, url: '/', res })
+    await waitForEnd()
 
     expect(writes[0]).toMatch(/^<!DOCTYPE html>/)
   })
@@ -105,8 +126,9 @@ describe('renderSSR — happy path', () => {
       return {}
     })
 
-    const { res, writes } = mockResponse()
+    const { res, writes, waitForEnd } = mockResponse()
     await renderSSR({ server, url: 'https://example.com/foo', res })
+    await waitForEnd()
 
     const html = writes.join('')
     expect(html).toContain('data-routes="https://example.com/foo"')

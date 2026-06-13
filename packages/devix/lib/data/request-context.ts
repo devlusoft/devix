@@ -1,4 +1,3 @@
-import { AsyncLocalStorage } from 'node:async_hooks'
 import { RequestContext as SolidRequestContext } from 'solid-js/web'
 
 export type RouterEvent = {
@@ -11,26 +10,7 @@ export type RouterEvent = {
   request?: Request
 }
 
-let als: AsyncLocalStorage<RouterEvent> | undefined
-
-declare global {
-  // eslint-disable-next-line no-var
-  var __DEVIX_REQUEST_ALS__: AsyncLocalStorage<RouterEvent> | undefined
-}
-
-function getALS(): AsyncLocalStorage<RouterEvent> {
-  if (!als) {
-    if (!globalThis.__DEVIX_REQUEST_ALS__) {
-      globalThis.__DEVIX_REQUEST_ALS__ = new AsyncLocalStorage<RouterEvent>()
-    }
-    als = globalThis.__DEVIX_REQUEST_ALS__
-  }
-  return als
-}
-
-function getSolidRequestContext(): typeof SolidRequestContext {
-  return SolidRequestContext
-}
+let currentEvent: RouterEvent | undefined
 
 export function createRequestEvent(): RouterEvent {
   return {
@@ -42,19 +22,22 @@ export function createRequestEvent(): RouterEvent {
 }
 
 export function getRequestEvent(): RouterEvent | undefined {
-  const als = getALS()
-  return als.getStore()
+  return currentEvent
 }
 
 export function runWithRequestEvent<T>(event: RouterEvent, fn: () => T): T {
-  const als = getALS()
-  const globalWithSolid = globalThis as unknown as Record<symbol, AsyncLocalStorage<RouterEvent>>
-  const previous = globalWithSolid[getSolidRequestContext()]
-  globalWithSolid[getSolidRequestContext()] = als
-  als.enterWith(event)
+  const previous = currentEvent
+  currentEvent = event
+  const globalWithSolid = globalThis as unknown as Record<
+    symbol,
+    { getStore: () => RouterEvent | undefined }
+  >
+  const previousSolid = globalWithSolid[SolidRequestContext]
+  globalWithSolid[SolidRequestContext] = { getStore: () => currentEvent }
   try {
     return fn()
   } finally {
-    globalWithSolid[getSolidRequestContext()] = previous
+    currentEvent = previous
+    globalWithSolid[SolidRequestContext] = previousSolid
   }
 }

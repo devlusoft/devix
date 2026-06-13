@@ -12,8 +12,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    passWithNoTests: true,
-    include: ['packages/**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['./local/**', '**/node_modules/**', '**/dist/**', '**/*.e2e.test.ts'],
+    include: ['packages/**/*.e2e.test.{ts,tsx}'],
   },
 })

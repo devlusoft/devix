@@ -68,7 +68,7 @@ describe('devixServer middleware — happy path', () => {
 
     await middleware(req, res, next)
 
-    expect(renderSSRMock).toHaveBeenCalledWith(server, '/foo', res)
+    expect(renderSSRMock).toHaveBeenCalledWith({ server, url: '/foo', res })
   })
 
   it('accepts */* as a valid content type for HTML rendering', async () => {

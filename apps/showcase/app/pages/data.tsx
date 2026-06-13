@@ -1,27 +1,45 @@
-import { A, createAsync } from '@solidjs/router'
-import { Suspense } from 'solid-js'
-
-async function fetchSlowData(): Promise<string> {
-  await new Promise((r) => setTimeout(r, 200))
-  return `fetched from slow source at ${new Date().toLocaleTimeString()}`
-}
+import { A } from '@solidjs/router'
+import { createResource, For, Show, Suspense } from 'solid-js'
+import { getUser, listUsers } from '../data/users'
 
 export default function DataPage() {
-  const data = createAsync(() => fetchSlowData(), { deferStream: false })
+  const [users] = createResource(() => listUsers())
 
   return (
     <section style={{ padding: '1rem' }}>
       <h1>Data page</h1>
-      <p>
-        The shell below appears immediately. The data replaces the loading
-        placeholder after ~200ms.
-      </p>
-      <Suspense fallback={<p>Loading slow data…</p>}>
-        <p>Data: {data() ?? 'pending'}</p>
+      <p>Users loaded from a server-only query via RPC to /_server:</p>
+      <Suspense fallback={<p>Loading users…</p>}>
+        <ul>
+          <For each={users() ?? []}>
+            {(u) => (
+              <li>
+                <A href={`/data/${u.id}`}>{u.name}</A>
+              </li>
+            )}
+          </For>
+        </ul>
+      </Suspense>
+      <Suspense fallback={<p>Loading first user…</p>}>
+        <FirstUserCard />
       </Suspense>
       <p>
         <A href="/">← back to home</A>
       </p>
     </section>
+  )
+}
+
+function FirstUserCard() {
+  const [user] = createResource(() => getUser('1'))
+  return (
+    <Show when={user()}>
+      {(u) => (
+        <article style={{ 'margin-top': '1rem', padding: '0.5rem', border: '1px solid #ccc' }}>
+          <strong>{u().name}</strong>
+          <span style={{ 'margin-left': '0.5rem', color: '#666' }}>id: {u().id}</span>
+        </article>
+      )}
+    </Show>
   )
 }

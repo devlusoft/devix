@@ -5,5 +5,5 @@
     "jsxImportSource": "solid-js",
     "noEmit": true
   },
-  "include": ["./app/**/*", "./devix.config.ts"]
+  "include": ["./app/**/*", "./devix.config.ts", "./ambient.d.ts"]
 }

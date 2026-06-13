@@ -33,17 +33,10 @@ function mockResponse(): ServerResponseMock {
   return { res, writes, setHeaders, ended: () => ended }
 }
 
-async function flush() {
-  for (let i = 0; i < 10; i++) {
-    await new Promise<void>((r) => setTimeout(r, 0))
-  }
-  await new Promise<void>((r) => setImmediate(r))
-}
-
 function mockServer(ssrLoadModule: (id: string) => unknown) {
   return {
     ssrLoadModule: async (id: string) => ssrLoadModule(id),
-  } as unknown as Parameters<typeof renderSSR>[0]
+  } as unknown as Parameters<typeof renderSSR>[0]['server']
 }
 
 describe('renderSSR — happy path', () => {
@@ -57,8 +50,7 @@ describe('renderSSR — happy path', () => {
     })
 
     const { res, writes, setHeaders, ended } = mockResponse()
-    await renderSSR(server, '/', res)
-    await flush()
+    await renderSSR({ server, url: '/', res })
 
     expect(setHeaders['Content-Type']).toBe('text/html; charset=utf-8')
     expect(writes.length).toBeGreaterThan(0)
@@ -75,8 +67,7 @@ describe('renderSSR — happy path', () => {
     })
 
     const { res, writes } = mockResponse()
-    await renderSSR(server, '/', res)
-    await flush()
+    await renderSSR({ server, url: '/', res })
 
     const html = writes.join('')
     expect(typeof html).toBe('string')
@@ -97,8 +88,7 @@ describe('renderSSR — happy path', () => {
     })
 
     const { res, writes } = mockResponse()
-    await renderSSR(server, '/', res)
-    await flush()
+    await renderSSR({ server, url: '/', res })
 
     expect(writes[0]).toMatch(/^<!DOCTYPE html>/)
   })
@@ -116,8 +106,7 @@ describe('renderSSR — happy path', () => {
     })
 
     const { res, writes } = mockResponse()
-    await renderSSR(server, 'https://example.com/foo', res)
-    await flush()
+    await renderSSR({ server, url: 'https://example.com/foo', res })
 
     const html = writes.join('')
     expect(html).toContain('data-routes="https://example.com/foo"')

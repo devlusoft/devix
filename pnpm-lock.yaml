@@ -20,6 +20,9 @@ importers:
       typescript:
         specifier: 6.0.3
         version: 6.0.3
+      vite-plugin-solid:
+        specifier: 2.11.12
+        version: 2.11.12(solid-js@1.9.13)(vite@8.0.16(@types/node@25.9.1)(jiti@2.7.0))
       vitest:
         specifier: 4.1.8
         version: 4.1.8(@types/node@25.9.1)(vite@8.0.16(@types/node@25.9.1)(jiti@2.7.0))
@@ -44,6 +47,12 @@ importers:
       jiti:
         specifier: 2.7.0
         version: 2.7.0
+      magicast:
+        specifier: 0.5.3
+        version: 0.5.3
+      seroval:
+        specifier: 1.5.4
+        version: 1.5.4
       solid-js:
         specifier: 1.9.13
         version: 1.9.13
@@ -603,6 +612,9 @@ packages:
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
+
+  magicast@0.5.3:
+    resolution: {integrity: sha512-pVKE4UdSQ7DvHzivsCIFx2BJn1mHG6KsyrFcaxFx6tONdneEuThrDx0Cj3AMg58KyN4pzYT+LHOotxDQDjNvkw==}
 
   merge-anything@5.1.7:
     resolution: {integrity: sha512-eRtbOb1N5iyH0tkQDAoQ4Ipsp/5qSR79Dzrz8hEPxRX10RWWR/iQXdoKmBSRCThY1Fh5EhISDtpSc93fpxUniQ==}
@@ -1301,6 +1313,12 @@ snapshots:
   magic-string@0.30.21:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  magicast@0.5.3:
+    dependencies:
+      '@babel/parser': 7.29.7
+      '@babel/types': 7.29.7
+      source-map-js: 1.2.1
 
   merge-anything@5.1.7:
     dependencies:

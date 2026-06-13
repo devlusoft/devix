@@ -7,7 +7,9 @@
   },
   "exports": {
     ".": "./lib/index.ts",
-    "./router/view-transitions/click-interceptor": "./lib/router/view-transitions/click-interceptor.tsx"
+    "./env": "./lib/ambient.d.ts",
+    "./router/view-transitions/click-interceptor": "./lib/router/view-transitions/click-interceptor.tsx",
+    "./data": "./lib/data/index.ts"
   },
   "files": [
     "dist"
@@ -24,6 +26,8 @@
   "dependencies": {
     "@solidjs/router": "0.16.1",
     "jiti": "2.7.0",
+    "magicast": "0.5.3",
+    "seroval": "1.5.4",
     "tinyglobby": "0.2.17",
     "vite-plugin-solid": "2.11.12"
   },

@@ -1,43 +1,35 @@
 import type { ServerResponse } from 'node:http'
 import type { Component, JSX } from 'solid-js'
-import { generateHydrationScript } from 'solid-js/web'
+import { renderToString } from 'solid-js/web'
 import type { ViteDevServer } from 'vite'
 import { compose } from '../hydration/compose'
-import { renderToStream } from '../streaming/render-to-stream'
 
-const HYDRATION_BOOTSTRAP = generateHydrationScript()
-const HYDRATION_MODULE =
-  '<script type="module" src="/' + '@id/' + 'virtual:devix-hydration"></script>'
+export async function renderSSR(opts: {
+  server?: ViteDevServer
+  Root?: Component<{ children?: JSX.Element }>
+  Routes?: Component<{ url?: string }>
+  url: string
+  res: ServerResponse
+}): Promise<void> {
+  let Root: Component<{ children?: JSX.Element }>
+  let Routes: Component<{ url?: string }>
 
-export async function renderSSR(
-  server: ViteDevServer,
-  url: string,
-  res: ServerResponse,
-): Promise<void> {
-  const rootMod = await server.ssrLoadModule('/app/root.tsx')
-  const routesMod = await server.ssrLoadModule('virtual:devix-routes')
-  const Root = (rootMod as { default: Component<{ children?: JSX.Element }> }).default
-  const Routes = (routesMod as { default: Component<{ url?: string }> }).default
-
-  res.setHeader('Content-Type', 'text/html; charset=utf-8')
-  res.statusCode = 200
-
-  let prepended = false
-  const writable = {
-    write: (chunk: string) => {
-      if (!prepended) {
-        res.write('<!DOCTYPE html>')
-        res.write(HYDRATION_BOOTSTRAP)
-        prepended = true
-      }
-      res.write(chunk)
-    },
-    end: () => {
-      res.write(HYDRATION_MODULE)
-      res.end()
-    },
+  if (opts.server) {
+    const rootMod = await opts.server.ssrLoadModule('/app/root.tsx')
+    const routesMod = await opts.server.ssrLoadModule('virtual:devix-routes')
+    Root = (rootMod as { default: Component<{ children?: JSX.Element }> }).default
+    Routes = (routesMod as { default: Component<{ url?: string }> }).default
+  } else if (opts.Root && opts.Routes) {
+    Root = opts.Root
+    Routes = opts.Routes
+  } else {
+    throw new Error('devix: renderSSR requires either server or Root+Routes')
   }
 
-  const stream = renderToStream(() => compose(Root, Routes, url))
-  stream.pipe(writable as { write: (v: string) => void })
+  const html = renderToString(() => compose(Root, Routes, opts.url))
+  opts.res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  opts.res.statusCode = 200
+  opts.res.write('<!DOCTYPE html>')
+  opts.res.write(html)
+  opts.res.end()
 }

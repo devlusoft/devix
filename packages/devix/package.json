@@ -1,0 +1,86 @@
+{
+  "name": "@devlusoft/devix",
+  "version": "0.8.0-alpha.0",
+  "type": "module",
+  "bin": {
+    "devix": "./bin/devix.mjs"
+  },
+  "exports": {
+    ".": "./lib/index.ts",
+    "./config": "./lib/config/define-config.ts",
+    "./env": "./lib/ambient.d.ts",
+    "./router": "./lib/router/index.ts",
+    "./router/view-transitions/click-interceptor": "./lib/router/view-transitions/click-interceptor.tsx",
+    "./data": "./lib/data/index.ts",
+    "./cli/logger": "./lib/cli/logger.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./config": {
+        "types": "./dist/config/define-config.d.ts",
+        "default": "./dist/config/define-config.js"
+      },
+      "./env": {
+        "types": "./dist/ambient.d.ts",
+        "default": "./dist/ambient.d.ts"
+      },
+      "./router": {
+        "types": "./dist/router/index.d.ts",
+        "default": "./dist/router/index.js"
+      },
+      "./router/view-transitions/click-interceptor": {
+        "types": "./dist/router/view-transitions/click-interceptor.d.ts",
+        "default": "./dist/router/view-transitions/click-interceptor.js"
+      },
+      "./data": {
+        "types": "./dist/data/index.d.ts",
+        "default": "./dist/data/index.js"
+      },
+      "./cli/logger": {
+        "types": "./dist/cli/logger.d.ts",
+        "default": "./dist/cli/logger.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsup && tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build",
+    "lint:fix": "biome check --write",
+    "format": "biome format --write"
+  },
+  "peerDependencies": {
+    "solid-js": "1.9.13",
+    "vite": "8.0.16"
+  },
+  "dependencies": {
+    "@babel/generator": "7.27.1",
+    "@babel/parser": "7.27.1",
+    "@babel/traverse": "7.27.1",
+    "@babel/types": "7.27.1",
+    "@hono/node-server": "2.0.4",
+    "@nijil71/lumi-cli": "^1.0.11",
+    "@solidjs/router": "0.16.1",
+    "hono": "4.12.25",
+    "jiti": "2.7.0",
+    "magicast": "0.5.3",
+    "seroval": "1.5.4",
+    "tinyglobby": "0.2.17",
+    "vite-plugin-solid": "2.11.12"
+  },
+  "devDependencies": {
+    "@types/babel__generator": "7.27.0",
+    "@types/babel__traverse": "7.20.7",
+    "@types/node": "25.9.1",
+    "esbuild-plugin-solid": "0.6.0",
+    "tsup": "8.5.1"
+  }
+}

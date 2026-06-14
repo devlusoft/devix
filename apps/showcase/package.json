@@ -1,0 +1,17 @@
+{
+  "name": "showcase",
+  "type": "module",
+  "scripts": {
+    "dev": "devix dev",
+    "build": "devix build",
+    "start": "devix start",
+    "typecheck": "tsc --noEmit",
+    "lint:fix": "biome check --write",
+    "format": "biome format --write"
+  },
+  "dependencies": {
+    "@devlusoft/devix": "workspace:*",
+    "@solidjs/router": "0.16.1",
+    "solid-js": "1.9.13"
+  }
+}

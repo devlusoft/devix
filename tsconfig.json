@@ -1,41 +1,7 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "jsx": "react-jsx",
-    "lib": [
-      "ESNext",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "noEmit": true,
-    "outDir": "./dist",
-    "rootDir": ".",
-    "paths": {
-      "@devlusoft/devix": [
-        "./src/runtime/index.ts"
-      ],
-      "@devlusoft/devix/config": [
-        "./src/config.ts"
-      ],
-      "@devlusoft/devix/runtime/context": [
-        "./src/runtime/context.ts"
-      ],
-      "@devlusoft/devix/server": [
-        "./src/server/index.ts"
-      ],
-      "@devlusoft/devix/vite": [
-        "./src/vite/index.ts"
-      ]
-    }
+    "types": ["node"]
   },
-  "include": [
-    "./src/**/*",
-    "./tests/**/*",
-    "build.ts"
-  ]
+  "include": ["./packages/**/*", "./playwright.config.ts", "./biome.json"]
 }

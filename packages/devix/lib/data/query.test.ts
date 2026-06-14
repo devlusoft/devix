@@ -1,6 +1,7 @@
 import { sharedConfig } from 'solid-js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { query } from './query'
+import { getServerFn } from './server-registry'
 
 type SharedConfigClient = typeof sharedConfig & {
   has?: (id: string) => boolean
@@ -30,6 +31,14 @@ describe('query', () => {
     vi.unstubAllGlobals()
   })
 
+  it('registers the function in the server registry', () => {
+    const fn = vi.fn(async (id: string) => ({ id, name: 'Alice' }))
+    query(fn, 'getUser')
+
+    expect(getServerFn('getUser').fn).toBe(fn)
+    expect(getServerFn('getUser').type).toBe('query')
+  })
+
   it('executes and serializes on the server', async () => {
     const fn = vi.fn(async (id: string) => ({ id, name: 'Alice' }))
     const getUser = query(fn, 'getUser')
@@ -57,21 +66,9 @@ describe('query', () => {
     cfg.has = (id: string) => id in getHY().r
     cfg.load = (id: string) => getHY().r[id]
 
-    const getUser = query(undefined, 'getUser')
+    const getUser = query((id: string) => ({ should: 'not run', id }), 'getUser')
     const result = await getUser('1')
 
     expect(result).toEqual({ id: '1', name: 'Bob' })
-  })
-
-  it('throws on the client when data is not hydrated', async () => {
-    vi.stubGlobal('window', {})
-    vi.stubGlobal('_$HY', { r: {} })
-    const cfg = getClientConfig()
-    cfg.has = (id: string) => id in getHY().r
-    cfg.load = (id: string) => getHY().r[id]
-
-    const getUser = query(undefined, 'getUser')
-
-    await expect(getUser('1')).rejects.toThrow('can only run on the server')
   })
 })

@@ -1,7 +1,29 @@
+import { readFileSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { Plugin } from 'vite'
+import { resolve } from 'node:path'
+import { glob } from 'tinyglobby'
+import type { Plugin, ViteDevServer } from 'vite'
 import { handleServerFunction, type ServerFnResponse } from '../data/server-fn-handler'
 import { renderSSR } from './render'
+
+const SERVER_FN_PATTERN = /\b(query|action)\s*\(/
+
+async function preloadServerFunctions(server: ViteDevServer, root: string): Promise<void> {
+  const appDir = resolve(root, 'app')
+  const files = await glob('**/*.{ts,tsx}', { cwd: appDir })
+  for (const file of files) {
+    const fullPath = resolve(appDir, file)
+    const code = readFileSync(fullPath, 'utf8')
+    if (!SERVER_FN_PATTERN.test(code)) continue
+
+    const virtualId = `/app/${file}`
+    try {
+      await server.ssrLoadModule(virtualId)
+    } catch {
+
+    }
+  }
+}
 
 export function devixServer(): Plugin {
   return {
@@ -9,48 +31,48 @@ export function devixServer(): Plugin {
     apply: 'serve',
 
     configureServer(server) {
-      return () => {
-        server.middlewares.use(async (req, res, next) => {
-          const url = req.url ?? '/'
-          const method = req.method ?? 'GET'
+      preloadServerFunctions(server, server.config.root).catch(() => undefined)
 
-          if (method === 'POST' && url.split('?')[0] === '/_server') {
-            await dispatchServerFn(req, res)
-            return
-          }
+      server.middlewares.use(async (req, res, next) => {
+        const url = req.url ?? '/'
+        const method = req.method ?? 'GET'
 
-          if (method !== 'GET' && method !== 'HEAD') return next()
+        if (method === 'POST' && url.split('?')[0] === '/_devix/server') {
+          await dispatchServerFn(req, res)
+          return
+        }
 
-          if (url.startsWith('/@') || url.startsWith('/node_modules/') || url.startsWith('/__')) {
-            return next()
-          }
+        if (method !== 'GET' && method !== 'HEAD') return next()
 
-          const pathOnly = url.split('?')[0]
-          const extMatch = pathOnly.match(/\.([a-z0-9]+)$/i)
-          if (extMatch && extMatch[1].toLowerCase() !== 'html') {
-            return next()
-          }
+        if (url.startsWith('/@') || url.startsWith('/node_modules/') || url.startsWith('/__')) {
+          return next()
+        }
 
-          const accept = req.headers.accept ?? ''
-          if (!accept.includes('text/html') && !accept.includes('*/*')) {
-            return next()
-          }
+        const pathOnly = url.split('?')[0]
+        const extMatch = pathOnly.match(/\.([a-z0-9]+)$/i)
+        if (extMatch && extMatch[1].toLowerCase() !== 'html') {
+          return next()
+        }
 
-          if (method === 'HEAD') {
-            res.statusCode = 200
-            res.setHeader('Content-Type', 'text/html; charset=utf-8')
-            res.end()
-            return
-          }
+        const accept = req.headers.accept ?? ''
+        if (!accept.includes('text/html') && !accept.includes('*/*')) {
+          return next()
+        }
 
-          try {
-            await renderSSR({ server, url, res })
-          } catch (err) {
-            server.ssrFixStacktrace(err as Error)
-            next(err)
-          }
-        })
-      }
+        if (method === 'HEAD') {
+          res.statusCode = 200
+          res.setHeader('Content-Type', 'text/html; charset=utf-8')
+          res.end()
+          return
+        }
+
+        try {
+          await renderSSR({ server, url, res })
+        } catch (err) {
+          server.ssrFixStacktrace(err as Error)
+          next(err)
+        }
+      })
     },
   }
 }

@@ -1,9 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { glob } from 'tinyglobby'
 import type { Plugin } from 'vite'
 import { generateRoutesModule } from './codegen'
 import { buildManifest } from './manifest'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const PACKAGE_TEMPLATES_DIR = resolve(__dirname, '../cli/templates')
 
 const ROUTES_VIRTUAL = 'virtual:devix-routes'
 const RESOLVED_VIRTUAL = `\0${ROUTES_VIRTUAL}`
@@ -14,18 +18,24 @@ const BUILD_ENTRIES = ['entry-client', 'index', 'render'] as const
 type BuildEntry = (typeof BUILD_ENTRIES)[number]
 const RESOLVED_BUILD_ENTRY = (name: BuildEntry) => `\0devix:build-entry:${name}`
 
-const TEMPLATE_PATHS: Record<BuildEntry, string> = {
-  'entry-client': 'lib/cli/templates/entry-client.tsx',
-  index: 'lib/cli/templates/server-entry.ts',
-  render: 'lib/cli/templates/server-r-render.ts',
+const TEMPLATE_FILES: Record<BuildEntry, string> = {
+  'entry-client': 'entry-client.tsx',
+  index: 'server-entry.ts',
+  render: 'server-render.ts',
+}
+
+const MODULE_TYPES: Record<BuildEntry, 'ts' | 'tsx'> = {
+  'entry-client': 'tsx',
+  index: 'ts',
+  render: 'ts',
 }
 
 const templateCache = new Map<BuildEntry, string>()
 
-function readTemplate(name: BuildEntry, root: string): string {
+function readTemplate(name: BuildEntry): string {
   const cached = templateCache.get(name)
   if (cached) return cached
-  const path = resolve(root, TEMPLATE_PATHS[name])
+  const path = resolve(PACKAGE_TEMPLATES_DIR, TEMPLATE_FILES[name])
   if (!existsSync(path)) {
     throw new Error(`devix: template not found at ${path}`)
   }
@@ -78,7 +88,10 @@ export function router(): Plugin {
 
       for (const name of BUILD_ENTRIES) {
         if (id === RESOLVED_BUILD_ENTRY(name)) {
-          return readTemplate(name, root)
+          return {
+            code: readTemplate(name),
+            moduleType: MODULE_TYPES[name],
+          }
         }
       }
     },

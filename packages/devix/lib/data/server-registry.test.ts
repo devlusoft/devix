@@ -6,27 +6,20 @@ beforeEach(() => {
 })
 
 describe('registerServerFn', () => {
-  it('registers a function with the given id', () => {
+  it('registers a function with the given id and type', () => {
     const fn = () => 42
-    registerServerFn(fn, 'test:fn')
+    registerServerFn('test:fn', 'query', fn)
 
-    expect(getServerFn('test:fn')).toBe(fn)
-  })
-
-  it('returns the original function (for chaining)', () => {
-    const fn = () => 42
-    const result = registerServerFn(fn, 'test:fn')
-
-    expect(result).toBe(fn)
+    expect(getServerFn('test:fn')).toEqual({ id: 'test:fn', type: 'query', fn })
   })
 
   it('overwrites a previous registration with the same id', () => {
     const first = () => 1
     const second = () => 2
-    registerServerFn(first, 'test:fn')
-    registerServerFn(second, 'test:fn')
+    registerServerFn('test:fn', 'query', first)
+    registerServerFn('test:fn', 'query', second)
 
-    expect(getServerFn('test:fn')).toBe(second)
+    expect(getServerFn('test:fn').fn).toBe(second)
   })
 })
 
@@ -38,7 +31,7 @@ describe('getServerFn', () => {
 
 describe('clearServerFns', () => {
   it('removes all registered functions', () => {
-    registerServerFn(() => 1, 'test:fn')
+    registerServerFn('test:fn', 'query', () => 1)
     clearServerFns()
 
     expect(() => getServerFn('test:fn')).toThrow()

@@ -1,6 +1,6 @@
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { mergeConfig, build as viteBuild } from 'vite'
+import { createBuilder, mergeConfig } from 'vite'
 import { loadConfig } from '../config/load-config'
 import { preset } from '../vite/preset'
 
@@ -9,12 +9,14 @@ export async function build(): Promise<void> {
   const config = await loadConfig(cwd)
   const finalConfig = mergeConfig(preset(config, 'build'), config.vite ?? {})
 
-  await viteBuild({
+  const builder = await createBuilder({
     ...finalConfig,
     configFile: false,
     root: cwd,
     logLevel: 'info',
   })
+
+  await builder.buildApp()
 
   const distDir = join(cwd, config.outDir)
   const runtimeCfg = {

@@ -1,21 +1,51 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { action } from './action'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { action, devixAction, devixActionClient } from './action'
 import { clearServerFns, getServerFn } from './server-registry'
 
 beforeEach(() => {
   clearServerFns()
 })
 
-describe('action (server branch)', () => {
-  it('registers the original function in the server-registry under `action:<name>`', () => {
+describe('devixAction', () => {
+  it('registers the original function in the server-registry under the given id', () => {
     const original = (id: string) => ({ id })
-    action(original, 'rename')
-    expect(getServerFn('action:rename')).toBe(original)
+    devixAction('action:rename', original)
+
+    expect(getServerFn('action:rename').fn).toBe(original)
+    expect(getServerFn('action:rename').type).toBe('action')
   })
 
   it('awaits async callbacks', async () => {
-    const fn = action(async (id: string) => ({ id, done: true }), 'rename-async')
+    const fn = devixAction('action:rename-async', async (id: string) => ({ id, done: true }))
     const result = await fn('1')
     expect(result).toEqual({ id: '1', done: true })
+  })
+
+  it('executes on the server directly', async () => {
+    const original = vi.fn(async (id: string) => ({ id }))
+    const fn = devixAction('action:server', original)
+
+    const result = await fn('42')
+
+    expect(original).toHaveBeenCalledWith('42')
+    expect(result).toEqual({ id: '42' })
+  })
+})
+
+describe('devixActionClient', () => {
+  it('does not register the function', () => {
+    devixActionClient('action:client-only')
+    expect(() => getServerFn('action:client-only')).toThrow(/unknown server function/)
+  })
+})
+
+describe('action fallback', () => {
+  it('uses the function name to build a fallback id', () => {
+    function myAction() {
+      return 'ok'
+    }
+    action(myAction)
+
+    expect(getServerFn('action:myAction').fn).toBe(myAction)
   })
 })

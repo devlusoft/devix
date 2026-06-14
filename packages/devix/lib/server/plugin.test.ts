@@ -24,6 +24,7 @@ type Middleware = (
 function setupMiddleware() {
   const middlewares: Middleware[] = []
   const server = {
+    config: { root: '/Users/dev/project' },
     middlewares: {
       use: (fn: Middleware) => middlewares.push(fn),
     },
@@ -31,8 +32,7 @@ function setupMiddleware() {
     ssrFixStacktrace: vi.fn(),
   }
 
-  const postConfig = (devixServer().configureServer as (s: unknown) => () => void)(server)
-  postConfig()
+  ;(devixServer().configureServer as (s: unknown) => void)(server)
 
   return { server, middleware: middlewares[0] }
 }
@@ -229,11 +229,11 @@ describe('devixServer middleware — server functions', () => {
     handleServerFunctionMock.mockReset()
   })
 
-  it('dispatches POST /_server to handleServerFunction with req, res, and server', async () => {
+  it('dispatches POST /_devix/server to handleServerFunction with req, res, and server', async () => {
     const { middleware } = setupMiddleware()
     const { req, res, next } = makeReqRes({
       method: 'POST',
-      url: '/_server',
+      url: '/_devix/server',
     })
 
     const promise = middleware(req, res, next)
@@ -246,11 +246,11 @@ describe('devixServer middleware — server functions', () => {
     expect(next).not.toHaveBeenCalled()
   })
 
-  it('dispatches POST /_server?ignored=query to handleServerFunction (path-only match)', async () => {
+  it('dispatches POST /_devix/server?ignored=query to handleServerFunction (path-only match)', async () => {
     const { middleware } = setupMiddleware()
     const { req, res, next } = makeReqRes({
       method: 'POST',
-      url: '/_server?some=query',
+      url: '/_devix/server?some=query',
     })
 
     const promise = middleware(req, res, next)

@@ -6,8 +6,14 @@ type TransformHook = TransformFn | { handler: TransformFn; order?: 'pre' | 'post
 type BoundTransform = (code: string, id: string) => unknown
 
 function getTransformHook(env: 'ssr' | 'client' = 'client'): BoundTransform {
-  const plugin = dataTransform() as unknown as { name: string; transform: TransformHook }
+  const plugin = dataTransform() as unknown as {
+    name: string
+    transform: TransformHook
+    configResolved?: (config: { root: string }) => void
+  }
   expect(plugin.name).toBe('devix:data-transform')
+
+  plugin.configResolved?.({ root: '/Users/dev/project' })
 
   const hook = plugin.transform
   const fn: TransformFn = typeof hook === 'function' ? hook : hook.handler
@@ -15,8 +21,8 @@ function getTransformHook(env: 'ssr' | 'client' = 'client'): BoundTransform {
   return fn.bind({ environment: { name: env } }) as BoundTransform
 }
 
-describe('dataTransform — server (skips transform)', () => {
-  it('returns null for query calls on the server bundle', () => {
+describe('dataTransform — server (keeps implementations)', () => {
+  it('does not transform query calls', () => {
     const transform = getTransformHook('ssr')
     const src = `export const getUser = query((id) => db.users.find(id), 'get-user')\n`
 
@@ -24,36 +30,50 @@ describe('dataTransform — server (skips transform)', () => {
 
     expect(result).toBeNull()
   })
+
+  it('rewrites action(fn) to devixAction(id, fn)', () => {
+    const transform = getTransformHook('ssr')
+    const src = `export const renameUser = action((id, fd) => db.update(id, fd))\n`
+
+    const result = transform(src, '/Users/dev/project/app/data/users.ts') as {
+      code: string
+    }
+
+    expect(result.code).toContain('devixAction')
+    expect(result.code).not.toContain('action(')
+    expect(result.code).toContain('db.update')
+  })
 })
 
-describe('dataTransform — client (replaces callback with undefined)', () => {
-  it('replaces the callback body with undefined for query', () => {
+describe('dataTransform — client (strips implementations)', () => {
+  it('replaces the callback body with an RPC stub for query', () => {
     const transform = getTransformHook('client')
     const src = `export const getUser = query((id) => db.users.find(id), 'get-user')\n`
 
     const result = transform(src, '/Users/dev/project/app/data/users.ts') as {
       code: string
-      map: unknown
     }
 
-    expect(result.code).toContain("query(undefined, 'get-user')")
+    expect(result.code).toContain('query(')
+    expect(result.code).toContain("'get-user'")
+    expect(result.code).toContain('clientTransport')
     expect(result.code).not.toContain('db.users.find')
   })
 
-  it('replaces the callback body with undefined for action', () => {
+  it('rewrites action(fn) to devixActionClient(id)', () => {
     const transform = getTransformHook('client')
-    const src = `export const renameUser = action((id, fd) => db.update(id, fd), 'rename-user')\n`
+    const src = `export const renameUser = action((id, fd) => db.update(id, fd))\n`
 
     const result = transform(src, '/Users/dev/project/app/data/users.ts') as {
       code: string
-      map: unknown
     }
 
-    expect(result.code).toContain("action(undefined, 'rename-user')")
+    expect(result.code).toContain('devixActionClient')
+    expect(result.code).not.toContain('action(')
     expect(result.code).not.toContain('db.update')
   })
 
-  it('preserves the query name (the second argument)', () => {
+  it('preserves the query name', () => {
     const transform = getTransformHook('client')
     const src = `export const getUser = query((id) => db.users.find(id), 'get-user')\n`
 
@@ -62,61 +82,7 @@ describe('dataTransform — client (replaces callback with undefined)', () => {
     expect(result.code).toContain("'get-user'")
   })
 
-  it('handles callbacks with multiple statements (block bodies)', () => {
-    const transform = getTransformHook('client')
-    const src = [
-      `export const fn = action(async (id) => {`,
-      `  const x = compute(id)`,
-      `  await save(x)`,
-      `  return x`,
-      `}, 'do-work')`,
-      ``,
-    ].join('\n')
-
-    const result = transform(src, '/Users/dev/project/app/data/x.ts') as { code: string }
-
-    expect(result.code).toContain("action(undefined, 'do-work')")
-    expect(result.code).not.toContain('compute(')
-    expect(result.code).not.toContain('save(')
-  })
-
-  it('handles callbacks with template literals containing commas (regex would break)', () => {
-    const transform = getTransformHook('client')
-    const src = `export const fn = query(() => \`a, b, c\`, 'with-commas')\n`
-
-    const result = transform(src, '/Users/dev/project/app/data/x.ts') as { code: string }
-
-    expect(result.code).toContain("query(undefined, 'with-commas')")
-    expect(result.code).not.toContain('a, b, c')
-  })
-
-  it('handles callbacks with nested parens containing commas (regex would break)', () => {
-    const transform = getTransformHook('client')
-    const src = `export const fn = query((a, b) => f(a, b), 'nested')\n`
-
-    const result = transform(src, '/Users/dev/project/app/data/x.ts') as { code: string }
-
-    expect(result.code).toContain("query(undefined, 'nested')")
-    expect(result.code).not.toContain('f(a, b)')
-  })
-
-  it('handles a file with multiple top-level queries', () => {
-    const transform = getTransformHook('client')
-    const src = [
-      `export const getUser = query((id) => db.users.find(id), 'get-user')`,
-      `export const listUsers = query(() => db.users.all(), 'list-users')`,
-      ``,
-    ].join('\n')
-
-    const result = transform(src, '/Users/dev/project/app/data/users.ts') as { code: string }
-
-    expect(result.code).toContain("query(undefined, 'get-user')")
-    expect(result.code).toContain("query(undefined, 'list-users')")
-    expect(result.code).not.toContain('db.users.find')
-    expect(result.code).not.toContain('db.users.all')
-  })
-
-  it('returns null when there are no query/action calls (pre-check)', () => {
+  it('returns null when there are no query/action calls', () => {
     const transform = getTransformHook('client')
     const src = `const x = 1\nconst y = (a) => a * 2\n`
 
@@ -134,19 +100,10 @@ describe('dataTransform — client (replaces callback with undefined)', () => {
     expect(result).toBeNull()
   })
 
-  it('does not crash on unparseable input (try/catch)', () => {
+  it('does not crash on unparseable input', () => {
     const transform = getTransformHook('client')
     const src = `export const fn = query((id) => {, 'broken'\n`
 
     expect(() => transform(src, '/Users/dev/project/app/data/x.ts')).not.toThrow()
-  })
-
-  it('returns null for non-exported declarations (documented limitation)', () => {
-    const transform = getTransformHook('client')
-    const src = `const getUser = query((id) => db.users.find(id), 'get-user')\n`
-
-    const result = transform(src, '/Users/dev/project/app/data/users.ts')
-
-    expect(result).toBeNull()
   })
 })

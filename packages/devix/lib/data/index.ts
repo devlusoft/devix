@@ -1,3 +1,4 @@
-export { action } from './action'
+export { action, devixAction, devixActionClient } from './action'
 export { query } from './query'
 export { handleServerFunction, type ServerFnResponse } from './server-fn-handler'
+export { clientTransport } from './transport'

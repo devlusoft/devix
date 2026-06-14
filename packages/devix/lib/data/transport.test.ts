@@ -28,7 +28,7 @@ describe('defaultFetchTransport', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]
-    expect(url).toBe('/_server')
+    expect(url).toBe('/_devix/server')
     expect(init.method).toBe('POST')
     expect(init.headers['X-Server-Id']).toBe('users.ts#getUser')
     expect(init.headers['Content-Type']).toBe('application/json')

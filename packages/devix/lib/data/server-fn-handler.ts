@@ -14,11 +14,7 @@ export async function handleServerFunction(
 ): Promise<void> {
   const id = req.headers.get('x-server-id')
   if (!id) {
-    respond({
-      status: 400,
-      headers: new Headers({ 'Content-Type': 'text/plain; charset=utf-8' }),
-      body: 'devix: missing X-Server-Id header',
-    })
+    respond(errorResponse(400, 'devix: missing X-Server-Id header'))
     return
   }
 
@@ -26,18 +22,14 @@ export async function handleServerFunction(
   try {
     body = await req.text()
   } catch (err) {
-    respond({
-      status: 400,
-      headers: new Headers({ 'Content-Type': 'text/plain; charset=utf-8' }),
-      body: `devix: failed to read body: ${(err as Error).message}`,
-    })
+    respond(errorResponse(400, `devix: failed to read body: ${(err as Error).message}`))
     return
   }
 
   const event = createRequestEvent(req.url)
 
   try {
-    const fn = getServerFn(id)
+    const { fn } = getServerFn(id)
     const args = deserialize(body) as unknown[]
     const result = await runWithRequestEvent(event, () => fn(...args))
     respond({
@@ -51,5 +43,13 @@ export async function handleServerFunction(
       headers: new Headers({ 'Content-Type': 'text/plain; charset=utf-8' }),
       body: (err as Error).message,
     })
+  }
+}
+
+function errorResponse(status: number, message: string): ServerFnResponse {
+  return {
+    status,
+    headers: new Headers({ 'Content-Type': 'text/plain; charset=utf-8' }),
+    body: message,
   }
 }

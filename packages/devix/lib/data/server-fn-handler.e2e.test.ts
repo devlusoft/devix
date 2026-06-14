@@ -19,7 +19,7 @@ function makeRequest(body: string, id?: string): Request {
   const headers = new Headers()
   if (id) headers.set('X-Server-Id', id)
   headers.set('Content-Type', 'application/json')
-  return new Request('http://localhost/_server', { method: 'POST', headers, body })
+  return new Request('http://localhost/_devix/server', { method: 'POST', headers, body })
 }
 
 function captureRespond(): {
@@ -36,7 +36,7 @@ function captureRespond(): {
 describe('handleServerFunction — Web-Standards shape', () => {
   it('serializes the server fn result and returns it through respond', async () => {
     const listUsers = async () => USERS
-    registerServerFn(listUsers, 'test:list-users')
+    registerServerFn('test:list-users', 'query', listUsers)
 
     const { responses, respond } = captureRespond()
     await handleServerFunction(makeRequest(serialize([USERS]), 'test:list-users'), respond)

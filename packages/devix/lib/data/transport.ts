@@ -6,7 +6,7 @@ export const clientTransport: { current: Transport } = {
 
 async function defaultFetchTransport<R>(id: string, args: unknown[]): Promise<R> {
   const seroval = await import('seroval')
-  const res = await fetch('/_server', {
+  const res = await fetch('/_devix/server', {
     method: 'POST',
     headers: {
       'X-Server-Id': id,

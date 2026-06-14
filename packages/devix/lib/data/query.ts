@@ -1,4 +1,6 @@
 import { sharedConfig } from 'solid-js'
+import { registerServerFn } from './server-registry'
+import { clientTransport } from './transport'
 
 type QueryFn<P extends unknown[], R> = (...args: P) => R | Promise<R>
 
@@ -14,10 +16,12 @@ type SharedConfigClient = typeof sharedConfig & {
 }
 
 export function query<P extends unknown[], R>(
-  fn: QueryFn<P, R> | undefined,
+  fn: QueryFn<P, R>,
   name: string,
 ): (...args: P) => Promise<R> {
-  return (async (...args: P) => {
+  registerServerFn(name, 'query', fn as (...args: unknown[]) => unknown)
+
+  return async (...args: P) => {
     const key = `devix:query:${name}:${hashKey(args)}`
     const clientConfig = sharedConfig as SharedConfigClient
 
@@ -25,23 +29,19 @@ export function query<P extends unknown[], R>(
       return clientConfig.load(key) as R
     }
 
-    if (typeof window !== 'undefined') {
-      throw new Error(`devix: query "${name}" can only run on the server`)
+    if (typeof window === 'undefined') {
+      const res = fn(...args)
+      const ctx = sharedConfig.context as SharedConfigContext | undefined
+
+      if (ctx?.async && !ctx.noHydrate) {
+        ctx.serialize?.(key, res)
+      }
+
+      return res
     }
 
-    if (fn === undefined) {
-      throw new Error(`devix: query "${name}" has no server implementation`)
-    }
-
-    const res = fn(...args)
-    const ctx = sharedConfig.context as SharedConfigContext | undefined
-
-    if (ctx?.async && !ctx.noHydrate) {
-      ctx.serialize?.(key, res)
-    }
-
-    return res
-  }) as (...args: P) => Promise<R>
+    return clientTransport.current<R>(name, args as unknown[])
+  }
 }
 
 function hashKey(args: unknown[]): string {

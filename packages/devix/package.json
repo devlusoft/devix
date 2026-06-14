@@ -7,7 +7,9 @@
   },
   "exports": {
     ".": "./lib/index.ts",
+    "./config": "./lib/config/define-config.ts",
     "./env": "./lib/ambient.d.ts",
+    "./router": "./lib/router/index.ts",
     "./router/view-transitions/click-interceptor": "./lib/router/view-transitions/click-interceptor.tsx",
     "./data": "./lib/data/index.ts"
   },
@@ -24,6 +26,10 @@
     "vite": "8.0.16"
   },
   "dependencies": {
+    "@babel/generator": "7.27.1",
+    "@babel/parser": "7.27.1",
+    "@babel/traverse": "7.27.1",
+    "@babel/types": "7.27.1",
     "@hono/node-server": "2.0.4",
     "@solidjs/router": "0.16.1",
     "hono": "4.12.25",
@@ -34,6 +40,8 @@
     "vite-plugin-solid": "2.11.12"
   },
   "devDependencies": {
+    "@types/babel__generator": "7.27.0",
+    "@types/babel__traverse": "7.20.7",
     "@types/node": "25.9.1"
   }
 }

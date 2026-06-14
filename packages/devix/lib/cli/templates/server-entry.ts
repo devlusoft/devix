@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import Routes from 'virtual:devix-routes'
+import Routes from 'virtual:devix-routes-ssr'
 import { createRenderFn } from '@devlusoft/devix'
 import { logRequest } from '@devlusoft/devix/cli/logger'
 import { handleServerFunction, type ServerFnResponse } from '@devlusoft/devix/data'

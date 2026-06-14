@@ -63,7 +63,7 @@ describe('renderSSR — happy path', () => {
     const Routes = () => <span>hi</span>
     const server = mockServer((id) => {
       if (id === '/app/root.tsx') return { default: Root }
-      if (id === 'virtual:devix-routes') return { default: Routes }
+      if (id === 'virtual:devix-routes-ssr') return { default: Routes }
       return {}
     })
 
@@ -81,7 +81,7 @@ describe('renderSSR — happy path', () => {
     const Routes = () => <span>hi</span>
     const server = mockServer((id) => {
       if (id === '/app/root.tsx') return { default: Root }
-      if (id === 'virtual:devix-routes') return { default: Routes }
+      if (id === 'virtual:devix-routes-ssr') return { default: Routes }
       return {}
     })
 
@@ -103,7 +103,7 @@ describe('renderSSR — happy path', () => {
     const Routes = () => <div>page</div>
     const server = mockServer((id) => {
       if (id === '/app/root.tsx') return { default: Root }
-      if (id === 'virtual:devix-routes') return { default: Routes }
+      if (id === 'virtual:devix-routes-ssr') return { default: Routes }
       return {}
     })
 
@@ -122,7 +122,7 @@ describe('renderSSR — happy path', () => {
     }
     const server = mockServer((id) => {
       if (id === '/app/root.tsx') return { default: Root }
-      if (id === 'virtual:devix-routes') return { default: Routes }
+      if (id === 'virtual:devix-routes-ssr') return { default: Routes }
       return {}
     })
 

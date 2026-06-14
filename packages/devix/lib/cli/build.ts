@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync } from 'node:fs'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Spinner } from '@nijil71/lumi-cli'
 import { createBuilder, mergeConfig } from 'vite'
@@ -16,6 +16,11 @@ export async function build(): Promise<void> {
   spinner.start()
 
   try {
+    const distDir = join(cwd, config.outDir)
+    if (existsSync(distDir)) {
+      rmSync(distDir, { recursive: true, force: true })
+    }
+
     const finalConfig = mergeConfig(preset(config, 'build'), config.vite ?? {})
 
     const builder = await createBuilder({
@@ -27,7 +32,6 @@ export async function build(): Promise<void> {
 
     await builder.buildApp()
 
-    const distDir = join(cwd, config.outDir)
     const runtimeCfg = {
       port: config.port,
       host: typeof config.host === 'string' ? config.host : '0.0.0.0',

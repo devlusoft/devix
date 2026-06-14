@@ -25,14 +25,15 @@ describe('generateRoutesModule', () => {
     expect(out).toMatch(/\bRouter\b/)
   })
 
-  it('should import createComponent from solid-js', () => {
+  it('should import createComponent and lazy from solid-js', () => {
     const out = generateRoutesModule(buildResult({}))
-    expect(out).toContain(`import { createComponent } from 'solid-js'`)
+    expect(out).toContain(`import { createComponent, lazy } from 'solid-js'`)
   })
 
-  it('should use import.meta.glob with eager: true for app/pages modules', () => {
+  it('should use import.meta.glob without eager for lazy loading', () => {
     const out = generateRoutesModule(buildResult({}))
-    expect(out).toContain(`import.meta.glob('/app/pages/**/*.tsx', { eager: true })`)
+    expect(out).toContain(`import.meta.glob('/app/pages/**/*.tsx')`)
+    expect(out).not.toContain('{ eager: true }')
   })
 
   it('should default export a Routes function that accepts url as prop', () => {
@@ -73,18 +74,18 @@ describe('generateRoutesModule', () => {
     expect(out).toContain(`path: "/about"`)
   })
 
-  it('should reference the module by file path and use .default', () => {
+  it('should reference the module by file path via makeRouteComponent', () => {
     const result = buildResult({
       routes: [fixture({ path: '/about', file: 'about.tsx', isIndex: false })],
     })
     const out = generateRoutesModule(result)
     expect(out).toContain(`"/app/pages/about.tsx"`)
-    expect(out).toContain(`.default`)
+    expect(out).toContain('makeRouteComponent')
   })
 })
 
 describe('generateRoutesModule — nested layouts', () => {
-  it('should NOT emit get children() for routes without children (besides the wrapper Router and the per-Route ClickInterceptor)', () => {
+  it('should NOT emit get children() for routes without children (besides the wrapper Router and makeRouteComponent)', () => {
     const result = buildResult({
       routes: [fixture({ path: '/about', file: 'about.tsx', isIndex: false })],
     })
@@ -110,7 +111,7 @@ describe('generateRoutesModule — nested layouts', () => {
     expect(out).toContain('"/app/pages/blog/layout.tsx"')
     expect(out).toContain('"/app/pages/blog/index.tsx"')
     const matches = out.match(/get children\(\)/g) ?? []
-    expect(matches).toHaveLength(4)
+    expect(matches).toHaveLength(3)
   })
 
   it('should emit all children under one layout', () => {
@@ -164,7 +165,7 @@ describe('generateRoutesModule — nested layouts', () => {
     expect(out).toContain('"/app/pages/blog/posts/index.tsx"')
 
     const childMatches = out.match(/get children\(\)/g) ?? []
-    expect(childMatches).toHaveLength(6)
+    expect(childMatches).toHaveLength(4)
 
     const routeMatches = out.match(/createComponent\(Route,/g) ?? []
     expect(routeMatches).toHaveLength(3)
@@ -222,38 +223,17 @@ describe('generateRoutesModule — view transitions wrapper', () => {
     )
   })
 
-  it('should wrap each Route component in createComponent(ClickInterceptor, ...)', () => {
+  it('should define makeRouteComponent that wraps a lazy component in ClickInterceptor', () => {
     const result = buildResult({
       routes: [fixture({ path: '/about', file: 'about.tsx', isIndex: false })],
     })
     const out = generateRoutesModule(result)
+    expect(out).toContain('function makeRouteComponent')
     expect(out).toMatch(/createComponent\(ClickInterceptor,/)
+    expect(out).toMatch(/lazy\(/)
   })
 
-  it('should place the ClickInterceptor inside the Route component, not as a Router sibling', () => {
-    const result = buildResult({
-      routes: [fixture({ path: '/about', file: 'about.tsx', isIndex: false })],
-    })
-    const out = generateRoutesModule(result)
-    const routeIdx = out.indexOf('createComponent(Route,')
-    const interceptorIdx = out.indexOf('createComponent(ClickInterceptor,')
-    expect(routeIdx).toBeGreaterThan(-1)
-    expect(interceptorIdx).toBeGreaterThan(routeIdx)
-  })
-
-  it('should preserve route count when wrapping components in ClickInterceptor', () => {
-    const result = buildResult({
-      routes: [
-        fixture({ path: '/a', file: 'a.tsx', isIndex: false }),
-        fixture({ path: '/b', file: 'b.tsx', isIndex: false }),
-      ],
-    })
-    const out = generateRoutesModule(result)
-    const routeMatches = out.match(/createComponent\(Route,/g) ?? []
-    expect(routeMatches).toHaveLength(2)
-  })
-
-  it('should emit one ClickInterceptor per route (one per leaf, one per layout)', () => {
+  it('should use makeRouteComponent for each route', () => {
     const result = buildResult({
       routes: [
         fixture({ path: '/about', file: 'about.tsx', isIndex: false }),
@@ -261,8 +241,22 @@ describe('generateRoutesModule — view transitions wrapper', () => {
       ],
     })
     const out = generateRoutesModule(result)
-    const interceptorMatches = out.match(/createComponent\(ClickInterceptor,/g) ?? []
-    expect(interceptorMatches).toHaveLength(2)
+    const routeMatches = out.match(/createComponent\(Route,/g) ?? []
+    const componentMatches = out.match(/makeRouteComponent\(modules\[/g) ?? []
+    expect(routeMatches).toHaveLength(2)
+    expect(componentMatches).toHaveLength(2)
+  })
+
+  it('should define makeRouteComponent before Routes and call it inside route definitions', () => {
+    const result = buildResult({
+      routes: [fixture({ path: '/about', file: 'about.tsx', isIndex: false })],
+    })
+    const out = generateRoutesModule(result)
+    const helperIdx = out.indexOf('function makeRouteComponent')
+    const routeIdx = out.indexOf('createComponent(Route,')
+    expect(helperIdx).toBeGreaterThan(-1)
+    expect(routeIdx).toBeGreaterThan(-1)
+    expect(helperIdx).toBeLessThan(routeIdx)
   })
 
   it('should integrate with the real showcase manifest end-to-end', () => {
@@ -285,7 +279,7 @@ describe('generateRoutesModule — view transitions wrapper', () => {
     expect(out).toMatch(/createComponent\(ClickInterceptor,/)
     const routeMatches = out.match(/createComponent\(Route,/g) ?? []
     expect(routeMatches.length).toBeGreaterThanOrEqual(7)
-    const interceptorMatches = out.match(/createComponent\(ClickInterceptor,/g) ?? []
-    expect(interceptorMatches.length).toBe(routeMatches.length)
+    const componentMatches = out.match(/makeRouteComponent\(modules\[/g) ?? []
+    expect(componentMatches.length).toBe(routeMatches.length)
   })
 })

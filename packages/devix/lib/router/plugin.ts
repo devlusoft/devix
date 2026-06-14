@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { glob } from 'tinyglobby'
 import type { Plugin } from 'vite'
-import { generateRoutesModule } from './codegen'
+import { generateRoutesModule, generateSSRRoutesModule } from './codegen'
 import { buildManifest } from './manifest'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -11,6 +11,8 @@ const PACKAGE_TEMPLATES_DIR = resolve(__dirname, '../cli/templates')
 
 const ROUTES_VIRTUAL = 'virtual:devix-routes'
 const RESOLVED_VIRTUAL = `\0${ROUTES_VIRTUAL}`
+const ROUTES_SSR_VIRTUAL = 'virtual:devix-routes-ssr'
+const RESOLVED_SSR_VIRTUAL = `\0${ROUTES_SSR_VIRTUAL}`
 const HYDRATION_VIRTUAL = 'virtual:devix-hydration'
 const RESOLVED_HYDRATION_VIRTUAL = `\0${HYDRATION_VIRTUAL}`
 
@@ -64,6 +66,7 @@ export function router(): Plugin {
 
     resolveId(id) {
       if (id === ROUTES_VIRTUAL) return RESOLVED_VIRTUAL
+      if (id === ROUTES_SSR_VIRTUAL) return RESOLVED_SSR_VIRTUAL
       if (id === HYDRATION_VIRTUAL) return RESOLVED_HYDRATION_VIRTUAL
       if (command === 'build' && (BUILD_ENTRIES as readonly string[]).includes(id)) {
         return RESOLVED_BUILD_ENTRY(id as BuildEntry)
@@ -79,9 +82,11 @@ export function router(): Plugin {
       hydrateApp(Root, Routes)`
       }
 
-      if (id === RESOLVED_VIRTUAL) {
+      if (id === RESOLVED_VIRTUAL || id === RESOLVED_SSR_VIRTUAL) {
         const files = await glob('**/*.tsx', { cwd: resolve(root, 'app/pages') })
-        return generateRoutesModule(buildManifest({ files }))
+        return id === RESOLVED_VIRTUAL
+          ? generateRoutesModule(buildManifest({ files }))
+          : generateSSRRoutesModule(buildManifest({ files }))
       }
 
       for (const name of BUILD_ENTRIES) {
@@ -97,8 +102,10 @@ export function router(): Plugin {
     configureServer(server) {
       const invalidateAndReload = (file: string) => {
         if (!isPageFile(file)) return
-        const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL)
-        if (mod) server.moduleGraph.invalidateModule(mod)
+        for (const resolved of [RESOLVED_VIRTUAL, RESOLVED_SSR_VIRTUAL]) {
+          const mod = server.moduleGraph.getModuleById(resolved)
+          if (mod) server.moduleGraph.invalidateModule(mod)
+        }
         server.ws.send({ type: 'full-reload' })
       }
 
@@ -108,10 +115,15 @@ export function router(): Plugin {
 
     handleHotUpdate({ file, server }) {
       if (isPageFile(file)) {
-        const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL)
-        if (!mod) return
-        server.moduleGraph.invalidateModule(mod)
-        return [mod]
+        const mods = []
+        for (const resolved of [RESOLVED_VIRTUAL, RESOLVED_SSR_VIRTUAL]) {
+          const mod = server.moduleGraph.getModuleById(resolved)
+          if (mod) {
+            server.moduleGraph.invalidateModule(mod)
+            mods.push(mod)
+          }
+        }
+        return mods
       }
 
       if (isRootFile(file)) {

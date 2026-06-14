@@ -16,7 +16,7 @@ export async function renderSSR(opts: {
 
   if (opts.server) {
     const rootMod = await opts.server.ssrLoadModule('/app/root.tsx')
-    const routesMod = await opts.server.ssrLoadModule('virtual:devix-routes')
+    const routesMod = await opts.server.ssrLoadModule('virtual:devix-routes-ssr')
     Root = (rootMod as { default: Component<DevixRootProps> }).default
     Routes = (routesMod as { default: Component<{ url?: string }> }).default
   } else if (opts.Root && opts.Routes) {

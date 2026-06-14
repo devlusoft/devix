@@ -8,6 +8,7 @@ export type RenderHandle = {
   getHeaders: () => Headers
   getStatus: () => number
   onShellReady: (cb: () => void) => void
+  onAllReady: (cb: () => void) => void
 }
 
 export function createRenderFn(
@@ -20,15 +21,22 @@ export function createRenderFn(
   let status = 200
   let stream!: StreamRender
   let shellFired = false
-  const pending: Array<() => void> = []
+  let allFired = false
+  const shellPending: Array<() => void> = []
+  const allPending: Array<() => void> = []
 
   runWithRequestEvent(event, () => {
     stream = renderToStream(() => compose(Root, Routes, url, clientEntry), {
       onShellReady() {
         event.response.headers.set('Content-Type', 'text/html; charset=utf-8')
         shellFired = true
-        for (const cb of pending) cb()
-        pending.length = 0
+        for (const cb of shellPending) cb()
+        shellPending.length = 0
+      },
+      onAllReady() {
+        allFired = true
+        for (const cb of allPending) cb()
+        allPending.length = 0
       },
       onError(err) {
         status = 500
@@ -44,7 +52,11 @@ export function createRenderFn(
     getStatus: () => status,
     onShellReady(cb) {
       if (shellFired) cb()
-      else pending.push(cb)
+      else shellPending.push(cb)
+    },
+    onAllReady(cb) {
+      if (allFired) cb()
+      else allPending.push(cb)
     },
   }
 }

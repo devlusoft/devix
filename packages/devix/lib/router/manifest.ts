@@ -66,6 +66,14 @@ function parseFile(file: string): ParsedFile {
       continue
     }
 
+    if (part.startsWith('[') && part.endsWith(']')) {
+      const isCatchAll = part.startsWith('[...')
+      const name = isCatchAll ? part.slice(4, -1) : part.slice(1, -1)
+      urlSegments.push(isCatchAll ? '*' : `:${name}`)
+      params.push(name)
+      continue
+    }
+
     urlSegments.push(part.replace(/\.tsx$/, ''))
   }
 

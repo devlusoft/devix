@@ -95,6 +95,29 @@ export function logReady(urls: { local: string; network?: string }, durationMs: 
   }
 }
 
+function formatTime(date = new Date()): string {
+  return date.toLocaleTimeString('en-US', { hour12: false })
+}
+
+function methodColor(method: string): string {
+  switch (method) {
+    case 'GET':
+      return c.azure
+    case 'POST':
+      return c.amber
+    case 'CLIENT':
+      return '\x1b[38;2;180;130;255m'
+    default:
+      return c.mist
+  }
+}
+
+function durationColor(ms: number): string {
+  if (ms > 1000) return c.signal
+  if (ms > 300) return c.amber
+  return c.mist
+}
+
 export function logRequest(
   method: string,
   url: string,
@@ -104,12 +127,16 @@ export function logRequest(
   pagePath?: string,
 ): void {
   if (isSilent()) return
+  const time = formatTime()
+  const symbol = method === 'CLIENT' ? '→' : '▸'
+  const methodPadded = method.padEnd(6)
+  const pathDisplay = url.length > 26 ? `${url.slice(0, 23)}...` : url
+  const pathPadded = pathDisplay.padEnd(26)
   const statusColor =
     status >= 500 ? c.signal : status >= 400 ? c.amber : status >= 300 ? c.azure : c.sage
-  const labelPart = label ? ` (${label})` : ''
-  const pagePart = pagePath ? ` on ${pagePath}` : ''
+  const labelText = label ? ` (${label}${pagePath ? ` on ${pagePath}` : ''})` : ''
   console.log(
-    `[devix] ${statusColor}${status}${c.r} ${method} ${url}${labelPart}${pagePart} ${durationMs}ms`,
+    `[devix] ${c.mist}${time}${c.r} ${symbol} ${methodColor(method)}${methodPadded}${c.r} ${pathPadded} ${statusColor}${status}${c.r}  ${durationColor(durationMs)}${durationMs}ms${c.r}${labelText}`,
   )
 }
 

@@ -1,5 +1,6 @@
+import { EventEmitter } from 'node:events'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { handleServerFunction } from '../data/server-fn-handler'
+import { handleServerFunction } from '../data'
 import { devixServer } from './plugin'
 import { renderSSR } from './render'
 
@@ -40,7 +41,12 @@ function makeReqRes(opts: { method: string; url: string; accept?: string }) {
   const headers: Record<string, string> = {}
   if (opts.accept !== undefined) headers.accept = opts.accept
 
-  const req = { method: opts.method, url: opts.url, headers }
+  const reqEmitter = new EventEmitter()
+  const req = Object.assign(reqEmitter, {
+    method: opts.method,
+    url: opts.url,
+    headers,
+  })
   let _statusCode = 0
   const res = {
     setHeader: vi.fn(),
@@ -224,16 +230,18 @@ describe('devixServer middleware — server functions', () => {
   })
 
   it('dispatches POST /_server to handleServerFunction with req, res, and server', async () => {
-    const { server, middleware } = setupMiddleware()
+    const { middleware } = setupMiddleware()
     const { req, res, next } = makeReqRes({
       method: 'POST',
       url: '/_server',
     })
 
-    await middleware(req, res, next)
+    const promise = middleware(req, res, next)
+    req.emit('end')
+    await promise
 
     expect(handleServerFunctionMock).toHaveBeenCalledTimes(1)
-    expect(handleServerFunctionMock).toHaveBeenCalledWith(req, res, server)
+    expect(handleServerFunctionMock).toHaveBeenCalledWith(expect.any(Request), expect.any(Function))
     expect(renderSSRMock).not.toHaveBeenCalled()
     expect(next).not.toHaveBeenCalled()
   })
@@ -245,7 +253,9 @@ describe('devixServer middleware — server functions', () => {
       url: '/_server?some=query',
     })
 
-    await middleware(req, res, next)
+    const promise = middleware(req, res, next)
+    req.emit('end')
+    await promise
 
     expect(handleServerFunctionMock).toHaveBeenCalledTimes(1)
     expect(next).not.toHaveBeenCalled()

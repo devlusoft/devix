@@ -1,5 +1,6 @@
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
-import { handleServerFunction } from '../data/server-fn-handler'
+import { handleServerFunction, type ServerFnResponse } from '../data/server-fn-handler'
 import { renderSSR } from './render'
 
 export function devixServer(): Plugin {
@@ -14,7 +15,8 @@ export function devixServer(): Plugin {
           const method = req.method ?? 'GET'
 
           if (method === 'POST' && url.split('?')[0] === '/_server') {
-            return handleServerFunction(req, res, server)
+            await dispatchServerFn(req, res)
+            return
           }
 
           if (method !== 'GET' && method !== 'HEAD') return next()
@@ -51,4 +53,43 @@ export function devixServer(): Plugin {
       }
     },
   }
+}
+
+async function dispatchServerFn(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const body = await new Promise<string>((resolve, reject) => {
+    const chunks: Buffer[] = []
+    req.on('data', (c) => chunks.push(c as Buffer))
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+    req.on('error', reject)
+  })
+
+  const headers = new Headers()
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (value !== undefined) {
+      headers.set(key, Array.isArray(value) ? value.join(', ') : String(value))
+    }
+  }
+
+  const webReq = new Request(`http://localhost${req.url ?? '/'}`, {
+    method: req.method ?? 'POST',
+    headers,
+    body,
+  })
+
+  const response: ServerFnResponse = {
+    status: 0,
+    headers: new Headers(),
+    body: '',
+  }
+  await handleServerFunction(webReq, (r) => {
+    response.status = r.status
+    response.headers = r.headers
+    response.body = r.body
+  })
+
+  res.statusCode = response.status
+  for (const [key, value] of response.headers.entries()) {
+    res.setHeader(key, value)
+  }
+  res.end(response.body)
 }

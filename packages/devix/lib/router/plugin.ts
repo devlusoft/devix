@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { glob } from 'tinyglobby'
 import type { Plugin } from 'vite'
@@ -9,8 +10,33 @@ const RESOLVED_VIRTUAL = `\0${ROUTES_VIRTUAL}`
 const HYDRATION_VIRTUAL = 'virtual:devix-hydration'
 const RESOLVED_HYDRATION_VIRTUAL = `\0${HYDRATION_VIRTUAL}`
 
+const BUILD_ENTRIES = ['entry-client', 'index', 'render'] as const
+type BuildEntry = (typeof BUILD_ENTRIES)[number]
+const RESOLVED_BUILD_ENTRY = (name: BuildEntry) => `\0devix:build-entry:${name}`
+
+const TEMPLATE_PATHS: Record<BuildEntry, string> = {
+  'entry-client': 'lib/cli/templates/entry-client.tsx',
+  index: 'lib/cli/templates/server-entry.ts',
+  render: 'lib/cli/templates/server-r-render.ts',
+}
+
+const templateCache = new Map<BuildEntry, string>()
+
+function readTemplate(name: BuildEntry, root: string): string {
+  const cached = templateCache.get(name)
+  if (cached) return cached
+  const path = resolve(root, TEMPLATE_PATHS[name])
+  if (!existsSync(path)) {
+    throw new Error(`devix: template not found at ${path}`)
+  }
+  const content = readFileSync(path, 'utf8')
+  templateCache.set(name, content)
+  return content
+}
+
 export function router(): Plugin {
   let root: string
+  let command: 'dev' | 'build' | 'serve' | undefined
 
   const isPageFile = (file: string): boolean =>
     file.startsWith(`${root}/app/pages/`) && file.endsWith('.tsx')
@@ -20,6 +46,10 @@ export function router(): Plugin {
   return {
     name: 'devix:router',
 
+    config(_config, env) {
+      command = env.command
+    },
+
     configResolved(config) {
       root = config.root
     },
@@ -27,20 +57,29 @@ export function router(): Plugin {
     resolveId(id) {
       if (id === ROUTES_VIRTUAL) return RESOLVED_VIRTUAL
       if (id === HYDRATION_VIRTUAL) return RESOLVED_HYDRATION_VIRTUAL
+      if (command === 'build' && (BUILD_ENTRIES as readonly string[]).includes(id)) {
+        return RESOLVED_BUILD_ENTRY(id as BuildEntry)
+      }
     },
 
     async load(id) {
       if (id === RESOLVED_HYDRATION_VIRTUAL) {
         return `import { hydrateApp } from '@devlusoft/devix'
-    import Root from '/app/root.tsx'
-    import Routes from 'virtual:devix-routes'
-    
-    hydrateApp(Root, Routes)`
+      import Root from '/app/root.tsx'
+      import Routes from 'virtual:devix-routes'
+
+      hydrateApp(Root, Routes)`
       }
 
       if (id === RESOLVED_VIRTUAL) {
         const files = await glob('**/*.tsx', { cwd: resolve(root, 'app/pages') })
         return generateRoutesModule(buildManifest({ files }))
+      }
+
+      for (const name of BUILD_ENTRIES) {
+        if (id === RESOLVED_BUILD_ENTRY(name)) {
+          return readTemplate(name, root)
+        }
       }
     },
 

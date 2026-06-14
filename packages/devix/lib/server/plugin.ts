@@ -19,9 +19,7 @@ async function preloadServerFunctions(server: ViteDevServer, root: string): Prom
     const virtualId = `/app/${file}`
     try {
       await server.ssrLoadModule(virtualId)
-    } catch {
-
-    }
+    } catch {}
   }
 }
 

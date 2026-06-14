@@ -26,7 +26,7 @@ export async function build(): Promise<void> {
   }
   writeFileSync(join(distDir, 'devix.config.json'), JSON.stringify(runtimeCfg, null, 2))
 
-  const required = ['server/index.js', 'server/render.js', 'devix.config.json']
+  const required = ['server/index.js', 'devix.config.json']
   const missing = required.filter((p) => !existsSync(join(distDir, p)))
   if (missing.length > 0) {
     throw new Error(`devix: build succeeded but missing outputs: ${missing.join(', ')}`)

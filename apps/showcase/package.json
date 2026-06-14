@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "devix dev",
     "build": "devix build",
+    "start": "devix start",
     "typecheck": "tsc --noEmit",
     "lint:fix": "biome check --write",
     "format": "biome format --write"

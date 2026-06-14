@@ -14,20 +14,18 @@ const RESOLVED_VIRTUAL = `\0${ROUTES_VIRTUAL}`
 const HYDRATION_VIRTUAL = 'virtual:devix-hydration'
 const RESOLVED_HYDRATION_VIRTUAL = `\0${HYDRATION_VIRTUAL}`
 
-const BUILD_ENTRIES = ['entry-client', 'index', 'render'] as const
+const BUILD_ENTRIES = ['entry-client', 'index'] as const
 type BuildEntry = (typeof BUILD_ENTRIES)[number]
 const RESOLVED_BUILD_ENTRY = (name: BuildEntry) => `\0devix:build-entry:${name}`
 
 const TEMPLATE_FILES: Record<BuildEntry, string> = {
   'entry-client': 'entry-client.tsx',
   index: 'server-entry.ts',
-  render: 'server-render.ts',
 }
 
 const MODULE_TYPES: Record<BuildEntry, 'ts' | 'tsx'> = {
   'entry-client': 'tsx',
   index: 'ts',
-  render: 'ts',
 }
 
 const templateCache = new Map<BuildEntry, string>()

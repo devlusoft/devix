@@ -1,28 +1,65 @@
-import { dirname } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import Routes from 'virtual:devix-routes'
+import { createRenderFn } from '@devlusoft/devix'
 import { handleServerFunction, type ServerFnResponse } from '@devlusoft/devix/data'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
+import Root from '/app/root.tsx'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+
+function getClientEntry(): string {
+  const manifestPath = join(__dirname, '../client/.vite/manifest.json')
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<
+      string,
+      { file: string; isEntry?: boolean }
+    >
+    for (const chunk of Object.values(manifest)) {
+      if (chunk.isEntry) return `/${chunk.file}`
+    }
+  } catch {}
+  return '/assets/entry-client.js'
+}
+
+async function handleRequest(req: Request): Promise<Response> {
+  const url = new URL(req.url)
+  const { stream, getHeaders, getStatus, onShellReady } = createRenderFn(
+    Root,
+    Routes,
+    url.pathname,
+    getClientEntry(),
+  )
+
+  const { readable, writable } = new TransformStream()
+  stream.pipeTo(writable)
+  await new Promise<void>((resolve) => onShellReady(resolve))
+
+  return new Response(readable, {
+    status: getStatus(),
+    headers: getHeaders(),
+  })
+}
 
 const app = new Hono()
 
 app.use(
   '/*',
   serveStatic({
-    root: './client',
+    root: join(__dirname, '../client'),
     rewriteRequestPath: (path) => (path === '/' ? '/index.html' : path),
   }),
 )
 
-app.post('/_server', async (c) => {
-  const response: { status: number; headers: Headers; body: string } = {
+app.post('/_devix/server', async (c) => {
+  const response: ServerFnResponse = {
     status: 0,
     headers: new Headers(),
     body: '',
   }
-  await handleServerFunction(c.req.raw, (r: ServerFnResponse) => {
+  await handleServerFunction(c.req.raw, (r) => {
     response.status = r.status
     response.headers = r.headers
     response.body = r.body
@@ -31,8 +68,7 @@ app.post('/_server', async (c) => {
 })
 
 app.get('/*', async (c) => {
-  const mod = await import('./render.js')
-  return mod.handle(c.req.raw)
+  return handleRequest(c.req.raw)
 })
 
 export default app

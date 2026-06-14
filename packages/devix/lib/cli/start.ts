@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs'
+import type { Server } from 'node:http'
 import { join } from 'node:path'
 import { serve } from '@hono/node-server'
 import { loadRuntimeConfig } from '../config/load-config'
@@ -33,7 +34,13 @@ export async function start(): Promise<void> {
 
   const shutdown = (sig: string) => {
     console.log(`devix: ${sig} received, shutting down`)
-    server.close(() => process.exit(0))
+    const timeout = setTimeout(() => process.exit(0), 5000)
+    timeout.unref()
+    server.close(() => {
+      clearTimeout(timeout)
+      process.exit(0)
+    })
+    ;(server as Server).closeAllConnections?.()
   }
   process.on('SIGINT', () => shutdown('SIGINT'))
   process.on('SIGTERM', () => shutdown('SIGTERM'))

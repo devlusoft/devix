@@ -10,6 +10,10 @@ describe('parseCommand', () => {
     expect(parseCommand(['build'])).toBe('build')
   })
 
+  it('should return "start" for argv ["start"]', () => {
+    expect(parseCommand(['start'])).toBe('start')
+  })
+
   it('should default to "dev" on empty argv', () => {
     expect(parseCommand([])).toBe('dev')
   })

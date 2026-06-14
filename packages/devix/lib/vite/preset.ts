@@ -41,7 +41,8 @@ export function preset(config: ResolvedDevixConfig, command?: 'dev' | 'build'): 
           outDir: 'dist/server',
           emptyOutDir: false,
           rolldownOptions: {
-            input: { index: 'index', render: 'render' },
+            input: { index: 'index' },
+            external: ['hono', '@hono/node-server', '@hono/node-server/serve-static'],
             output: {
               entryFileNames: '[name].js',
               chunkFileNames: '_chunks/[name]-[hash].js',

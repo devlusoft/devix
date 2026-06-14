@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { resolve } from 'node:path'
 import { glob } from 'tinyglobby'
 import type { Plugin, ViteDevServer } from 'vite'
-import { handleServerFunction, type ServerFnResponse } from '../data/server-fn-handler'
+import { handleServerFunction, type ServerFnResponse } from '../data'
 import { renderSSR } from './render'
 
 const SERVER_FN_PATTERN = /\b(query|action)\s*\(/

@@ -37,3 +37,29 @@ describe('preset', () => {
     expect(result.appType).toBe('custom')
   })
 })
+
+describe('preset (build)', () => {
+  it('configures client + ssr environments', () => {
+    const result = preset(baseConfig, 'build')
+    expect(result.environments?.client?.build?.outDir).toBe('dist/client')
+    expect(result.environments?.ssr?.build?.outDir).toBe('dist/server')
+    expect(result.environments?.ssr?.build?.ssr).toBe(true)
+  })
+
+  it('does not include devixServer plugin in build', () => {
+    const result = preset(baseConfig, 'build')
+    const names = (result.plugins ?? [])
+      .filter((p): p is { name: string } => Boolean(p))
+      .map((p) => p.name)
+    expect(names).not.toContain('devix:server')
+  })
+
+  it('configures manifest and hashed assets in client environment', () => {
+    const result = preset(baseConfig, 'build')
+    expect(result.environments?.client?.build?.manifest).toBe(true)
+    const output = result.environments?.client?.build?.rolldownOptions?.output as
+      | { entryFileNames?: string }
+      | undefined
+    expect(output?.entryFileNames).toBe('assets/[name]-[hash].js')
+  })
+})

@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./lib",
+    "outDir": "./dist",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "noEmit": false,
+    "types": ["node"]
+  },
+  "include": ["./lib/**/*"],
+  "exclude": ["./lib/cli/templates/**", "./lib/**/*.test.ts", "./lib/**/*.test.tsx", "./lib/**/*.e2e.test.ts"]
+}

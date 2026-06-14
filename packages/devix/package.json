@@ -1,6 +1,6 @@
 {
   "name": "@devlusoft/devix",
-  "version": "0.0.0",
+  "version": "0.8.0-alpha.0",
   "type": "module",
   "bin": {
     "devix": "./bin/devix.mjs"
@@ -14,11 +14,46 @@
     "./data": "./lib/data/index.ts",
     "./cli/logger": "./lib/cli/logger.ts"
   },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./config": {
+        "types": "./dist/config/define-config.d.ts",
+        "default": "./dist/config/define-config.js"
+      },
+      "./env": {
+        "types": "./dist/ambient.d.ts",
+        "default": "./dist/ambient.d.ts"
+      },
+      "./router": {
+        "types": "./dist/router/index.d.ts",
+        "default": "./dist/router/index.js"
+      },
+      "./router/view-transitions/click-interceptor": {
+        "types": "./dist/router/view-transitions/click-interceptor.d.ts",
+        "default": "./dist/router/view-transitions/click-interceptor.js"
+      },
+      "./data": {
+        "types": "./dist/data/index.d.ts",
+        "default": "./dist/data/index.js"
+      },
+      "./cli/logger": {
+        "types": "./dist/cli/logger.d.ts",
+        "default": "./dist/cli/logger.js"
+      }
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "bin"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "build": "tsup && tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build",
     "lint:fix": "biome check --write",
     "format": "biome format --write"
   },
@@ -44,6 +79,8 @@
   "devDependencies": {
     "@types/babel__generator": "7.27.0",
     "@types/babel__traverse": "7.20.7",
-    "@types/node": "25.9.1"
+    "@types/node": "25.9.1",
+    "esbuild-plugin-solid": "0.6.0",
+    "tsup": "8.5.1"
   }
 }

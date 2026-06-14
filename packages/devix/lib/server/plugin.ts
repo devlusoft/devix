@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { resolve } from 'node:path'
 import { glob } from 'tinyglobby'
 import type { Plugin, ViteDevServer } from 'vite'
+import { logRequest } from '../cli/logger'
 import { handleServerFunction, type ServerFnResponse } from '../data'
 import { renderSSR } from './render'
 
@@ -32,8 +33,21 @@ export function devixServer(): Plugin {
       preloadServerFunctions(server, server.config.root).catch(() => undefined)
 
       server.middlewares.use(async (req, res, next) => {
+        const start = Date.now()
         const url = req.url ?? '/'
         const method = req.method ?? 'GET'
+        const shouldLog =
+          !url.startsWith('/@') && !url.startsWith('/node_modules/') && !url.startsWith('/__')
+
+        if (shouldLog) {
+          const rawId = req.headers['x-server-id']
+          const rawPage = req.headers['x-page-path']
+          const label = Array.isArray(rawId) ? rawId[0] : rawId
+          const pagePath = Array.isArray(rawPage) ? rawPage[0] : rawPage
+          res.on('finish', () => {
+            logRequest(method, url, res.statusCode, Date.now() - start, label, pagePath)
+          })
+        }
 
         if (method === 'POST' && url.split('?')[0] === '/_devix/server') {
           await dispatchServerFn(req, res)

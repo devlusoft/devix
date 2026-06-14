@@ -87,7 +87,7 @@ describe('loadConfig — new fields', () => {
   it('falls back to defaults when port/host/output are missing', async () => {
     const config = await loadConfig(cwd)
     expect(config.port).toBe(3000)
-    expect(config.host).toBe('0.0.0.0')
+    expect(config.host).toBe(true)
     expect(config.output).toBe('server')
   })
 })

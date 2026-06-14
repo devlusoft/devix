@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import Routes from 'virtual:devix-routes'
 import { createRenderFn } from '@devlusoft/devix'
+import { logRequest } from '@devlusoft/devix/cli/logger'
 import { handleServerFunction, type ServerFnResponse } from '@devlusoft/devix/data'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
@@ -44,6 +45,18 @@ async function handleRequest(req: Request): Promise<Response> {
 }
 
 const app = new Hono()
+
+app.use('*', async (c, next) => {
+  const start = Date.now()
+  await next()
+  const path = c.req.path
+  const isAsset = path.startsWith('/assets/') || path.startsWith('/@') || path === '/favicon.ico'
+  if (!isAsset) {
+    const label = path === '/_devix/server' ? c.req.header('X-Server-Id') : undefined
+    const pagePath = path === '/_devix/server' ? c.req.header('X-Page-Path') : undefined
+    logRequest(c.req.method, path, c.res.status, Date.now() - start, label, pagePath)
+  }
+})
 
 app.use(
   '/*',

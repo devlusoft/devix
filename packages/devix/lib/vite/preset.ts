@@ -12,6 +12,7 @@ export function preset(config: ResolvedDevixConfig, command?: 'dev' | 'build'): 
       appType: 'custom',
       build: { outDir: config.outDir },
       base: config.base,
+      server: { host: config.host },
       ssr: { noExternal: ['@devlusoft/devix'] },
     }
   }

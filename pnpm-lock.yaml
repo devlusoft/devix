@@ -59,6 +59,9 @@ importers:
       '@hono/node-server':
         specifier: 2.0.4
         version: 2.0.4(hono@4.12.25)
+      '@nijil71/lumi-cli':
+        specifier: ^1.0.11
+        version: 1.0.11
       '@solidjs/router':
         specifier: 0.16.1
         version: 0.16.1(solid-js@1.9.13)
@@ -354,6 +357,11 @@ packages:
     peerDependencies:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
+
+  '@nijil71/lumi-cli@1.0.11':
+    resolution: {integrity: sha512-k0W/OPEoWprFKSiBwHA44RoPx8SezUIb7nIDCAkMolL9btdC/wouNb36658+yBnxmQ7/4bYjtYGffy3UzJJAsg==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   '@oxc-project/types@0.133.0':
     resolution: {integrity: sha512-KzkdCd6Uxqnf6l3HOw1xfatAlUURA0g14cvBYFyJ5SaNOQbOUvBr9PKArcPcrNIeRsBdgcUzOGrhKveVpvOIGA==}
@@ -1342,6 +1350,8 @@ snapshots:
       '@emnapi/runtime': 1.10.0
       '@tybys/wasm-util': 0.10.2
     optional: true
+
+  '@nijil71/lumi-cli@1.0.11': {}
 
   '@oxc-project/types@0.133.0': {}
 

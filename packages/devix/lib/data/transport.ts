@@ -7,10 +7,13 @@ export const clientTransport: { current: Transport } = {
 }
 
 async function defaultFetchTransport<R>(id: string, args: unknown[]): Promise<R> {
+  const pagePath =
+    typeof window !== 'undefined' ? window.location.pathname + window.location.search : ''
   const res = await fetch('/_devix/server', {
     method: 'POST',
     headers: {
       'X-Server-Id': id,
+      'X-Page-Path': pagePath,
       'Content-Type': 'application/json',
     },
     body: serialize(args),

@@ -3,6 +3,7 @@ import type { Server } from 'node:http'
 import { join } from 'node:path'
 import { serve } from '@hono/node-server'
 import { loadRuntimeConfig } from '../config/load-config'
+import { printBootBanner } from './logger'
 
 type HonoApp = {
   fetch: (req: Request, env?: unknown, ctx?: unknown) => Promise<Response> | Response
@@ -17,6 +18,7 @@ export async function start(): Promise<void> {
     throw new Error(`devix: ${serverEntry} not found. Run \`devix build\` first.`)
   }
 
+  const startedAt = Date.now()
   const cfg = loadRuntimeConfig(distDir)
   const mod = (await import(serverEntry)) as { default: HonoApp }
   const app = mod.default
@@ -28,7 +30,12 @@ export async function start(): Promise<void> {
       hostname: typeof cfg.host === 'string' ? cfg.host : undefined,
     },
     (info) => {
-      console.log(`devix: listening on http://${info.address}:${info.port}`)
+      const address = info.address === '0.0.0.0' ? 'localhost' : info.address
+      printBootBanner({
+        port: info.port,
+        durationMs: Date.now() - startedAt,
+        networkUrl: address !== 'localhost' ? `http://${address}:${info.port}/` : undefined,
+      })
     },
   )
 

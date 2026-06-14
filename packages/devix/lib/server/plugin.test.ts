@@ -58,6 +58,7 @@ function makeReqRes(opts: { method: string; url: string; accept?: string }) {
     },
     write: vi.fn(),
     end: vi.fn(),
+    on: vi.fn(),
   }
   const next = vi.fn()
   return { req, res, next }

@@ -1,3 +1,10 @@
+# [0.7.0-alpha.1](https://github.com/devlusoft/devix/compare/v0.6.0-alpha.1...v0.7.0-alpha.1) (2026-06-15)
+
+
+### Features
+
+* update version ([ba3c34f](https://github.com/devlusoft/devix/commit/ba3c34fb97c72208448be916c0b19cc2d6201038))
+
 # [0.6.0-alpha.1](https://github.com/devlusoft/devix/compare/v0.5.9...v0.6.0-alpha.1) (2026-06-15)
 
 

@@ -5,7 +5,17 @@ import { clientTransport } from './transport'
 type ActionFn<P extends unknown[], R> = (...args: P) => R | Promise<R>
 
 export function action<P extends unknown[], R>(fn: ActionFn<P, R>): (...args: P) => Promise<R> {
+  if (isProduction()) {
+    throw new Error(
+      'devix: action() must be assigned directly to a named or default export so the compiler can inject a stable id. ' +
+        'Use `export const myAction = action(async (...) => ...)` instead.',
+    )
+  }
   return devixAction(`action:${fn.name || 'anonymous'}`, fn)
+}
+
+function isProduction(): boolean {
+  return typeof process !== 'undefined' && process.env.NODE_ENV === 'production'
 }
 
 export function devixAction<P extends unknown[], R>(

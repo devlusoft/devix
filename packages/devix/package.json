@@ -1,6 +1,6 @@
 {
   "name": "@devlusoft/devix",
-  "version": "0.5.9",
+  "version": "0.6.0-alpha.1",
   "type": "module",
   "bin": {
     "devix": "./bin/devix.mjs"
@@ -18,7 +18,6 @@
   },
   "publishConfig": {
     "access": "public",
-
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",

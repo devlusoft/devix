@@ -78,7 +78,7 @@
     "@babel/traverse": "7.27.1",
     "@babel/types": "7.27.1",
     "@hono/node-server": "2.0.4",
-    "@nijil71/lumi-cli": "^1.0.11",
+    "@nijil71/lumi-cli": "1.0.11",
     "@solidjs/router": "0.16.1",
     "hono": "4.12.25",
     "jiti": "2.7.0",

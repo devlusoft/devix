@@ -11,11 +11,15 @@
     "@semantic-release/release-notes-generator",
     "@semantic-release/changelog",
     [
-      "@semantic-release/npm",
+      "@semantic-release/exec",
       {
-        "pkgRoot": "packages/devix",
-        "provenance": true,
-        "npm": "pnpm"
+        "prepareCmd": "node -e \"const fs=require('fs');const f='packages/devix/package.json';const p=JSON.parse(fs.readFileSync(f));p.version='${nextRelease.version}';fs.writeFileSync(f,JSON.stringify(p,null,2)+'\\n');\""
+      }
+    ],
+    [
+      "@semantic-release/exec",
+      {
+        "publishCmd": "cd packages/devix && pnpm publish --no-git-checks --provenance=false"
       }
     ],
     [

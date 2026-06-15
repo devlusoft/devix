@@ -1,5 +1,5 @@
 import { createAsync, useNavigate, useParams } from '@solidjs/router'
-import { For, Show, Suspense } from 'solid-js'
+import { Show, Suspense } from 'solid-js'
 import { createTask, getProject } from '../../../../data/store'
 
 export default function NewTaskPage() {
@@ -42,7 +42,9 @@ export default function NewTaskPage() {
               </div>
               <div class="flex gap-3">
                 <button type="submit">Create task</button>
-                <a href={`/projects/${p().id}`} class="button secondary">Cancel</a>
+                <a href={`/projects/${p().id}`} class="button secondary">
+                  Cancel
+                </a>
               </div>
             </form>
           )}

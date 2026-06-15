@@ -1,5 +1,5 @@
 import { A, createAsync, useParams } from '@solidjs/router'
-import { Show, Suspense, createResource } from 'solid-js'
+import { createResource, Show, Suspense } from 'solid-js'
 import { getProject, getTask } from '../../../data/store'
 
 export default function TaskDetailPage() {
@@ -13,7 +13,10 @@ export default function TaskDetailPage() {
           when={task()}
           fallback={
             <p>
-              Task not found. <A href="/tasks" class="text-blue-600 hover:underline">← back</A>
+              Task not found.{' '}
+              <A href="/tasks" class="text-blue-600 hover:underline">
+                ← back
+              </A>
             </p>
           }
         >
@@ -24,14 +27,18 @@ export default function TaskDetailPage() {
   )
 }
 
-function TaskCard(props: { task: NonNullable<ReturnType<typeof getTask> extends Promise<infer T> ? T : never> }) {
+function TaskCard(props: {
+  task: NonNullable<ReturnType<typeof getTask> extends Promise<infer T> ? T : never>
+}) {
   const [project] = createResource(() => getProject(props.task.projectId))
 
   return (
     <div class="bg-white rounded-lg shadow-sm p-6 max-w-2xl">
       <div class="flex justify-between items-start mb-4">
         <h1 class="text-2xl font-semibold">{props.task.title}</h1>
-        <A href={`/tasks/${props.task.id}/edit`} class="button secondary">Edit</A>
+        <A href={`/tasks/${props.task.id}/edit`} class="button secondary">
+          Edit
+        </A>
       </div>
       <p class="text-gray-600 mb-4">{props.task.description}</p>
       <dl class="grid grid-cols-2 gap-4 text-sm">
@@ -57,7 +64,9 @@ function TaskCard(props: { task: NonNullable<ReturnType<typeof getTask> extends 
         </div>
       </dl>
       <div class="mt-6">
-        <A href="/tasks" class="text-blue-600 hover:underline">← back to tasks</A>
+        <A href="/tasks" class="text-blue-600 hover:underline">
+          ← back to tasks
+        </A>
       </div>
     </div>
   )

@@ -58,14 +58,14 @@ export default function EditTaskPage() {
               <div class="form-group">
                 <label for="status">Status</label>
                 <select id="status" name="status" value={t().status}>
-                  <For each={statuses}>
-                    {(s) => <option value={s}>{s}</option>}
-                  </For>
+                  <For each={statuses}>{(s) => <option value={s}>{s}</option>}</For>
                 </select>
               </div>
               <div class="flex gap-3">
                 <button type="submit">Save changes</button>
-                <a href={`/tasks/${t().id}`} class="button secondary">Cancel</a>
+                <a href={`/tasks/${t().id}`} class="button secondary">
+                  Cancel
+                </a>
               </div>
             </form>
           )}

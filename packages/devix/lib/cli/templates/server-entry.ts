@@ -7,8 +7,8 @@ import { logRequest } from '@devlusoft/devix/cli/logger'
 import { handleServerFunction, type ServerFnResponse } from '@devlusoft/devix/data'
 import { collectManifestStyles } from '@devlusoft/devix/server/styles'
 import { serveStatic } from '@hono/node-server/serve-static'
-import type { JSX } from 'solid-js'
 import { Hono } from 'hono'
+import type { JSX } from 'solid-js'
 import Root from '/app/root.tsx'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))

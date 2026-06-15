@@ -14,7 +14,10 @@ export default function TasksPage() {
     <div>
       <h1 class="text-2xl font-semibold mb-4">Tasks</h1>
       <Suspense fallback={<p class="text-gray-500">Loading tasks…</p>}>
-        <Show when={(tasks() ?? []).length > 0} fallback={<p class="text-gray-500">No tasks yet.</p>}>
+        <Show
+          when={(tasks() ?? []).length > 0}
+          fallback={<p class="text-gray-500">No tasks yet.</p>}
+        >
           <div class="bg-white rounded-lg shadow-sm overflow-hidden">
             <table class="w-full text-left text-sm">
               <thead class="bg-gray-50 border-b">
@@ -31,7 +34,9 @@ export default function TasksPage() {
                   {(t) => (
                     <tr class="border-b last:border-b-0">
                       <td class="px-4 py-3">
-                        <A href={`/tasks/${t.id}`} class="text-blue-600 hover:underline">{t.title}</A>
+                        <A href={`/tasks/${t.id}`} class="text-blue-600 hover:underline">
+                          {t.title}
+                        </A>
                       </td>
                       <td class="px-4 py-3 text-gray-600">{projectName(t.projectId)}</td>
                       <td class="px-4 py-3 text-gray-600">{t.assignee}</td>
@@ -40,7 +45,9 @@ export default function TasksPage() {
                       </td>
                       <td class="px-4 py-3">
                         <div class="flex gap-2">
-                          <A href={`/tasks/${t.id}/edit`} class="button secondary">Edit</A>
+                          <A href={`/tasks/${t.id}/edit`} class="button secondary">
+                            Edit
+                          </A>
                           <DeleteButton id={t.id} />
                         </div>
                       </td>

@@ -20,12 +20,25 @@ export default function DashboardPage() {
         </div>
 
         <h2 class="text-lg font-medium mb-3">Recent projects</h2>
-        <Show when={(projects() ?? []).length > 0} fallback={<p>No projects yet. <A href="/projects/new" class="text-blue-600 hover:underline">Create one</A>.</p>}>
+        <Show
+          when={(projects() ?? []).length > 0}
+          fallback={
+            <p>
+              No projects yet.{' '}
+              <A href="/projects/new" class="text-blue-600 hover:underline">
+                Create one
+              </A>
+              .
+            </p>
+          }
+        >
           <ul class="flex flex-col gap-2">
-            <For each={projects()!.slice(0, 5)}>
+            <For each={projects()?.slice(0, 5)}>
               {(p) => (
                 <li class="bg-white rounded-lg shadow-sm p-4">
-                  <A href={`/projects/${p.id}`} class="font-medium text-blue-600 hover:underline">{p.name}</A>
+                  <A href={`/projects/${p.id}`} class="font-medium text-blue-600 hover:underline">
+                    {p.name}
+                  </A>
                   <p class="text-sm text-gray-500 mt-1">{p.description}</p>
                 </li>
               )}

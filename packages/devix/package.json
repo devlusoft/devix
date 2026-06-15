@@ -1,6 +1,6 @@
 {
   "name": "@devlusoft/devix",
-  "version": "0.8.0-alpha.3",
+  "version": "0.8.0-alpha.1",
   "type": "module",
   "bin": {
     "devix": "./bin/devix.mjs"

@@ -6,7 +6,7 @@ import * as t from '@babel/types'
 import type { Plugin } from 'vite'
 
 const PRE_CHECK = /\b(?:query|action)\s*\(/
-const INTERNAL_MODULE = '@devlusoft/devix/data'
+const INTERNAL_MODULE = '@devlusoft/devix/data/internal'
 
 function generateActionId(filePath: string, exportName: string): string {
   return createHash('sha256').update(`${filePath}:${exportName}`).digest('hex').slice(0, 16)

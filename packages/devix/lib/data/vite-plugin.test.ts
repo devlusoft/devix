@@ -100,6 +100,23 @@ describe('dataTransform — client (strips implementations)', () => {
     expect(result).toBeNull()
   })
 
+  it('generates the same action id in ssr and client', () => {
+    const ssrTransform = getTransformHook('ssr')
+    const clientTransform = getTransformHook('client')
+    const src = `export const renameUser = action((id, fd) => db.update(id, fd))\n`
+    const id = '/Users/dev/project/app/data/users.ts'
+
+    const ssrResult = ssrTransform(src, id) as { code: string }
+    const clientResult = clientTransform(src, id) as { code: string }
+
+    const ssrId = ssrResult.code.match(/devixAction\("([^"]+)"/)?.[1]
+    const clientId = clientResult.code.match(/devixActionClient\("([^"]+)"/)?.[1]
+
+    expect(ssrId).toBeDefined()
+    expect(clientId).toBeDefined()
+    expect(ssrId).toBe(clientId)
+  })
+
   it('does not crash on unparseable input', () => {
     const transform = getTransformHook('client')
     const src = `export const fn = query((id) => {, 'broken'\n`

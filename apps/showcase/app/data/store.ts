@@ -1,5 +1,4 @@
-import { devixAction } from '@devlusoft/devix/data'
-import { query } from '@devlusoft/devix/data'
+import { action, query } from '@devlusoft/devix/data'
 
 export type Project = {
   id: string
@@ -79,20 +78,20 @@ export const getTasks = query((projectId?: string) => {
 
 export const getTask = query((id: string) => tasks.find((t) => t.id === id), 'get-task')
 
-export const createProject = devixAction('action:create-project', async (input: Omit<Project, 'id'>) => {
+export const createProject = action(async (input: Omit<Project, 'id'>) => {
   const project: Project = { id: String(nextProjectId++), ...input }
   projects.push(project)
   return project
 })
 
-export const updateProject = devixAction('action:update-project', async (id: string, input: Partial<Omit<Project, 'id'>>) => {
+export const updateProject = action(async (id: string, input: Partial<Omit<Project, 'id'>>) => {
   const project = projects.find((p) => p.id === id)
   if (!project) throw new Error(`Project ${id} not found`)
   Object.assign(project, input)
   return project
 })
 
-export const deleteProject = devixAction('action:delete-project', async (id: string) => {
+export const deleteProject = action(async (id: string) => {
   const index = projects.findIndex((p) => p.id === id)
   if (index === -1) throw new Error(`Project ${id} not found`)
   projects.splice(index, 1)
@@ -102,20 +101,20 @@ export const deleteProject = devixAction('action:delete-project', async (id: str
   return { success: true }
 })
 
-export const createTask = devixAction('action:create-task', async (input: Omit<Task, 'id'>) => {
+export const createTask = action(async (input: Omit<Task, 'id'>) => {
   const task: Task = { id: String(nextTaskId++), ...input }
   tasks.push(task)
   return task
 })
 
-export const updateTask = devixAction('action:update-task', async (id: string, input: Partial<Omit<Task, 'id'>>) => {
+export const updateTask = action(async (id: string, input: Partial<Omit<Task, 'id'>>) => {
   const task = tasks.find((t) => t.id === id)
   if (!task) throw new Error(`Task ${id} not found`)
   Object.assign(task, input)
   return task
 })
 
-export const deleteTask = devixAction('action:delete-task', async (id: string) => {
+export const deleteTask = action(async (id: string) => {
   const index = tasks.findIndex((t) => t.id === id)
   if (index === -1) throw new Error(`Task ${id} not found`)
   tasks.splice(index, 1)

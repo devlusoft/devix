@@ -12,6 +12,7 @@
     "./router": "./lib/router/index.ts",
     "./router/view-transitions/click-interceptor": "./lib/router/view-transitions/click-interceptor.tsx",
     "./data": "./lib/data/index.ts",
+    "./data/internal": "./lib/data/internal.ts",
     "./server/styles": "./lib/server/styles.ts",
     "./cli/logger": "./lib/cli/logger.ts"
   },
@@ -40,6 +41,10 @@
       "./data": {
         "types": "./dist/data/index.d.ts",
         "default": "./dist/data/index.js"
+      },
+      "./data/internal": {
+        "types": "./dist/data/internal.d.ts",
+        "default": "./dist/data/internal.js"
       },
       "./server/styles": {
         "types": "./dist/server/styles.d.ts",

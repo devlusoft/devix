@@ -190,6 +190,67 @@ describe('buildManifest — groups', () => {
   })
 })
 
+describe('buildManifest — dynamic directories', () => {
+  it('should map projects/[id]/edit.tsx to /projects/:id/edit', () => {
+    expect(buildManifest({ files: ['projects/[id]/edit.tsx'] }).routes).toEqual([
+      {
+        path: '/projects/:id/edit',
+        file: 'projects/[id]/edit.tsx',
+        isIndex: false,
+        isLayout: false,
+        params: ['id'],
+        children: [],
+      },
+    ])
+  })
+
+  it('should treat [id]/layout.tsx as a dynamic layout', () => {
+    const { routes } = buildManifest({
+      files: ['projects/[id]/layout.tsx', 'projects/[id]/index.tsx', 'projects/[id]/edit.tsx'],
+    })
+    expect(routes).toEqual([
+      {
+        path: '/projects/:id',
+        file: 'projects/[id]/layout.tsx',
+        isIndex: false,
+        isLayout: true,
+        params: ['id'],
+        children: [
+          {
+            path: '/',
+            file: 'projects/[id]/index.tsx',
+            isIndex: true,
+            isLayout: false,
+            params: ['id'],
+            children: [],
+          },
+          {
+            path: '/edit',
+            file: 'projects/[id]/edit.tsx',
+            isIndex: false,
+            isLayout: false,
+            params: ['id'],
+            children: [],
+          },
+        ],
+      },
+    ])
+  })
+
+  it('should map [id]/index.tsx to /:id when no sibling [id].tsx exists', () => {
+    expect(buildManifest({ files: ['[id]/index.tsx'] }).routes).toEqual([
+      {
+        path: '/:id',
+        file: '[id]/index.tsx',
+        isIndex: true,
+        isLayout: false,
+        params: ['id'],
+        children: [],
+      },
+    ])
+  })
+})
+
 describe('buildManifest — catch-all', () => {
   it('should map files/[...rest].tsx to /files/* with rest param', () => {
     expect(buildManifest({ files: ['files/[...rest].tsx'] }).routes).toEqual([

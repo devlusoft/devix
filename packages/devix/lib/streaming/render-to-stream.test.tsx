@@ -45,11 +45,13 @@ describe('renderToStream', () => {
   it('onShellReady fires before all resources resolve (streaming TTFB)', async () => {
     const order: string[] = []
     const { writes, writable } = mockWritable()
+    let resolveData: ((value: string) => void) | undefined
+    const dataPromise = new Promise<string>((r) => {
+      resolveData = r
+    })
     const stream = renderToStream(
       () => {
-        const [data] = createResource(
-          () => new Promise<string>((r) => setTimeout(() => r('payload'), 50)),
-        )
+        const [data] = createResource(() => dataPromise)
         return (
           <div>
             <p>Static shell</p>
@@ -68,8 +70,10 @@ describe('renderToStream', () => {
     expect(order).toEqual(['shell'])
     expect(writes.join('')).toContain('Static shell')
     expect(writes.join('')).toContain('loading')
+    expect(resolveData).toBeDefined()
 
-    await new Promise((r) => setTimeout(r, 100))
+    resolveData!('payload')
+    await flush()
     expect(order).toEqual(['shell', 'all'])
     expect(writes.join('')).toContain('payload')
   })

@@ -14,7 +14,8 @@
       "@semantic-release/npm",
       {
         "pkgRoot": "packages/devix",
-        "provenance": true
+        "provenance": true,
+        "npm": "pnpm"
       }
     ],
     [

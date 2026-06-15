@@ -1,4 +1,4 @@
-import type { Component } from 'solid-js'
+import type { Component, JSX } from 'solid-js'
 import { createRequestEvent, runWithRequestEvent } from '../data/request-context'
 import { compose, type DevixRootProps } from '../hydration/compose'
 import { renderToStream, type StreamRender } from '../streaming/render-to-stream'
@@ -11,11 +11,16 @@ export type RenderHandle = {
   onAllReady: (cb: () => void) => void
 }
 
+export type RenderOptions = {
+  clientEntry?: string
+  styles?: JSX.Element[]
+}
+
 export function createRenderFn(
   Root: Component<DevixRootProps>,
   Routes: Component<{ url?: string }>,
   url: string,
-  clientEntry?: string,
+  options: string | RenderOptions = {},
 ): RenderHandle {
   const event = createRequestEvent(url)
   let status = 200
@@ -25,8 +30,10 @@ export function createRenderFn(
   const shellPending: Array<() => void> = []
   const allPending: Array<() => void> = []
 
+  const opts = typeof options === 'string' ? { clientEntry: options } : options
+
   runWithRequestEvent(event, () => {
-    stream = renderToStream(() => compose(Root, Routes, url, clientEntry), {
+    stream = renderToStream(() => compose(Root, Routes, url, opts), {
       onShellReady() {
         event.response.headers.set('Content-Type', 'text/html; charset=utf-8')
         shellFired = true

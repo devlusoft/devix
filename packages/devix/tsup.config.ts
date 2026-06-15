@@ -57,6 +57,7 @@ export default defineConfig({
     'lib/cli/dev.ts',
     'lib/cli/start.ts',
     'lib/cli/build.ts',
+    'lib/server/styles.ts',
   ],
   outDir: 'dist',
   format: ['esm'],

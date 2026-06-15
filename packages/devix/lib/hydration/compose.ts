@@ -10,15 +10,24 @@ export type DevixRootProps = {
 
 const DEFAULT_CLIENT_ENTRY = '/@id/virtual:devix-hydration'
 
+type ComposeOptions = {
+  clientEntry?: string
+  styles?: JSX.Element[]
+}
+
 export function compose(
   Root: Component<DevixRootProps>,
   Routes: Component<{ url?: string }>,
   url: string,
-  clientEntry: string = DEFAULT_CLIENT_ENTRY,
+  options: string | ComposeOptions = {},
 ) {
+  const opts = typeof options === 'string' ? { clientEntry: options } : options
+  const clientEntry = opts.clientEntry ?? DEFAULT_CLIENT_ENTRY
+  const styles = opts.styles
+
   return createComponent(Root, {
     get assets() {
-      return createComponent(HydrationScript, {})
+      return [styles, createComponent(HydrationScript, {})]
     },
     get scripts() {
       return createComponent(Dynamic, {

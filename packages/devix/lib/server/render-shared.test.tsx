@@ -48,4 +48,15 @@ describe('createRenderFn', () => {
     const handle = createRenderFn(Root, Routes, '/')
     expect(handle.getStatus()).toBe(200)
   })
+
+  it('renders provided styles before the hydration script', async () => {
+    const styleLink = <link rel="stylesheet" href="/app.css" />
+    const handle = createRenderFn(Root, Routes, '/', { styles: [styleLink] })
+    const html = await collect(handle)
+
+    expect(html).toMatch(/<link[^>]*rel="stylesheet"[^>]*href="\/app\.css"[^>]*>/)
+    const linkIndex = html.search(/<link[^>]*rel="stylesheet"[^>]*href="\/app\.css"[^>]*>/)
+    const scriptIndex = html.indexOf('<script data-hk="030"')
+    expect(linkIndex).toBeLessThan(scriptIndex)
+  })
 })

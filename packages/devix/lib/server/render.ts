@@ -1,8 +1,9 @@
 import type { ServerResponse } from 'node:http'
-import type { Component } from 'solid-js'
+import type { Component, JSX } from 'solid-js'
 import type { ViteDevServer } from 'vite'
 import type { DevixRootProps } from '../hydration/compose'
 import { createRenderFn } from './render-shared'
+import { collectDevStyles } from './styles'
 
 export async function renderSSR(opts: {
   server?: ViteDevServer
@@ -26,7 +27,14 @@ export async function renderSSR(opts: {
     throw new Error('devix: renderSSR requires either server or Root+Routes')
   }
 
-  const { stream, getHeaders, onShellReady } = createRenderFn(Root, Routes, opts.url)
+  let styles: JSX.Element[] | undefined
+  if (opts.server?.moduleGraph) {
+    styles = collectDevStyles(opts.server)
+  }
+
+  const { stream, getHeaders, onShellReady } = createRenderFn(Root, Routes, opts.url, {
+    styles,
+  })
 
   return new Promise((resolve) => {
     onShellReady(() => {

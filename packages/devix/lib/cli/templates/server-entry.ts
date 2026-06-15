@@ -5,24 +5,43 @@ import Routes from 'virtual:devix-routes-ssr'
 import { createRenderFn } from '@devlusoft/devix'
 import { logRequest } from '@devlusoft/devix/cli/logger'
 import { handleServerFunction, type ServerFnResponse } from '@devlusoft/devix/data'
+import { collectManifestStyles } from '@devlusoft/devix/server/styles'
 import { serveStatic } from '@hono/node-server/serve-static'
+import type { JSX } from 'solid-js'
 import { Hono } from 'hono'
 import Root from '/app/root.tsx'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-function getClientEntry(): string {
+type ManifestChunk = {
+  file: string
+  isEntry?: boolean
+  css?: string[]
+  imports?: string[]
+  dynamicImports?: string[]
+}
+
+function readClientManifest(): Record<string, ManifestChunk> | undefined {
   const manifestPath = join(__dirname, '../client/.vite/manifest.json')
   try {
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<
-      string,
-      { file: string; isEntry?: boolean }
-    >
-    for (const chunk of Object.values(manifest)) {
-      if (chunk.isEntry) return `/${chunk.file}`
-    }
+    return JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, ManifestChunk>
   } catch {}
+  return undefined
+}
+
+function getClientEntry(): string {
+  const manifest = readClientManifest()
+  if (!manifest) return '/assets/entry-client.js'
+  for (const chunk of Object.values(manifest)) {
+    if (chunk.isEntry) return `/${chunk.file}`
+  }
   return '/assets/entry-client.js'
+}
+
+function getClientStyles(): JSX.Element[] {
+  const manifest = readClientManifest()
+  if (!manifest) return []
+  return collectManifestStyles(manifest)
 }
 
 async function handleRequest(req: Request): Promise<Response> {
@@ -31,7 +50,7 @@ async function handleRequest(req: Request): Promise<Response> {
     Root,
     Routes,
     url.pathname,
-    getClientEntry(),
+    { clientEntry: getClientEntry(), styles: getClientStyles() },
   )
 
   const { readable, writable } = new TransformStream()

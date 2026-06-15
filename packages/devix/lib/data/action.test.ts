@@ -49,3 +49,17 @@ describe('action fallback', () => {
     expect(getServerFn('action:myAction').fn).toBe(myAction)
   })
 })
+
+describe('action production guard', () => {
+  it('throws when called in production without compiler transform', () => {
+    const before = process.env.NODE_ENV
+    process.env.NODE_ENV = 'production'
+    try {
+      expect(() => action(() => 'ok')).toThrow(
+        /action\(\) must be assigned directly to a named or default export/,
+      )
+    } finally {
+      process.env.NODE_ENV = before
+    }
+  })
+})

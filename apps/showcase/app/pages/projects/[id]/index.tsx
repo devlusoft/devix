@@ -14,7 +14,10 @@ export default function ProjectDetailPage() {
           when={project()}
           fallback={
             <p>
-              Project not found. <A href="/projects" class="text-blue-600 hover:underline">← back</A>
+              Project not found.{' '}
+              <A href="/projects" class="text-blue-600 hover:underline">
+                ← back
+              </A>
             </p>
           }
         >
@@ -26,19 +29,39 @@ export default function ProjectDetailPage() {
                   <p class="text-gray-500 mt-1">{p().description}</p>
                 </div>
                 <div class="flex gap-2">
-                  <A href={`/projects/${p().id}/edit`} class="button secondary">Edit</A>
-                  <A href={`/projects/${p().id}/tasks/new`} class="button">New task</A>
+                  <A href={`/projects/${p().id}/edit`} class="button secondary">
+                    Edit
+                  </A>
+                  <A href={`/projects/${p().id}/tasks/new`} class="button">
+                    New task
+                  </A>
                 </div>
               </div>
 
               <h2 class="text-lg font-medium mb-3">Tasks</h2>
               <Suspense fallback={<p class="text-gray-500">Loading tasks…</p>}>
-                <Show when={(tasks() ?? []).length > 0} fallback={<p class="text-gray-500">No tasks yet. <A href={`/projects/${p().id}/tasks/new`} class="text-blue-600 hover:underline">Create one</A>.</p>}>
+                <Show
+                  when={(tasks() ?? []).length > 0}
+                  fallback={
+                    <p class="text-gray-500">
+                      No tasks yet.{' '}
+                      <A
+                        href={`/projects/${p().id}/tasks/new`}
+                        class="text-blue-600 hover:underline"
+                      >
+                        Create one
+                      </A>
+                      .
+                    </p>
+                  }
+                >
                   <ul class="flex flex-col gap-2">
                     <For each={tasks()}>
                       {(t) => (
                         <li class="bg-white rounded-lg shadow-sm p-3 flex justify-between items-center">
-                          <A href={`/tasks/${t.id}`} class="text-blue-600 hover:underline">{t.title}</A>
+                          <A href={`/tasks/${t.id}`} class="text-blue-600 hover:underline">
+                            {t.title}
+                          </A>
                           <StatusBadge status={t.status} />
                         </li>
                       )}

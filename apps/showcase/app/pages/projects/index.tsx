@@ -9,21 +9,33 @@ export default function ProjectsPage() {
     <div>
       <div class="flex justify-between items-center mb-4">
         <h1 class="text-2xl font-semibold">Projects</h1>
-        <A href="/projects/new" class="button">New project</A>
+        <A href="/projects/new" class="button">
+          New project
+        </A>
       </div>
       <Suspense fallback={<p class="text-gray-500">Loading projects…</p>}>
-        <Show when={(projects() ?? []).length > 0} fallback={<p class="text-gray-500">No projects yet.</p>}>
+        <Show
+          when={(projects() ?? []).length > 0}
+          fallback={<p class="text-gray-500">No projects yet.</p>}
+        >
           <ul class="flex flex-col gap-3">
             <For each={projects()}>
               {(p) => (
                 <li class="bg-white rounded-lg shadow-sm p-4">
                   <div class="flex justify-between items-start">
                     <div>
-                      <A href={`/projects/${p.id}`} class="text-lg font-semibold text-blue-600 hover:underline">{p.name}</A>
+                      <A
+                        href={`/projects/${p.id}`}
+                        class="text-lg font-semibold text-blue-600 hover:underline"
+                      >
+                        {p.name}
+                      </A>
                       <p class="text-gray-500 mt-1">{p.description}</p>
                     </div>
                     <div class="flex gap-2">
-                      <A href={`/projects/${p.id}/edit`} class="button secondary">Edit</A>
+                      <A href={`/projects/${p.id}/edit`} class="button secondary">
+                        Edit
+                      </A>
                       <DeleteButton id={p.id} />
                     </div>
                   </div>

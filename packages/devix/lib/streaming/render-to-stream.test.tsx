@@ -72,7 +72,7 @@ describe('renderToStream', () => {
     expect(writes.join('')).toContain('loading')
     expect(resolveData).toBeDefined()
 
-    resolveData!('payload')
+    resolveData?.('payload')
     await flush()
     expect(order).toEqual(['shell', 'all'])
     expect(writes.join('')).toContain('payload')

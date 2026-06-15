@@ -29,7 +29,9 @@ export default function NewProjectPage() {
         </div>
         <div class="flex gap-3">
           <button type="submit">Create project</button>
-          <a href="/projects" class="button secondary">Cancel</a>
+          <a href="/projects" class="button secondary">
+            Cancel
+          </a>
         </div>
       </form>
     </div>

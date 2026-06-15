@@ -17,6 +17,8 @@
     "./cli/logger": "./lib/cli/logger.ts"
   },
   "publishConfig": {
+    "access": "public",
+    "provenance": true,
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",

@@ -22,10 +22,7 @@ export default function EditProjectPage() {
     <div>
       <h1 class="text-2xl font-semibold mb-4">Edit project</h1>
       <Suspense fallback={<p class="text-gray-500">Loading…</p>}>
-        <Show
-          when={project()}
-          fallback={<p>Project not found.</p>}
-        >
+        <Show when={project()} fallback={<p>Project not found.</p>}>
           {(p) => (
             <form onSubmit={handleSubmit} class="bg-white rounded-lg shadow-sm p-6 max-w-lg">
               <div class="form-group">
@@ -40,7 +37,9 @@ export default function EditProjectPage() {
               </div>
               <div class="flex gap-3">
                 <button type="submit">Save changes</button>
-                <a href={`/projects/${p().id}`} class="button secondary">Cancel</a>
+                <a href={`/projects/${p().id}`} class="button secondary">
+                  Cancel
+                </a>
               </div>
             </form>
           )}

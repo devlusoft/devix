@@ -28,7 +28,7 @@ export function collectManifestStyles(
   const queue = [entryKey]
 
   while (queue.length > 0) {
-    const key = queue.shift()!
+    const key = queue.shift() as string
     if (visitedChunks.has(key)) continue
     visitedChunks.add(key)
 
@@ -54,7 +54,7 @@ export function collectDevStyles(server: ViteDevServer): JSX.Element[] {
 
   for (const mod of server.moduleGraph.idToModuleMap.values()) {
     const id = mod.id ?? mod.url
-    if (!id || !id.endsWith('.css')) continue
+    if (!id?.endsWith('.css')) continue
     if (seen.has(id)) continue
     seen.add(id)
     const href = `${mod.url || id}?direct`

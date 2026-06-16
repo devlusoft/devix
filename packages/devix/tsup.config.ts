@@ -50,6 +50,7 @@ export default defineConfig({
     'lib/index.ts',
     'lib/config/define-config.ts',
     'lib/router/index.ts',
+    'lib/router/middleware.ts',
     'lib/router/view-transitions/click-interceptor.tsx',
     'lib/data/index.ts',
     'lib/data/internal.ts',

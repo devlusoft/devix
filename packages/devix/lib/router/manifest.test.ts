@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { buildManifest, ManifestError } from './manifest'
+import { buildManifest, findRouteForUrl, ManifestError } from './manifest'
 
 describe('buildManifest — root', () => {
   it('should map index.tsx to /', () => {
     const { routes } = buildManifest({ files: ['index.tsx'] })
     expect(routes).toEqual([
-      { path: '/', file: 'index.tsx', isIndex: true, isLayout: false, params: [], children: [] },
+      {
+        path: '/',
+        file: 'index.tsx',
+        isIndex: true,
+        isLayout: false,
+        middlewares: [],
+        params: [],
+        children: [],
+      },
     ])
   })
 
@@ -16,6 +24,7 @@ describe('buildManifest — root', () => {
         file: 'about.tsx',
         isIndex: false,
         isLayout: false,
+        middlewares: [],
         params: [],
         children: [],
       },
@@ -31,6 +40,7 @@ describe('buildManifest — nested', () => {
         file: 'blog/index.tsx',
         isIndex: true,
         isLayout: false,
+        middlewares: [],
         params: [],
         children: [],
       },
@@ -44,6 +54,7 @@ describe('buildManifest — nested', () => {
         file: 'blog/[slug].tsx',
         isIndex: false,
         isLayout: false,
+        middlewares: [],
         params: ['slug'],
         children: [],
       },
@@ -68,6 +79,7 @@ describe('buildManifest — layouts', () => {
         file: 'blog/layout.tsx',
         isIndex: false,
         isLayout: true,
+        middlewares: [],
         params: [],
         children: [
           {
@@ -75,6 +87,7 @@ describe('buildManifest — layouts', () => {
             file: 'blog/index.tsx',
             isIndex: true,
             isLayout: false,
+            middlewares: [],
             params: [],
             children: [],
           },
@@ -93,6 +106,7 @@ describe('buildManifest — layouts', () => {
         file: 'blog/[slug].tsx',
         isIndex: false,
         isLayout: false,
+        middlewares: [],
         params: ['slug'],
         children: [],
       },
@@ -183,6 +197,7 @@ describe('buildManifest — groups', () => {
         file: '(marketing)/pricing.tsx',
         isIndex: false,
         isLayout: false,
+        middlewares: [],
         params: [],
         children: [],
       },
@@ -198,6 +213,7 @@ describe('buildManifest — dynamic directories', () => {
         file: 'projects/[id]/edit.tsx',
         isIndex: false,
         isLayout: false,
+        middlewares: [],
         params: ['id'],
         children: [],
       },
@@ -214,6 +230,7 @@ describe('buildManifest — dynamic directories', () => {
         file: 'projects/[id]/layout.tsx',
         isIndex: false,
         isLayout: true,
+        middlewares: [],
         params: ['id'],
         children: [
           {
@@ -221,6 +238,7 @@ describe('buildManifest — dynamic directories', () => {
             file: 'projects/[id]/index.tsx',
             isIndex: true,
             isLayout: false,
+            middlewares: [],
             params: ['id'],
             children: [],
           },
@@ -229,6 +247,7 @@ describe('buildManifest — dynamic directories', () => {
             file: 'projects/[id]/edit.tsx',
             isIndex: false,
             isLayout: false,
+            middlewares: [],
             params: ['id'],
             children: [],
           },
@@ -244,6 +263,7 @@ describe('buildManifest — dynamic directories', () => {
         file: '[id]/index.tsx',
         isIndex: true,
         isLayout: false,
+        middlewares: [],
         params: ['id'],
         children: [],
       },
@@ -259,10 +279,60 @@ describe('buildManifest — catch-all', () => {
         file: 'files/[...rest].tsx',
         isIndex: false,
         isLayout: false,
+        middlewares: [],
         params: ['rest'],
         children: [],
       },
     ])
+  })
+})
+
+describe('buildManifest — middleware', () => {
+  it('should attach root middleware to all routes', () => {
+    const { routes } = buildManifest({ files: ['middleware.ts', 'index.tsx', 'about.tsx'] })
+    expect(routes[0].middlewares).toEqual(['middleware.ts'])
+    expect(routes[1].middlewares).toEqual(['middleware.ts'])
+  })
+
+  it('should collect nested middlewares from outer to inner', () => {
+    const { routes } = buildManifest({
+      files: ['middleware.ts', 'admin/middleware.ts', 'admin/index.tsx'],
+    })
+    const admin = routes[0]
+    expect(admin.middlewares).toEqual(['middleware.ts', 'admin/middleware.ts'])
+  })
+
+  it('should ignore middleware.tsx as a route', () => {
+    const { routes } = buildManifest({ files: ['middleware.tsx', 'index.tsx'] })
+    expect(routes).toHaveLength(1)
+    expect(routes[0].middlewares).toEqual(['middleware.tsx'])
+  })
+})
+
+describe('findRouteForUrl', () => {
+  it('matches root index', () => {
+    const { routes } = buildManifest({ files: ['index.tsx'] })
+    const match = findRouteForUrl(routes, '/')
+    expect(match).not.toBeNull()
+    expect(match?.leaf.file).toBe('index.tsx')
+  })
+
+  it('matches static route', () => {
+    const { routes } = buildManifest({ files: ['about.tsx'] })
+    const match = findRouteForUrl(routes, '/about')
+    expect(match?.leaf.file).toBe('about.tsx')
+  })
+
+  it('matches dynamic route and extracts params', () => {
+    const { routes } = buildManifest({ files: ['blog/[slug].tsx'] })
+    const match = findRouteForUrl(routes, '/blog/hello')
+    expect(match?.leaf.file).toBe('blog/[slug].tsx')
+    expect(match?.params).toEqual({ slug: 'hello' })
+  })
+
+  it('returns null for unknown route', () => {
+    const { routes } = buildManifest({ files: ['index.tsx'] })
+    expect(findRouteForUrl(routes, '/unknown')).toBeNull()
   })
 })
 

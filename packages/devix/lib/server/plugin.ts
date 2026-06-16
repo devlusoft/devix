@@ -5,6 +5,8 @@ import { glob } from 'tinyglobby'
 import type { Plugin, ViteDevServer } from 'vite'
 import { logRequest } from '../cli/logger'
 import { handleServerFunction, type ServerFnResponse } from '../data'
+import { buildManifest } from '../router/manifest'
+import { runRouteMiddlewares } from '../router/middleware'
 import { renderSSR } from './render'
 
 const SERVER_FN_PATTERN = /\b(query|action)\s*\(/
@@ -79,6 +81,22 @@ export function devixServer(): Plugin {
         }
 
         try {
+          const redirect = await runDevMiddlewares(server, req, pathOnly)
+          if (redirect) {
+            if (redirect instanceof Response) {
+              res.statusCode = redirect.status
+              redirect.headers.forEach((value, key) => {
+                res.setHeader(key, value)
+              })
+              res.end(await redirect.text())
+              return
+            }
+            res.statusCode = 302
+            res.setHeader('Location', redirect)
+            res.end()
+            return
+          }
+
           await renderSSR({ server, url, res })
         } catch (err) {
           server.ssrFixStacktrace(err as Error)
@@ -87,6 +105,33 @@ export function devixServer(): Plugin {
       })
     },
   }
+}
+
+async function runDevMiddlewares(
+  server: ViteDevServer,
+  req: IncomingMessage,
+  url: string,
+): Promise<Response | string | null> {
+  const pagesDir = resolve(server.config.root, 'app/pages')
+  const files = await glob('**/*.{ts,tsx}', { cwd: pagesDir })
+  const { routes } = buildManifest({ files: files.map((f) => f.replaceAll('\\', '/')) })
+
+  const headers = new Headers()
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (value === undefined) continue
+    headers.set(key, Array.isArray(value) ? value.join(', ') : String(value))
+  }
+  const request = new Request(`http://localhost${req.url ?? url}`, {
+    method: req.method ?? 'GET',
+    headers,
+  })
+
+  return runRouteMiddlewares({
+    url,
+    manifest: { routes },
+    request,
+    loadMiddleware: async (file) => server.ssrLoadModule(`/app/pages/${file}`),
+  })
 }
 
 async function dispatchServerFn(req: IncomingMessage, res: ServerResponse): Promise<void> {

@@ -50,6 +50,7 @@ export default defineConfig({
     'lib/index.ts',
     'lib/config/define-config.ts',
     'lib/cookie.ts',
+    'lib/head/index.ts',
     'lib/router/index.ts',
     'lib/router/middleware.ts',
     'lib/router/view-transitions/click-interceptor.tsx',
@@ -73,6 +74,7 @@ export default defineConfig({
   external: [
     /^solid-js(\/.*)?$/,
     /^@solidjs\/router(\/.*)?$/,
+    /^@solidjs\/meta(\/.*)?$/,
     'vite',
     '@babel/generator',
     '@babel/parser',

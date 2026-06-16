@@ -10,6 +10,7 @@
     "./config": "./lib/config/define-config.ts",
     "./cookie": "./lib/cookie.ts",
     "./env": "./lib/ambient.d.ts",
+    "./head": "./lib/head/index.ts",
     "./router": "./lib/router/index.ts",
     "./router/middleware": "./lib/router/middleware.ts",
     "./router/view-transitions/click-interceptor": "./lib/router/view-transitions/click-interceptor.tsx",
@@ -36,6 +37,10 @@
       "./env": {
         "types": "./dist/ambient.d.ts",
         "default": "./dist/ambient.d.ts"
+      },
+      "./head": {
+        "types": "./dist/head/index.d.ts",
+        "default": "./dist/head/index.js"
       },
       "./router": {
         "types": "./dist/router/index.d.ts",
@@ -89,6 +94,7 @@
     "@babel/types": "7.27.1",
     "@hono/node-server": "2.0.4",
     "@nijil71/lumi-cli": "1.0.11",
+    "@solidjs/meta": "0.29.4",
     "@solidjs/router": "0.16.1",
     "hono": "4.12.25",
     "jiti": "2.7.0",

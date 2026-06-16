@@ -1,3 +1,4 @@
+import { Title } from '@devlusoft/devix/head'
 import { A, createAsync } from '@solidjs/router'
 import { For, Show, Suspense } from 'solid-js'
 import { getProjects, getTasks } from '../data/store'
@@ -11,6 +12,7 @@ export default function DashboardPage() {
 
   return (
     <div>
+      <Title>Dashboard - Devix Showcase</Title>
       <h1 class="text-2xl font-semibold mb-4">Dashboard</h1>
       <Suspense fallback={<p class="text-gray-500">Loading…</p>}>
         <div class="grid grid-cols-3 gap-4 mb-6">

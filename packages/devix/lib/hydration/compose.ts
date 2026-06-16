@@ -1,3 +1,4 @@
+import { MetaProvider } from '@solidjs/meta'
 import type { Component, JSX } from 'solid-js'
 import { createComponent } from 'solid-js'
 import { Dynamic, HydrationScript } from 'solid-js/web'
@@ -25,19 +26,23 @@ export function compose(
   const clientEntry = opts.clientEntry ?? DEFAULT_CLIENT_ENTRY
   const styles = opts.styles
 
-  return createComponent(Root, {
-    get assets() {
-      return [styles, createComponent(HydrationScript, {})]
-    },
-    get scripts() {
-      return createComponent(Dynamic, {
-        component: 'script',
-        type: 'module',
-        src: clientEntry,
-      })
-    },
+  return createComponent(MetaProvider, {
     get children() {
-      return createComponent(Routes, { url })
+      return createComponent(Root, {
+        get assets() {
+          return [styles, createComponent(HydrationScript, {})]
+        },
+        get scripts() {
+          return createComponent(Dynamic, {
+            component: 'script',
+            type: 'module',
+            src: clientEntry,
+          })
+        },
+        get children() {
+          return createComponent(Routes, { url })
+        },
+      })
     },
   })
 }

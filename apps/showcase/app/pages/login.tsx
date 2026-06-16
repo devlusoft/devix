@@ -1,4 +1,5 @@
 import { setCookie } from '@devlusoft/devix/cookie'
+import { Title } from '@devlusoft/devix/head'
 import { useNavigate } from '@solidjs/router'
 import { SESSION_COOKIE } from '../../lib/auth'
 
@@ -15,6 +16,7 @@ export default function LoginPage() {
 
   return (
     <div class="max-w-sm mx-auto mt-20">
+      <Title>Login - Devix Showcase</Title>
       <h1 class="text-2xl font-semibold mb-4">Login</h1>
       <p class="text-gray-700 mb-6">Click the button below to simulate authentication.</p>
       <button

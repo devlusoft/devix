@@ -6,7 +6,6 @@ export default function Root(props: DevixRootProps) {
     <html lang="en">
       <head>
         {props.assets}
-        <title>Devix Task Manager</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body class="bg-gray-50 text-gray-900 antialiased">

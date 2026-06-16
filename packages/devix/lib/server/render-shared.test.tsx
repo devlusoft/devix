@@ -1,3 +1,4 @@
+import { Title } from '@solidjs/meta'
 import type { Component } from 'solid-js'
 import { describe, expect, it } from 'vitest'
 import type { DevixRootProps } from '../hydration/compose'
@@ -49,6 +50,19 @@ describe('createRenderFn', () => {
     expect(handle.getStatus()).toBe(200)
   })
 
+  it('renders Title component via @solidjs/meta injection', async () => {
+    const RoutesWithTitle: Component<{ url?: string }> = () => (
+      <>
+        <Title>Page Title</Title>
+        <h1>content</h1>
+      </>
+    )
+    const handle = createRenderFn(Root, RoutesWithTitle, '/')
+    const html = await collect(handle)
+    expect(html).toContain('<title')
+    expect(html).toContain('Page Title')
+  })
+
   it('renders provided styles before the hydration script', async () => {
     const styleLink = <link rel="stylesheet" href="/app.css" />
     const handle = createRenderFn(Root, Routes, '/', { styles: [styleLink] })
@@ -56,7 +70,7 @@ describe('createRenderFn', () => {
 
     expect(html).toMatch(/<link[^>]*rel="stylesheet"[^>]*href="\/app\.css"[^>]*>/)
     const linkIndex = html.search(/<link[^>]*rel="stylesheet"[^>]*href="\/app\.css"[^>]*>/)
-    const scriptIndex = html.indexOf('<script data-hk="030"')
+    const scriptIndex = html.indexOf('type="module"')
     expect(linkIndex).toBeLessThan(scriptIndex)
   })
 })

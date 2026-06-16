@@ -15,6 +15,16 @@
 
 * add Title and Meta components for SEO optimization across admin, dashboard, and login pages ([d85621b](https://github.com/devlusoft/devix/commit/d85621b0ffefc2ee0f170ff926a9f70fa773cff7))
 * isomorphic getCookie and setCookie helpers ([#11](https://github.com/devlusoft/devix/issues/11)) ([b570c87](https://github.com/devlusoft/devix/commit/b570c87621e81c230df1f4412ef1fa138d9915f5))
+* update version ([a96e10b](https://github.com/devlusoft/devix/commit/a96e10bd7d5704d8cd4e3ff2dd406a5a9d7c8656))
+* update version ([f728394](https://github.com/devlusoft/devix/commit/f728394e9f138eb846c8f79cfe50bb558b651818))
+
+# [0.8.0-alpha.3](https://github.com/devlusoft/devix/compare/v0.8.0-alpha.2...v0.8.0-alpha.3) (2026-06-16)
+
+
+### Features
+
+* add Title and Meta components for SEO optimization across admin, dashboard, and login pages ([d85621b](https://github.com/devlusoft/devix/commit/d85621b0ffefc2ee0f170ff926a9f70fa773cff7))
+* isomorphic getCookie and setCookie helpers ([#11](https://github.com/devlusoft/devix/issues/11)) ([b570c87](https://github.com/devlusoft/devix/commit/b570c87621e81c230df1f4412ef1fa138d9915f5))
 * update version ([f728394](https://github.com/devlusoft/devix/commit/f728394e9f138eb846c8f79cfe50bb558b651818))
 
 # [0.8.0-alpha.3](https://github.com/devlusoft/devix/compare/v0.8.0-alpha.2...v0.8.0-alpha.3) (2026-06-16)

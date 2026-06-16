@@ -8,6 +8,7 @@
   "exports": {
     ".": "./lib/index.ts",
     "./config": "./lib/config/define-config.ts",
+    "./cookie": "./lib/cookie.ts",
     "./env": "./lib/ambient.d.ts",
     "./router": "./lib/router/index.ts",
     "./router/middleware": "./lib/router/middleware.ts",
@@ -27,6 +28,10 @@
       "./config": {
         "types": "./dist/config/define-config.d.ts",
         "default": "./dist/config/define-config.js"
+      },
+      "./cookie": {
+        "types": "./dist/cookie.d.ts",
+        "default": "./dist/cookie.js"
       },
       "./env": {
         "types": "./dist/ambient.d.ts",

@@ -1,3 +1,4 @@
+import { setCookie } from '@devlusoft/devix/cookie'
 import { useNavigate } from '@solidjs/router'
 import { SESSION_COOKIE } from '../../lib/auth'
 
@@ -5,9 +6,10 @@ export default function LoginPage() {
   const navigate = useNavigate()
 
   const login = () => {
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toUTCString()
-    // biome-ignore lint/suspicious/noDocumentCookie: showcase uses simple cookie auth
-    document.cookie = `${SESSION_COOKIE}=1; path=/; expires=${expires}`
+    setCookie(SESSION_COOKIE, '1', {
+      path: '/',
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    })
     navigate('/admin')
   }
 

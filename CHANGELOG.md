@@ -1,3 +1,10 @@
+# [0.8.0-alpha.2](https://github.com/devlusoft/devix/compare/v0.8.0-alpha.1...v0.8.0-alpha.2) (2026-06-16)
+
+
+### Features
+
+* route middleware via middleware.ts ([#10](https://github.com/devlusoft/devix/issues/10)) ([cbddc42](https://github.com/devlusoft/devix/commit/cbddc4227d9af7f471e1503e9a71ecf4654e2a7e))
+
 # [0.8.0-alpha.1](https://github.com/devlusoft/devix/compare/v0.6.0-alpha.1...v0.8.0-alpha.1) (2026-06-15)
 
 

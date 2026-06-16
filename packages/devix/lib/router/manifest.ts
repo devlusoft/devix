@@ -3,6 +3,7 @@ export type RouteNode = {
   file: string | null
   isIndex: boolean
   isLayout: boolean
+  middlewares: string[]
   params: string[]
   children: RouteNode[]
 }
@@ -102,12 +103,19 @@ function buildForDir(
   dir: string,
   layoutByDir: Map<string, ParsedFile>,
   childrenByDir: Map<string, ParsedFile[]>,
+  middlewareByDir: Map<string, string>,
   allDirs: Set<string>,
   parentSegmentCount: number,
+  parentMiddlewares: string[],
 ): RouteNode[] {
   const layout = layoutByDir.get(dir)
   const leaves = childrenByDir.get(dir) ?? []
   const subdirs = getDirectSubdirs(dir, allDirs)
+
+  const dirMiddleware = middlewareByDir.get(dir)
+  const currentMiddlewares = dirMiddleware
+    ? [...parentMiddlewares, dirMiddleware]
+    : parentMiddlewares
 
   const innerParentCount = layout ? layout.urlSegments.length : parentSegmentCount
 
@@ -116,12 +124,21 @@ function buildForDir(
     file: p.file,
     isIndex: p.isIndex,
     isLayout: false,
+    middlewares: currentMiddlewares,
     params: p.params,
     children: [],
   }))
 
   const subResults = subdirs.flatMap((sub) =>
-    buildForDir(sub, layoutByDir, childrenByDir, allDirs, innerParentCount),
+    buildForDir(
+      sub,
+      layoutByDir,
+      childrenByDir,
+      middlewareByDir,
+      allDirs,
+      innerParentCount,
+      currentMiddlewares,
+    ),
   )
 
   if (layout) {
@@ -131,6 +148,7 @@ function buildForDir(
         file: layout.file,
         isIndex: false,
         isLayout: true,
+        middlewares: currentMiddlewares,
         params: layout.params,
         children: [...leafNodes, ...subResults],
       },
@@ -160,11 +178,75 @@ function joinUrl(parent: string, child: string): string {
   return `${parent}${child}`
 }
 
+type MatchNodeResult = {
+  consumed: number
+  params: Record<string, string>
+}
+
+function matchNodePath(path: string, parts: string[]): MatchNodeResult | null {
+  if (path === '/') {
+    return { consumed: 0, params: {} }
+  }
+
+  const nodeParts = path.split('/').filter(Boolean)
+  if (nodeParts.length > parts.length) {
+    return null
+  }
+
+  const params: Record<string, string> = {}
+  for (let i = 0; i < nodeParts.length; i++) {
+    const part = nodeParts[i]
+    if (part.startsWith(':')) {
+      params[part.slice(1)] = parts[i]
+    } else if (part === '*') {
+      return { consumed: parts.length, params }
+    } else if (part !== parts[i]) {
+      return null
+    }
+  }
+
+  return { consumed: nodeParts.length, params }
+}
+
+export type RouteMatch = {
+  leaf: RouteNode
+  layouts: RouteNode[]
+  params: Record<string, string>
+}
+
+export function findRouteForUrl(nodes: RouteNode[], urlPath: string): RouteMatch | null {
+  const parts = urlPath.split('/').filter(Boolean)
+
+  function match(nodesToMatch: RouteNode[], remainingParts: string[]): RouteMatch | null {
+    for (const node of nodesToMatch) {
+      const nodeMatch = matchNodePath(node.path, remainingParts)
+      if (!nodeMatch) continue
+
+      if (node.isLayout) {
+        const childResult = match(node.children, remainingParts.slice(nodeMatch.consumed))
+        if (childResult) {
+          return {
+            leaf: childResult.leaf,
+            layouts: [node, ...childResult.layouts],
+            params: { ...nodeMatch.params, ...childResult.params },
+          }
+        }
+      } else if (remainingParts.length === nodeMatch.consumed) {
+        return { leaf: node, layouts: [], params: nodeMatch.params }
+      }
+    }
+    return null
+  }
+
+  return match(nodes, parts)
+}
+
 export function buildManifest(options: BuildManifestOptions): BuildManifestResult {
   const parsed = options.files.map(parseFile)
 
   const layoutByDir = new Map<string, ParsedFile>()
   const childrenByDir = new Map<string, ParsedFile[]>()
+  const middlewareByDir = new Map<string, string>()
   const allDirs = new Set<string>()
 
   for (const p of parsed) {
@@ -174,6 +256,18 @@ export function buildManifest(options: BuildManifestOptions): BuildManifestResul
       const idx = ancestor.lastIndexOf('/')
       ancestor = idx === -1 ? '' : ancestor.slice(0, idx)
       allDirs.add(ancestor)
+    }
+
+    const basename = p.file.split('/').pop() ?? ''
+    if (basename === 'middleware.ts' || basename === 'middleware.tsx') {
+      if (middlewareByDir.has(p.physicalDir)) {
+        throw new ManifestError(
+          'MULTIPLE_MIDDLEWARES',
+          `Multiple middleware files in "${p.physicalDir}"`,
+        )
+      }
+      middlewareByDir.set(p.physicalDir, p.file)
+      continue
     }
 
     if (p.isLayout) {
@@ -191,7 +285,7 @@ export function buildManifest(options: BuildManifestOptions): BuildManifestResul
     }
   }
 
-  const routes = buildForDir('', layoutByDir, childrenByDir, allDirs, 0)
+  const routes = buildForDir('', layoutByDir, childrenByDir, middlewareByDir, allDirs, 0, [])
 
   const urlMap = new Map<string, string[]>()
   collectAbsoluteUrls(routes, '', urlMap)

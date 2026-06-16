@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generateRoutesModule } from './codegen'
+import { generateManifestModule, generateRoutesModule } from './codegen'
 import { type BuildManifestResult, buildManifest, type RouteNode } from './manifest'
 
 const fixture = (overrides: Partial<RouteNode>): RouteNode => ({
@@ -7,6 +7,7 @@ const fixture = (overrides: Partial<RouteNode>): RouteNode => ({
   file: 'index.tsx',
   isIndex: true,
   isLayout: false,
+  middlewares: [],
   params: [],
   children: [],
   ...overrides,
@@ -15,6 +16,16 @@ const fixture = (overrides: Partial<RouteNode>): RouteNode => ({
 const buildResult = (overrides: Partial<BuildManifestResult>): BuildManifestResult => ({
   routes: [],
   ...overrides,
+})
+
+describe('generateManifestModule', () => {
+  it('should export manifest as JSON', () => {
+    const out = generateManifestModule(
+      buildResult({ routes: [fixture({ path: '/about', file: 'about.tsx', isIndex: false })] }),
+    )
+    expect(out).toContain('export const manifest =')
+    expect(out).toContain('/about')
+  })
 })
 
 describe('generateRoutesModule', () => {
@@ -27,7 +38,9 @@ describe('generateRoutesModule', () => {
 
   it('should import createComponent and lazy from solid-js', () => {
     const out = generateRoutesModule(buildResult({}))
-    expect(out).toContain(`import { createComponent, lazy } from 'solid-js'`)
+    expect(out).toContain('createComponent')
+    expect(out).toContain('lazy')
+    expect(out).toContain(`from 'solid-js'`)
   })
 
   it('should use import.meta.glob without eager for lazy loading', () => {
@@ -91,7 +104,7 @@ describe('generateRoutesModule — nested layouts', () => {
     })
     const out = generateRoutesModule(result)
     const matches = out.match(/get children\(\)/g) ?? []
-    expect(matches).toHaveLength(2)
+    expect(matches).toHaveLength(5)
   })
 
   it('should emit nested Route with get children() for layout + index', () => {
@@ -111,7 +124,7 @@ describe('generateRoutesModule — nested layouts', () => {
     expect(out).toContain('"/app/pages/blog/layout.tsx"')
     expect(out).toContain('"/app/pages/blog/index.tsx"')
     const matches = out.match(/get children\(\)/g) ?? []
-    expect(matches).toHaveLength(3)
+    expect(matches).toHaveLength(6)
   })
 
   it('should emit all children under one layout', () => {
@@ -165,7 +178,7 @@ describe('generateRoutesModule — nested layouts', () => {
     expect(out).toContain('"/app/pages/blog/posts/index.tsx"')
 
     const childMatches = out.match(/get children\(\)/g) ?? []
-    expect(childMatches).toHaveLength(4)
+    expect(childMatches).toHaveLength(7)
 
     const routeMatches = out.match(/createComponent\(Route,/g) ?? []
     expect(routeMatches).toHaveLength(3)

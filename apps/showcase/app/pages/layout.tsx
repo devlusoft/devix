@@ -29,6 +29,13 @@ export default function AppLayout(props: RouteSectionProps) {
           >
             Tasks
           </A>
+          <A
+            href="/admin"
+            class="text-gray-300 hover:text-white"
+            activeClass="text-white font-medium"
+          >
+            Admin
+          </A>
         </nav>
       </aside>
       <main class="flex-1 p-6">{props.children}</main>

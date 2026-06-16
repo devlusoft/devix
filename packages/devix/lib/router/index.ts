@@ -7,3 +7,5 @@ export {
   useParams,
   useSearchParams,
 } from '@solidjs/router'
+
+export type { MiddlewareContext, MiddlewareResult } from './middleware'

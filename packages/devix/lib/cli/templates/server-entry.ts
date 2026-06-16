@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { manifest } from 'virtual:devix-manifest'
 import Routes from 'virtual:devix-routes-ssr'
 import { createRenderFn } from '@devlusoft/devix'
 import { logRequest } from '@devlusoft/devix/cli/logger'
 import { handleServerFunction, type ServerFnResponse } from '@devlusoft/devix/data'
+import { runRouteMiddlewares } from '@devlusoft/devix/router/middleware'
 import { collectManifestStyles } from '@devlusoft/devix/server/styles'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
@@ -44,8 +46,26 @@ function getClientStyles(): JSX.Element[] {
   return collectManifestStyles(manifest)
 }
 
+const middlewareModules = import.meta.glob(
+  ['/app/pages/**/middleware.ts', '/app/pages/**/middleware.tsx'],
+  { eager: true },
+)
+
 async function handleRequest(req: Request): Promise<Response> {
   const url = new URL(req.url)
+
+  const redirect = await runRouteMiddlewares({
+    url: url.pathname,
+    manifest,
+    request: req,
+    loadMiddleware: async (file) =>
+      middlewareModules[`/app/pages/${file}`] as { default?: unknown },
+  })
+  if (redirect) {
+    if (redirect instanceof Response) return redirect
+    return new Response(null, { status: 302, headers: { Location: redirect } })
+  }
+
   const { stream, getHeaders, getStatus, onShellReady } = createRenderFn(
     Root,
     Routes,

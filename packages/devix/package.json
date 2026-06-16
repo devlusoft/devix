@@ -10,6 +10,7 @@
     "./config": "./lib/config/define-config.ts",
     "./env": "./lib/ambient.d.ts",
     "./router": "./lib/router/index.ts",
+    "./router/middleware": "./lib/router/middleware.ts",
     "./router/view-transitions/click-interceptor": "./lib/router/view-transitions/click-interceptor.tsx",
     "./data": "./lib/data/index.ts",
     "./data/internal": "./lib/data/internal.ts",
@@ -34,6 +35,10 @@
       "./router": {
         "types": "./dist/router/index.d.ts",
         "default": "./dist/router/index.js"
+      },
+      "./router/middleware": {
+        "types": "./dist/router/middleware.d.ts",
+        "default": "./dist/router/middleware.js"
       },
       "./router/view-transitions/click-interceptor": {
         "types": "./dist/router/view-transitions/click-interceptor.d.ts",

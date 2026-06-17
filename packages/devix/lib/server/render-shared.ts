@@ -1,4 +1,4 @@
-import type { Component, JSX } from 'solid-js'
+import type { Component } from 'solid-js'
 import { createRequestEvent, runWithRequestEvent } from '../data/request-context'
 import { compose, type DevixRootProps } from '../hydration/compose'
 import { renderToStream, type StreamRender } from '../streaming/render-to-stream'
@@ -13,7 +13,7 @@ export type RenderHandle = {
 
 export type RenderOptions = {
   clientEntry?: string
-  styles?: JSX.Element[]
+  styles?: string[]
 }
 
 export function createRenderFn(

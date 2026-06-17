@@ -5,7 +5,7 @@ import { withViewTransition } from './transition'
 const navigate = vi.fn()
 const withViewTransitionMock = vi.mocked(withViewTransition)
 
-vi.mock('@solidjs/router', () => ({
+vi.mock('../hooks', () => ({
   useNavigate: () => navigate,
 }))
 

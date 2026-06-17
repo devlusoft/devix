@@ -1,5 +1,5 @@
-import { useNavigate } from '@solidjs/router'
 import { type JSX, onCleanup, onMount } from 'solid-js'
+import { useNavigate } from '../hooks'
 import { withViewTransition } from './transition'
 
 export function ClickInterceptor(props: { children?: JSX.Element }): JSX.Element {

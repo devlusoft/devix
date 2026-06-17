@@ -1,6 +1,6 @@
 import { setCookie } from '@devlusoft/devix/cookie'
 import { Title } from '@devlusoft/devix/head'
-import { useNavigate } from '@solidjs/router'
+import { useNavigate } from '@devlusoft/devix/router'
 import { SESSION_COOKIE } from '../../lib/auth'
 
 export default function LoginPage() {

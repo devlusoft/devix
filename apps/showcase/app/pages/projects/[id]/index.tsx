@@ -1,4 +1,5 @@
-import { A, createAsync, useParams } from '@solidjs/router'
+import { Link, useParams } from '@devlusoft/devix/router'
+import { createAsync } from '@solidjs/router'
 import { For, Show, Suspense } from 'solid-js'
 import { getProject, getTasks } from '../../../data/store'
 
@@ -15,9 +16,9 @@ export default function ProjectDetailPage() {
           fallback={
             <p>
               Project not found.{' '}
-              <A href="/projects" class="text-blue-600 hover:underline">
+              <Link href="/projects" class="text-blue-600 hover:underline">
                 ← back
-              </A>
+              </Link>
             </p>
           }
         >
@@ -29,12 +30,12 @@ export default function ProjectDetailPage() {
                   <p class="text-gray-500 mt-1">{p().description}</p>
                 </div>
                 <div class="flex gap-2">
-                  <A href={`/projects/${p().id}/edit`} class="button secondary">
+                  <Link href={`/projects/${p().id}/edit`} class="button secondary">
                     Edit
-                  </A>
-                  <A href={`/projects/${p().id}/tasks/new`} class="button">
+                  </Link>
+                  <Link href={`/projects/${p().id}/tasks/new`} class="button">
                     New task
-                  </A>
+                  </Link>
                 </div>
               </div>
 
@@ -45,12 +46,12 @@ export default function ProjectDetailPage() {
                   fallback={
                     <p class="text-gray-500">
                       No tasks yet.{' '}
-                      <A
+                      <Link
                         href={`/projects/${p().id}/tasks/new`}
                         class="text-blue-600 hover:underline"
                       >
                         Create one
-                      </A>
+                      </Link>
                       .
                     </p>
                   }
@@ -59,9 +60,9 @@ export default function ProjectDetailPage() {
                     <For each={tasks()}>
                       {(t) => (
                         <li class="bg-white rounded-lg shadow-sm p-3 flex justify-between items-center">
-                          <A href={`/tasks/${t.id}`} class="text-blue-600 hover:underline">
+                          <Link href={`/tasks/${t.id}`} class="text-blue-600 hover:underline">
                             {t.title}
-                          </A>
+                          </Link>
                           <StatusBadge status={t.status} />
                         </li>
                       )}

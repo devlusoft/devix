@@ -1,4 +1,5 @@
-import { A, createAsync } from '@solidjs/router'
+import { Link } from '@devlusoft/devix/router'
+import { createAsync } from '@solidjs/router'
 import { For, Show, Suspense } from 'solid-js'
 import { deleteTask, getProjects, getTasks } from '../../data/store'
 
@@ -34,9 +35,9 @@ export default function TasksPage() {
                   {(t) => (
                     <tr class="border-b last:border-b-0">
                       <td class="px-4 py-3">
-                        <A href={`/tasks/${t.id}`} class="text-blue-600 hover:underline">
+                        <Link href={`/tasks/${t.id}`} class="text-blue-600 hover:underline">
                           {t.title}
-                        </A>
+                        </Link>
                       </td>
                       <td class="px-4 py-3 text-gray-600">{projectName(t.projectId)}</td>
                       <td class="px-4 py-3 text-gray-600">{t.assignee}</td>
@@ -45,9 +46,9 @@ export default function TasksPage() {
                       </td>
                       <td class="px-4 py-3">
                         <div class="flex gap-2">
-                          <A href={`/tasks/${t.id}/edit`} class="button secondary">
+                          <Link href={`/tasks/${t.id}/edit`} class="button secondary">
                             Edit
-                          </A>
+                          </Link>
                           <DeleteButton id={t.id} />
                         </div>
                       </td>

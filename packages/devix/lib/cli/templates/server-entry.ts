@@ -2,15 +2,15 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { manifest } from 'virtual:devix-manifest'
-import Routes from 'virtual:devix-routes-ssr'
+import Routes, { manifest as routeManifest } from 'virtual:devix-routes-ssr'
 import { createRenderFn } from '@devlusoft/devix'
 import { logRequest } from '@devlusoft/devix/cli/logger'
 import { handleServerFunction, type ServerFnResponse } from '@devlusoft/devix/data'
 import { runRouteMiddlewares } from '@devlusoft/devix/router/middleware'
+import { preloadRoutesForUrl } from '@devlusoft/devix/router/preload'
 import { collectManifestStyles } from '@devlusoft/devix/server/styles'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
-import type { JSX } from 'solid-js'
 import Root from '/app/root.tsx'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -40,7 +40,7 @@ function getClientEntry(): string {
   return '/assets/entry-client.js'
 }
 
-function getClientStyles(): JSX.Element[] {
+function getClientStyles(): string[] {
   const manifest = readClientManifest()
   if (!manifest) return []
   return collectManifestStyles(manifest)
@@ -65,6 +65,8 @@ async function handleRequest(req: Request): Promise<Response> {
     if (redirect instanceof Response) return redirect
     return new Response(null, { status: 302, headers: { Location: redirect } })
   }
+
+  await preloadRoutesForUrl(url.pathname, routeManifest)
 
   const { stream, getHeaders, getStatus, onShellReady } = createRenderFn(
     Root,

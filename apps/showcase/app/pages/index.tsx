@@ -1,5 +1,6 @@
 import { Title } from '@devlusoft/devix/head'
-import { A, createAsync } from '@solidjs/router'
+import { Link } from '@devlusoft/devix/router'
+import { createAsync } from '@solidjs/router'
 import { For, Show, Suspense } from 'solid-js'
 import { getProjects, getTasks } from '../data/store'
 
@@ -27,9 +28,9 @@ export default function DashboardPage() {
           fallback={
             <p>
               No projects yet.{' '}
-              <A href="/projects/new" class="text-blue-600 hover:underline">
+              <Link href="/projects/new" class="text-blue-600 hover:underline">
                 Create one
-              </A>
+              </Link>
               .
             </p>
           }
@@ -38,9 +39,9 @@ export default function DashboardPage() {
             <For each={projects()?.slice(0, 5)}>
               {(p) => (
                 <li class="bg-white rounded-lg shadow-sm p-4">
-                  <A href={`/projects/${p.id}`} class="font-medium text-blue-600 hover:underline">
+                  <Link href={`/projects/${p.id}`} class="font-medium text-blue-600 hover:underline">
                     {p.name}
-                  </A>
+                  </Link>
                   <p class="text-sm text-gray-500 mt-1">{p.description}</p>
                 </li>
               )}

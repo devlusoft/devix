@@ -1,4 +1,4 @@
-import { useNavigate } from '@solidjs/router'
+import { useNavigate } from '@devlusoft/devix/router'
 import { createProject } from '../../data/store'
 
 export default function NewProjectPage() {

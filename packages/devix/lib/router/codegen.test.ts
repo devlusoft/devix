@@ -29,9 +29,9 @@ describe('generateManifestModule', () => {
 })
 
 describe('generateRoutesModule', () => {
-  it('should import Route and Router from @solidjs/router', () => {
+  it('should import Route and Router from the devix router', () => {
     const out = generateRoutesModule(buildResult({}))
-    expect(out).toContain('@solidjs/router')
+    expect(out).toContain(`from '@devlusoft/devix/router'`)
     expect(out).toMatch(/\bRoute\b/)
     expect(out).toMatch(/\bRouter\b/)
   })

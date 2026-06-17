@@ -1,7 +1,8 @@
 import { MetaProvider } from '@solidjs/meta'
 import type { Component, JSX } from 'solid-js'
 import { createComponent } from 'solid-js'
-import { Dynamic, HydrationScript } from 'solid-js/web'
+import { HydrationScript } from 'solid-js/web'
+import { escapeHtml } from '../server/styles'
 
 export type DevixRootProps = {
   children?: JSX.Element
@@ -13,7 +14,7 @@ const DEFAULT_CLIENT_ENTRY = '/@id/virtual:devix-hydration'
 
 type ComposeOptions = {
   clientEntry?: string
-  styles?: JSX.Element[]
+  styles?: string[]
 }
 
 export function compose(
@@ -33,11 +34,7 @@ export function compose(
           return [styles, createComponent(HydrationScript, {})]
         },
         get scripts() {
-          return createComponent(Dynamic, {
-            component: 'script',
-            type: 'module',
-            src: clientEntry,
-          })
+          return `<script type="module" src="${escapeHtml(clientEntry)}"></script>`
         },
         get children() {
           return createComponent(Routes, { url })

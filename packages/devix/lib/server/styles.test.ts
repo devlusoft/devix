@@ -18,7 +18,7 @@ describe('collectManifestStyles', () => {
     }
 
     const links = collectManifestStyles(manifest)
-    const html = renderToString(links)
+    const html = links.join('')
 
     expect(html).toContain('<link rel="stylesheet" href="/assets/entry-client.css"/>')
     expect(html).toContain('<link rel="stylesheet" href="/assets/pages.css"/>')
@@ -48,7 +48,7 @@ describe('collectManifestStyles', () => {
     }
 
     const links = collectManifestStyles(manifest)
-    const html = renderToString(links)
+    const html = links.join('')
 
     expect((html.match(/shared\.css/g) ?? []).length).toBe(1)
   })
@@ -63,7 +63,7 @@ describe('collectDevStyles', () => {
     ])
 
     const links = collectDevStyles(server)
-    const html = renderToString(links)
+    const html = links.join('')
 
     expect(html).toContain('<link rel="stylesheet" href="/app/app.css?direct"/>')
     expect(html).toContain('<link rel="stylesheet" href="/app/pages/index.css?direct"/>')
@@ -73,15 +73,11 @@ describe('collectDevStyles', () => {
   it('falls back to module id when url is missing', () => {
     const server = createMockServer([{ id: '/app/app.css' }])
     const links = collectDevStyles(server)
-    const html = renderToString(links)
+    const html = links.join('')
 
     expect(html).toContain('<link rel="stylesheet" href="/app/app.css?direct"/>')
   })
 })
-
-function renderToString(elements: unknown): string {
-  return JSON.stringify(elements).replace(/\\/g, '')
-}
 
 function createMockServer(modules: Array<{ id?: string; url?: string }>): ViteDevServer {
   const map = new Map<string, { id?: string; url?: string; importedModules: Set<unknown> }>()

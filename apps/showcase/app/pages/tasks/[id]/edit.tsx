@@ -1,4 +1,5 @@
-import { createAsync, useNavigate, useParams } from '@solidjs/router'
+import { useNavigate, useParams } from '@devlusoft/devix/router'
+import { createAsync } from '@solidjs/router'
 import { For, Show, Suspense } from 'solid-js'
 import { getProjects, getTask, updateTask } from '../../../data/store'
 

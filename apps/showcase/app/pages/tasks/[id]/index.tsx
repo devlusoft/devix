@@ -1,4 +1,5 @@
-import { A, createAsync, useParams } from '@solidjs/router'
+import { Link, useParams } from '@devlusoft/devix/router'
+import { createAsync } from '@solidjs/router'
 import { createResource, Show, Suspense } from 'solid-js'
 import { getProject, getTask } from '../../../data/store'
 
@@ -14,9 +15,9 @@ export default function TaskDetailPage() {
           fallback={
             <p>
               Task not found.{' '}
-              <A href="/tasks" class="text-blue-600 hover:underline">
+              <Link href="/tasks" class="text-blue-600 hover:underline">
                 ← back
-              </A>
+              </Link>
             </p>
           }
         >
@@ -36,9 +37,9 @@ function TaskCard(props: {
     <div class="bg-white rounded-lg shadow-sm p-6 max-w-2xl">
       <div class="flex justify-between items-start mb-4">
         <h1 class="text-2xl font-semibold">{props.task.title}</h1>
-        <A href={`/tasks/${props.task.id}/edit`} class="button secondary">
+        <Link href={`/tasks/${props.task.id}/edit`} class="button secondary">
           Edit
-        </A>
+        </Link>
       </div>
       <p class="text-gray-600 mb-4">{props.task.description}</p>
       <dl class="grid grid-cols-2 gap-4 text-sm">
@@ -46,9 +47,9 @@ function TaskCard(props: {
           <dt class="text-gray-500">Project</dt>
           <dd class="font-medium">
             <Suspense fallback={<span>Loading…</span>}>
-              <A href={`/projects/${props.task.projectId}`} class="text-blue-600 hover:underline">
+              <Link href={`/projects/${props.task.projectId}`} class="text-blue-600 hover:underline">
                 {project()?.name ?? 'Unknown'}
-              </A>
+              </Link>
             </Suspense>
           </dd>
         </div>
@@ -64,9 +65,9 @@ function TaskCard(props: {
         </div>
       </dl>
       <div class="mt-6">
-        <A href="/tasks" class="text-blue-600 hover:underline">
+        <Link href="/tasks" class="text-blue-600 hover:underline">
           ← back to tasks
-        </A>
+        </Link>
       </div>
     </div>
   )

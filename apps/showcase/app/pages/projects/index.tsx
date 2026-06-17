@@ -1,4 +1,5 @@
-import { A, createAsync } from '@solidjs/router'
+import { Link } from '@devlusoft/devix/router'
+import { createAsync } from '@solidjs/router'
 import { For, Show, Suspense } from 'solid-js'
 import { deleteProject, getProjects } from '../../data/store'
 
@@ -9,9 +10,9 @@ export default function ProjectsPage() {
     <div>
       <div class="flex justify-between items-center mb-4">
         <h1 class="text-2xl font-semibold">Projects</h1>
-        <A href="/projects/new" class="button">
+        <Link href="/projects/new" class="button">
           New project
-        </A>
+        </Link>
       </div>
       <Suspense fallback={<p class="text-gray-500">Loading projects…</p>}>
         <Show
@@ -24,18 +25,18 @@ export default function ProjectsPage() {
                 <li class="bg-white rounded-lg shadow-sm p-4">
                   <div class="flex justify-between items-start">
                     <div>
-                      <A
+                      <Link
                         href={`/projects/${p.id}`}
                         class="text-lg font-semibold text-blue-600 hover:underline"
                       >
                         {p.name}
-                      </A>
+                      </Link>
                       <p class="text-gray-500 mt-1">{p.description}</p>
                     </div>
                     <div class="flex gap-2">
-                      <A href={`/projects/${p.id}/edit`} class="button secondary">
+                      <Link href={`/projects/${p.id}/edit`} class="button secondary">
                         Edit
-                      </A>
+                      </Link>
                       <DeleteButton id={p.id} />
                     </div>
                   </div>

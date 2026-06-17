@@ -53,6 +53,7 @@ export default defineConfig({
     'lib/head/index.ts',
     'lib/router/index.ts',
     'lib/router/middleware.ts',
+    'lib/router/preload.ts',
     'lib/router/view-transitions/click-interceptor.tsx',
     'lib/data/index.ts',
     'lib/data/internal.ts',

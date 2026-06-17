@@ -27,19 +27,42 @@ function renderRoute(node: RouteNode): string {
     })`
 }
 
-function renderRouteEager(node: RouteNode): string {
+function renderRouteLoader(node: RouteNode): string {
+  const file = JSON.stringify(node.file!)
+  return `pageLoader(${file})`
+}
+
+function renderManifestNode(node: RouteNode): string {
+  if (!node.file) {
+    throw new Error(`Codegen: RouteNode at path "${node.path}" has no file`)
+  }
+
+  const loader = renderRouteLoader(node)
+  const base = `{ path: ${JSON.stringify(node.path)}, file: ${JSON.stringify(node.file)}, isLayout: ${node.isLayout}, loader: ${loader}`
+
+  if (node.children.length === 0) {
+    return `${base} }`
+  }
+
+  const childrenRendered = node.children.map(renderManifestNode).join(',\n')
+  return `${base}, children: [
+    ${childrenRendered}
+    ] }`
+}
+
+function renderRouteSSR(node: RouteNode): string {
   if (!node.file) {
     throw new Error(`Codegen: RouteNode at path "${node.path}" has no file`)
   }
 
   const path = JSON.stringify(node.path)
-  const component = `makeRouteComponent(${JSON.stringify(`/app/pages/${node.file}`)})`
+  const component = `makeRouteComponent(${renderRouteLoader(node)})`
 
   if (node.children.length === 0) {
     return `createComponent(Route, { path: ${path}, component: ${component} })`
   }
 
-  const childrenRendered = node.children.map(renderRouteEager).join(',\n')
+  const childrenRendered = node.children.map(renderRouteSSR).join(',\n')
   return `createComponent(Route, {
       path: ${path},
       component: ${component},
@@ -59,7 +82,7 @@ export function generateRoutesModule(result: BuildManifestResult): string {
   const routesRendered = result.routes.map(renderRoute).join(',\n')
   const manifestJson = JSON.stringify(result)
 
-  return `import { Route, Router, useLocation, useNavigate } from '@solidjs/router'
+  return `import { Route, Router, useLocation, useNavigate } from '@devlusoft/devix/router'
     import { createComponent, createEffect, createSignal, lazy, on, Show } from 'solid-js'
     import { runRouteMiddlewares } from '@devlusoft/devix/router/middleware'
     import { ClickInterceptor } from '@devlusoft/devix/router/view-transitions/click-interceptor'
@@ -133,20 +156,27 @@ export function generateRoutesModule(result: BuildManifestResult): string {
 }
 
 export function generateSSRRoutesModule(result: BuildManifestResult): string {
-  const routesRendered = result.routes.map(renderRouteEager).join(',\n')
+  const routesRendered = result.routes.map(renderRouteSSR).join(',\n')
+  const manifestRendered = result.routes.map(renderManifestNode).join(',\n')
 
-  return `import { Route, Router } from '@solidjs/router'
-    import { createComponent } from 'solid-js'
+  return `import { Route, Router } from '@devlusoft/devix/router'
+    import { createComponent, lazy } from 'solid-js'
     import { ClickInterceptor } from '@devlusoft/devix/router/view-transitions/click-interceptor'
 
-    const modules = import.meta.glob('/app/pages/**/*.tsx', { eager: true })
+    function pageLoader(file) {
+      return () => import(/* @vite-ignore */ '/app/pages/' + file)
+    }
 
-    function makeRouteComponent(key) {
-      const Component = modules[key].default
+    export const manifest = [
+    ${manifestRendered}
+    ]
+
+    function makeRouteComponent(loader) {
+      const LazyComponent = lazy(loader)
       return (props) =>
         createComponent(ClickInterceptor, {
           get children() {
-            return [createComponent(Component, props)]
+            return [createComponent(LazyComponent, props)]
           },
         })
     }

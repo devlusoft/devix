@@ -1,6 +1,3 @@
-import type { JSX } from 'solid-js'
-import { createComponent } from 'solid-js'
-import { Dynamic } from 'solid-js/web'
 import type { ViteDevServer } from 'vite'
 
 type ManifestChunk = {
@@ -10,19 +7,21 @@ type ManifestChunk = {
   dynamicImports?: string[]
 }
 
-function createStyleLink(href: string): JSX.Element {
-  return createComponent(Dynamic, {
-    component: 'link',
-    rel: 'stylesheet',
-    href,
-  })
+export function escapeHtml(str: string): string {
+  return str.replace(/[<>&'"]/g, (c) =>
+    ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&#39;', '"': '&quot;' })[c] as string,
+  )
+}
+
+function createStyleLink(href: string): string {
+  return `<link rel="stylesheet" href="${escapeHtml(href)}"/>`
 }
 
 export function collectManifestStyles(
   manifest: Record<string, ManifestChunk>,
   entryKey = 'devix:build-entry:entry-client',
-): JSX.Element[] {
-  const links: JSX.Element[] = []
+): string[] {
+  const links: string[] = []
   const visitedChunks = new Set<string>()
   const seenHrefs = new Set<string>()
   const queue = [entryKey]
@@ -48,9 +47,9 @@ export function collectManifestStyles(
   return links
 }
 
-export function collectDevStyles(server: ViteDevServer): JSX.Element[] {
+export function collectDevStyles(server: ViteDevServer): string[] {
   const seen = new Set<string>()
-  const links: JSX.Element[] = []
+  const links: string[] = []
 
   for (const mod of server.moduleGraph.idToModuleMap.values()) {
     const id = mod.id ?? mod.url

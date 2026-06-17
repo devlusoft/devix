@@ -183,7 +183,7 @@ type MatchNodeResult = {
   params: Record<string, string>
 }
 
-function matchNodePath(path: string, parts: string[]): MatchNodeResult | null {
+export function matchNodePath(path: string, parts: string[]): MatchNodeResult | null {
   if (path === '/') {
     return { consumed: 0, params: {} }
   }

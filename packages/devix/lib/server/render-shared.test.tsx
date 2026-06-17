@@ -64,7 +64,7 @@ describe('createRenderFn', () => {
   })
 
   it('renders provided styles before the hydration script', async () => {
-    const styleLink = <link rel="stylesheet" href="/app.css" />
+    const styleLink = '<link rel="stylesheet" href="/app.css"/>'
     const handle = createRenderFn(Root, Routes, '/', { styles: [styleLink] })
     const html = await collect(handle)
 

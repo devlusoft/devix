@@ -26,6 +26,7 @@ jobs:
         with:
           node-version: 22
           cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -33,7 +34,13 @@ jobs:
       - name: Build package
         run: pnpm build
 
-      - name: Release
+      - name: Create or update Version Packages PR
+        uses: changesets/action@v1
+        with:
+          publish: pnpm publish --no-git-checks --provenance
+          version: pnpm changeset version
+          commit: 'chore(release): %s [skip ci]'
+          title: 'chore(release): version packages'
+          setupGitUser: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm exec semantic-release

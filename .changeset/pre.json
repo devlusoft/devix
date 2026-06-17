@@ -1,0 +1,9 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "@devlusoft/devix": "0.9.0-alpha.1",
+    "showcase": "0.1.0"
+  },
+  "changesets": []
+}

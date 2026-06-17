@@ -39,6 +39,9 @@ export interface Viewport {
 
 import type {BackendClient} from './runtime/server-client'
 
+/**
+ * @deprecated since 0.9.0-alpha.2. `LoaderContext` is tied to the route-level `loader()` API, which is being phased out in favor of `query()` + `useQuery()`. The replacement uses `getRequestEvent()` for request context (cookies, pathname) instead of receiving it as an argument. See `docs/queries.md`.
+ */
 export interface LoaderContext<TParams = Record<string, string>> {
     params: TParams
     request: Request
@@ -53,6 +56,9 @@ export interface LoaderContext<TParams = Record<string, string>> {
 
 import type { Redirect } from './utils/response'
 
+/**
+ * @deprecated since 0.9.0-alpha.2. Define your data fetcher with `query(fn, name)` instead and read it with `useQuery()`. Loaders were attached to the route module; queries are reusable, deduped by `(name, args)`, and not coupled to the route tree. See `docs/queries.md`.
+ */
 export type LoaderFunction<TData = unknown, TParams = Record<string, string>> = (ctx: LoaderContext<TParams>) => Promise<TData | Redirect | void> | TData | Redirect | void
 
 /**

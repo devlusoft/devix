@@ -45,6 +45,9 @@ export interface ApiGlob {
 }
 
 interface BaseModule<TData, TParams> {
+    /**
+     * @deprecated since 0.9.0-alpha.2. Replace with `query()` calls inside the page component. The page no longer carries data via the `data` prop; instead, components call `useQuery(() => getThing())` and read the value directly. See `docs/queries.md`.
+     */
     loader?: (ctx: LoaderContext<TParams>) => Promise<TData | Redirect | void> | TData | Redirect | void
     guard?: (ctx: LoaderContext<TParams>) => Promise<string | Redirect | RouteError | Record<string, unknown> | null> | string | Redirect | RouteError | Record<string, unknown> | null
     metadata?: Metadata

@@ -1,6 +1,7 @@
 import {ComponentType, ReactNode, Suspense, useCallback, useContext, useEffect, useRef, useState} from "react";
 import {ErrorProps, LayoutProps, PageProps} from "../server/types";
 import {Metadata, Viewport} from "../types";
+import { invalidateQueries } from "./query-client";
 
 const DEFAULT_VIEWPORT: Viewport = {width: 'device-width', initialScale: 1}
 import {HeadSlot} from "./head";
@@ -63,6 +64,9 @@ type LoaderReturnType<T> = T extends (...args: any[]) => Promise<infer R>
         ? [Exclude<R, Redirect | void | undefined>] extends [never] ? undefined : Exclude<R, Redirect | void | undefined>
         : T
 
+/**
+ * @deprecated since 0.9.0-alpha.2. `useLoaderData()` reads from the route-level `loader()`. Replace with `useQuery(() => getThing())` inside your component. See `docs/queries.md`.
+ */
 export function useLoaderData<T>() {
     const ctx = useContext(RouteDataContext)
     if (!ctx) throw new Error("useLoaderData must be used within a route or layout")
@@ -361,16 +365,44 @@ export function RouterProvider({
         revalidatingRef.current = controller
 
         const to = window.location.pathname + window.location.search
-        let dataRes: Response
+
+        let htmlRes: Response | null = null
         try {
-            dataRes = await fetch(`/_devix/data${to}`, {
-                signal: controller.signal,
-            })
+            htmlRes = await fetch(to, { signal: controller.signal })
         } catch (err) {
             if ((err as Error).name === 'AbortError') return
             throw err
         }
+        if (controller.signal.aborted) return
+        if (!htmlRes.ok) return
 
+        const html = await htmlRes.text()
+        if (controller.signal.aborted) return
+
+        const match = html.match(/window\.__DEVIX_QUERIES__=({[^<]*});/)
+        if (match) {
+            try {
+                const parsed = JSON.parse(match[1]) as Record<string, unknown>
+                ;(window as { __DEVIX_QUERIES__?: Record<string, unknown> }).__DEVIX_QUERIES__ = {
+                    ...((window as { __DEVIX_QUERIES__?: Record<string, unknown> }).__DEVIX_QUERIES__ ?? {}),
+                    ...parsed,
+                }
+            } catch {
+                /* ignore parse errors */
+            }
+        }
+
+        if (controller.signal.aborted) return
+        invalidateQueries()
+        if (controller.signal.aborted) return
+
+        let dataRes: Response
+        try {
+            dataRes = await fetch(`/_devix/data${to}`, { signal: controller.signal })
+        } catch (err) {
+            if ((err as Error).name === 'AbortError') return
+            throw err
+        }
         if (controller.signal.aborted) return
         if (!dataRes.ok) return
 
@@ -378,7 +410,7 @@ export function RouterProvider({
         if (controller.signal.aborted) return
 
         if (data.redirect) {
-            await navigate(data.redirect, {replace: data.redirectReplace})
+            await navigate(data.redirect, { replace: data.redirectReplace })
             return
         }
         setState(prev => ({

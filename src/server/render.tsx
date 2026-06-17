@@ -1,5 +1,5 @@
 import {createElement} from 'react'
-import {renderToString, renderToStaticMarkup} from 'react-dom/server'
+import {renderToStaticMarkup} from 'react-dom/server'
 import {buildHeadNodes} from '../runtime/head'
 import {ServerApp} from '../runtime/server-app'
 import {buildPages, matchPage, collectLayoutChain, PagesResult} from './pages-router'
@@ -15,6 +15,7 @@ import type {ServerBackendConfig} from "../config";
 import {makeBoundServer} from "./server-bound";
 import {PassThrough} from "node:stream";
 import {createHtmlStream} from "./stream-html";
+import {runWithRequestEvent, createRequestEvent} from "../data/request-context";
 
 
 const DEFAULT_VIEWPORT: Viewport = {width: 'device-width', initialScale: 1}
@@ -209,18 +210,6 @@ export async function render(
     const [syncLoader, deferredLoaderKeys] = separateDeferred(loaderData as Record<string, unknown> | null)
     const syncLayouts = layoutsData.map(d => separateDeferred(d as Record<string, unknown> | null)[0])
 
-    const content = renderToString(createElement(ServerApp, {
-        pathname,
-        params,
-        loaderData,
-        layoutsData,
-        guardData,
-        Page: pageMod.default as any,
-        layouts: layoutMods.map(m => m.default as any),
-        metadata: metadata ?? null,
-        viewport,
-        clientEntry,
-    }))
     const headTags = metadata ? renderToStaticMarkup(buildHeadNodes(metadata, viewport) as any) : ''
 
     const turboStr = await collectEncode({
@@ -240,7 +229,42 @@ export async function render(
     const clientScript = `<script type="module" src="${clientEntry}"></script>`
     const customHeaders: Record<string, string> = pageMod.headers ?? {}
 
-    const html = `<html lang="${escapeAttr(lang)}"><head><meta charset="utf-8">${headTags}${cssLinks}${dataScript}</head><body><div id="devix-root">${content}</div>${clientScript}</body></html>`
+    const head = `<!DOCTYPE html><html lang="${escapeAttr(lang)}"><head><meta charset="utf-8">${headTags}${cssLinks}${dataScript}</head><body><div id="devix-root">`
+    const tail = `</div>${clientScript}</body></html>`
+
+    const event = createRequestEvent(pathname)
+    const html = await runWithRequestEvent(event, async () => {
+        const { stream } = await createHtmlStream(
+            createElement(ServerApp, {
+                pathname,
+                params,
+                loaderData,
+                layoutsData,
+                guardData,
+                Page: pageMod.default as any,
+                layouts: layoutMods.map(m => m.default as any),
+                metadata: metadata ?? null,
+                viewport,
+                clientEntry,
+            }),
+            head,
+            tail,
+            {
+                onError: (err) => console.error('[devix] render error:', err),
+                beforeTail: (write) => {
+                    const map = event.queryHydration
+                    if (!map || map.size === 0) return
+                    const data = Object.fromEntries(map)
+                    write(`<script>window.__DEVIX_QUERIES__=${safeJsonStringify(data)};</script>`)
+                },
+            },
+        )
+        const chunks: string[] = []
+        for await (const chunk of stream) {
+            chunks.push(typeof chunk === 'string' ? chunk : chunk.toString())
+        }
+        return chunks.join('')
+    })
 
     return {html, statusCode: 200, headers: customHeaders}
 }
@@ -285,78 +309,88 @@ export async function renderStream(url: string, request: Request, glob: PageGlob
 
     const {pathname} = new URL(url, 'http://localhost')
 
-    let result: Awaited<ReturnType<typeof resolvePageData>>
-    try {
-        const timeout = options?.loaderTimeout ?? 10_000
-        result = await resolvePageData(pathname, request, glob, timeout, options?.server)
-    } catch (err) {
-        console.error('[devix] render error:', err)
-        throw err
-    }
+    const event = createRequestEvent(pathname)
 
-    if (!result) {
-        throw new NotFoundError()
-    }
-
-    if ('redirect' in result) {
-        const {redirect, redirectStatus, redirectReplace} = result as {
-            redirect: string
-            redirectStatus: number
-            redirectReplace: boolean
+    return runWithRequestEvent(event, async () => {
+        let result: Awaited<ReturnType<typeof resolvePageData>>
+        try {
+            const timeout = options?.loaderTimeout ?? 10_000
+            result = await resolvePageData(pathname, request, glob, timeout, options?.server)
+        } catch (err) {
+            console.error('[devix] render error:', err)
+            throw err
         }
-        throw new RedirectError(redirect, redirectStatus, redirectReplace)
-    }
 
-    if ('loaderError' in result) {
-        throw new LoaderError(errorToBody(result.loaderError!))
-    }
+        if (!result) {
+            throw new NotFoundError()
+        }
 
-    const {pageMod, layoutMods, params, loaderData, layoutsData, guardData, metadata, viewport, lang} = result
+        if ('redirect' in result) {
+            const {redirect, redirectStatus, redirectReplace} = result as {
+                redirect: string
+                redirectStatus: number
+                redirectReplace: boolean
+            }
+            throw new RedirectError(redirect, redirectStatus, redirectReplace)
+        }
 
-    const headTags = metadata ? renderToStaticMarkup(buildHeadNodes(metadata, viewport) as any) : ''
+        if ('loaderError' in result) {
+            throw new LoaderError(errorToBody(result.loaderError!))
+        }
 
-    const [syncLoader, deferredLoaderKeys] = separateDeferred(loaderData as Record<string, unknown> | null)
-    const syncLayouts = layoutsData.map(d => separateDeferred(d as Record<string, unknown> | null)[0])
+        const {pageMod, layoutMods, params, loaderData, layoutsData, guardData, metadata, viewport, lang} = result
 
-    const turboStr = await collectEncode({
-        LOADER_DATA: syncLoader ?? null,
-        LAYOUTS_DATA: syncLayouts,
-        GUARD_DATA: guardData ?? null,
-    })
-    const syncB64 = stringToBase64(turboStr)
-    const deferredScript = deferredLoaderKeys?.length
-        ? `window.__DEVIX_DEFERRED__=${safeJsonStringify(deferredLoaderKeys)};`
-        : ''
-    const dataScript = `<script>window.__DEVIX__=${safeJsonStringify({
-        metadata,
-        viewport,
-        clientEntry,
-    })};window.__DEVIX_TURBO__=${safeJsonStringify(syncB64)};${deferredScript}</script>`
+        const headTags = metadata ? renderToStaticMarkup(buildHeadNodes(metadata, viewport) as any) : ''
 
-    const head = `<!DOCTYPE html><html lang="${escapeAttr(lang)}"><head><meta charset="utf-8">${headTags}${cssLinks}${dataScript}</head><body><div id="devix-root">`
-    const tail = `</div></body></html>`
+        const [syncLoader, deferredLoaderKeys] = separateDeferred(loaderData as Record<string, unknown> | null)
+        const syncLayouts = layoutsData.map(d => separateDeferred(d as Record<string, unknown> | null)[0])
 
-    const {stream} = await createHtmlStream(
-        createElement(ServerApp, {
-            pathname,
-            params,
-            loaderData,
-            layoutsData,
-            guardData,
-            Page: pageMod.default as any,
-            layouts: layoutMods.map(m => m.default as any),
-            metadata: metadata ?? null,
+        const turboStr = await collectEncode({
+            LOADER_DATA: syncLoader ?? null,
+            LAYOUTS_DATA: syncLayouts,
+            GUARD_DATA: guardData ?? null,
+        })
+        const syncB64 = stringToBase64(turboStr)
+        const deferredScript = deferredLoaderKeys?.length
+            ? `window.__DEVIX_DEFERRED__=${safeJsonStringify(deferredLoaderKeys)};`
+            : ''
+        const dataScript = `<script>window.__DEVIX__=${safeJsonStringify({
+            metadata,
             viewport,
             clientEntry,
-        }),
-        head,
-        tail,
-        {
-            bootstrapModules: [clientEntry],
-            onError: (err) => console.error('[devix] Streaming error:', err),
-        },
-    )
-    return {stream, statusCode: 200, headers: pageMod.headers ?? {}}
+        })};window.__DEVIX_TURBO__=${safeJsonStringify(syncB64)};${deferredScript}</script>`
+
+        const head = `<!DOCTYPE html><html lang="${escapeAttr(lang)}"><head><meta charset="utf-8">${headTags}${cssLinks}${dataScript}</head><body><div id="devix-root">`
+        const tail = `</div></body></html>`
+
+        const {stream} = await createHtmlStream(
+            createElement(ServerApp, {
+                pathname,
+                params,
+                loaderData,
+                layoutsData,
+                guardData,
+                Page: pageMod.default as any,
+                layouts: layoutMods.map(m => m.default as any),
+                metadata: metadata ?? null,
+                viewport,
+                clientEntry,
+            }),
+            head,
+            tail,
+            {
+                bootstrapModules: [clientEntry],
+                onError: (err) => console.error('[devix] Streaming error:', err),
+                beforeTail: (write) => {
+                    const map = event.queryHydration
+                    if (!map || map.size === 0) return
+                    const data = Object.fromEntries(map)
+                    write(`<script>window.__DEVIX_QUERIES__=${safeJsonStringify(data)};</script>`)
+                },
+            },
+        )
+        return {stream, statusCode: 200, headers: pageMod.headers ?? {}}
+    })
 }
 
 function separateDeferred<T extends Record<string, unknown>>(obj: T | null | undefined): [T | null, string[] | null] {

@@ -40,6 +40,7 @@ export async function handleServerFunction(
     const body = await collectEncode(result)
     respond({ status: 200, body })
   } catch (e) {
+    console.error('[devix] server fn failed:', id, e)
     respond({
       status: 500,
       body: JSON.stringify({ error: String((e as Error)?.message ?? e) }),

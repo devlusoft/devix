@@ -1,6 +1,6 @@
 # `$server` — proxy a backends remotos
 
-`$server` te deja llamar a backends remotos (tu API en Go/Rails/etc., microservicios internos) **directamente desde loaders, handlers y componentes** sin tener que escribir un handler proxy en `app/api/` para cada endpoint.
+`$server` te deja llamar a backends remotos (tu API en Go/Rails/etc., microservicios internos) **directamente desde queries, loaders, handlers y componentes** sin tener que escribir un handler proxy en `app/api/` para cada endpoint.
 
 ```ts
 // devix.config.ts

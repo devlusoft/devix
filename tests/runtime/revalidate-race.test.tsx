@@ -51,31 +51,56 @@ async function renderProvider(initialData: unknown = {n: 0}) {
 }
 
 describe('revalidate — race condition (#11)', () => {
-    it('múltiples revalidate concurrentes: la previa se aborta cuando se dispara una nueva', async () => {
-        const fetchCallSignals: AbortSignal[] = []
-        let callIdx = 0
-        const fetchMock = vi.fn((_url: string, opts?: any) => {
-            const signal: AbortSignal = opts.signal
-            const isFirst = callIdx === 0
-            callIdx += 1
-            fetchCallSignals.push(signal)
-
+    function mockFetch(opts: {
+        htmlDelay: (revIdx: number) => number
+        dataDelay: (revIdx: number) => number
+        dataPayload: (revIdx: number) => unknown
+    }): { fetchMock: ReturnType<typeof vi.fn>; fetchSignals: AbortSignal[] } {
+        const fetchSignals: AbortSignal[] = []
+        const signalsSeen = new WeakMap<AbortSignal, number>()
+        let nextRevIdx = 0
+        const fetchMock = vi.fn((url: string, fetchOpts?: any) => {
+            const signal: AbortSignal = fetchOpts.signal
+            fetchSignals.push(signal)
+            const isHtml = !url.includes('/_devix/data')
+            let revIdx: number
+            if (signalsSeen.has(signal)) {
+                revIdx = signalsSeen.get(signal)!
+            } else {
+                revIdx = nextRevIdx++
+                signalsSeen.set(signal, revIdx)
+            }
+            const delay = isHtml ? opts.htmlDelay(revIdx) : opts.dataDelay(revIdx)
+            const payload = isHtml
+                ? `<html><body><script>window.__DEVIX_QUERIES__={};</script></body></html>`
+                : JSON.stringify(opts.dataPayload(revIdx))
+            const headers: Record<string, string> = isHtml
+                ? {}
+                : { 'Content-Type': 'application/json' }
             return new Promise<Response>((resolve, reject) => {
-                const delay = isFirst ? 100 : 20
                 const timer = setTimeout(() => {
-                    resolve(new Response(JSON.stringify({
-                        loaderData: {n: isFirst ? 1 : 2},
-                        params: {},
-                        layouts: [],
-                        guardData: null,
-                        metadata: null,
-                    }), {status: 200, headers: {'Content-Type': 'application/json'}}))
+                    resolve(new Response(payload, {status: 200, headers}))
                 }, delay)
                 signal.addEventListener('abort', () => {
                     clearTimeout(timer)
                     reject(new DOMException('aborted', 'AbortError'))
                 })
             })
+        })
+        return { fetchMock, fetchSignals }
+    }
+
+    it('múltiples revalidate concurrentes: la previa se aborta cuando se dispara una nueva', async () => {
+        const { fetchMock, fetchSignals } = mockFetch({
+            htmlDelay: () => 100,
+            dataDelay: (revIdx) => (revIdx === 0 ? 100 : 20),
+            dataPayload: (revIdx) => ({
+                loaderData: {n: revIdx === 0 ? 1 : 2},
+                params: {},
+                layouts: [],
+                guardData: null,
+                metadata: null,
+            }),
         })
         vi.stubGlobal('fetch', fetchMock)
 
@@ -88,34 +113,24 @@ describe('revalidate — race condition (#11)', () => {
             await Promise.allSettled([p1, p2])
         })
 
-        expect(fetchMock).toHaveBeenCalledTimes(2)
-        expect(fetchCallSignals[0].aborted).toBe(true)   // p1 fue abortado por p2
-        expect(fetchCallSignals[1].aborted).toBe(false)  // p2 terminó normal
+        expect(fetchMock).toHaveBeenCalledTimes(3)
+        expect(fetchSignals[0].aborted).toBe(true)
+        expect(fetchSignals[1].aborted).toBe(false)
+        expect(fetchSignals[2].aborted).toBe(false)
         expect(receivedLoaderData).toEqual({n: 2})
     })
 
     it('después de varios revalidate, el state refleja solo el último', async () => {
-        let callIdx = 0
-        const fetchMock = vi.fn((_url: string, opts?: any) => {
-            const signal: AbortSignal = opts.signal
-            const idx = callIdx
-            callIdx += 1
-            return new Promise<Response>((resolve, reject) => {
-                const delay = idx === 2 ? 10 : 80
-                const timer = setTimeout(() => {
-                    resolve(new Response(JSON.stringify({
-                        loaderData: {idx},
-                        params: {},
-                        layouts: [],
-                        guardData: null,
-                        metadata: null,
-                    }), {status: 200, headers: {'Content-Type': 'application/json'}}))
-                }, delay)
-                signal.addEventListener('abort', () => {
-                    clearTimeout(timer)
-                    reject(new DOMException('aborted', 'AbortError'))
-                })
-            })
+        const { fetchMock, fetchSignals } = mockFetch({
+            htmlDelay: () => 80,
+            dataDelay: (revIdx) => (revIdx === 2 ? 10 : 80),
+            dataPayload: (revIdx) => ({
+                loaderData: {idx: revIdx},
+                params: {},
+                layouts: [],
+                guardData: null,
+                metadata: null,
+            }),
         })
         vi.stubGlobal('fetch', fetchMock)
 
@@ -130,6 +145,11 @@ describe('revalidate — race condition (#11)', () => {
             await Promise.allSettled([p1, p2, p3])
         })
 
+        expect(fetchMock).toHaveBeenCalledTimes(4)
+        expect(fetchSignals[0].aborted).toBe(true)
+        expect(fetchSignals[1].aborted).toBe(true)
+        expect(fetchSignals[2].aborted).toBe(false)
+        expect(fetchSignals[3].aborted).toBe(false)
         expect(receivedLoaderData).toEqual({idx: 2})
     })
 })

@@ -1,4 +1,6 @@
 export {useRouter, useNavigate, useRevalidate, useParams, useLoaderData, useGuardData, RouterProvider, Await, useDeferred} from "./router-provider"
+export {useQuery} from "./queries"
+export {invalidateQueries} from "./query-client"
 
 export {Link} from "./link"
 

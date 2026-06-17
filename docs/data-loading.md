@@ -1,10 +1,40 @@
 # Carga de datos
 
-## loader
+> ⚠️ **`loader()` y `useLoaderData()` están deprecated desde 0.9.0-alpha.2.** Migración: [`query()` + `useQuery()`](./queries.md).
+>
+> El sistema de loaders sigue funcionando pero no recibe mejoras. Las páginas nuevas deberían usar queries. Migración página por página, sin prisa.
 
-Se ejecuta en el servidor antes del renderizado. El valor que retorna llega como `data` a la página:
+## Quickstart con queries (recomendado)
+
+```ts
+// app/queries/posts.ts
+import { query } from '@devlusoft/devix'
+
+export const getPost = query(
+  async (slug: string) => db.posts.findBySlug(slug),
+  'get-post',
+)
+```
 
 ```tsx
+// app/pages/posts/[slug].tsx
+import { useQuery } from '@devlusoft/devix'
+import { getPost } from '~/queries/posts'
+
+export default function Post({ params }: { params: { slug: string } }) {
+  const post = useQuery(() => getPost(params.slug))
+  return <h1>{post.title}</h1>
+}
+```
+
+Ver [`docs/queries.md`](./queries.md) para la guía completa: hidratación sin doble roundtrip, cache key, RPC fallback, Suspense, migración desde loaders.
+
+## Legacy: loader + useLoaderData
+
+Siguen funcionando. No hay breaking change.
+
+```tsx
+// app/pages/blog/[slug].tsx
 import type { PageProps, LoaderContext } from '@devlusoft/devix'
 
 export async function loader({ params, request }: LoaderContext) {
@@ -16,10 +46,6 @@ export default function Post({ data }: PageProps<typeof loader>) {
 }
 ```
 
-## useLoaderData
-
-Accede a los datos del loader desde cualquier componente en el árbol:
-
 ```tsx
 import { useLoaderData } from '@devlusoft/devix'
 
@@ -28,6 +54,28 @@ function Author() {
   return <span>{author}</span>
 }
 ```
+
+### Por qué migrar
+
+| | loader | query |
+|---|---|---|
+| Definición | Una por página/layout | Función reusable, vive en cualquier archivo |
+| Llamable desde otros server fns | No | Sí (un query puede llamar a otro) |
+| Cache key | Por ruta | Por `(name, args)` |
+| Reactividad | Snapshot por render | Signal Solid-style + Suspense |
+| Streaming de hidratación | Custom (deferred values) | Nativo via React 19 Suspense |
+| Tree-shaking | Disciplina de imports | AST transform en Vite |
+| Doc | `docs/data-loading.md` (este archivo) | [`docs/queries.md`](./queries.md) |
+
+### Cómo migrar
+
+1. Definí tus queries en `app/queries/<entidad>.ts` con `query(fn, name)`.
+2. En la página, reemplazá `function Page({ data })` por `function Page()` + `useQuery(() => getThing(...))` adentro.
+3. Borrá el `loader` export. Borrá el tipo `LoaderContext` y `PageProps<typeof loader>`.
+4. Reemplazá `useLoaderData()` por `useQuery(() => getThing(...))` en componentes hijos.
+5. Verificá que el HTML contiene el script `window.__DEVIX_QUERIES__` con los datos esperados.
+
+El framework soporta ambos sistemas en paralelo. La migración es página por página.
 
 ## useParams
 
@@ -91,22 +139,9 @@ export default function Dashboard() {
   const session = useGuardData<typeof guard>()
   return <h1>Hola, {session.user.name}</h1>
 }
-
-// O desde un descendiente cualquiera
-function UserBadge() {
-  const session = useGuardData<typeof guard>()
-  return <span>{session.user.email}</span>
-}
 ```
 
 `useGuardData()` devuelve el último valor que retornó algún guard de la ruta (layouts → page, en orden). Pasar `typeof guard` como generic infiere el tipo concreto.
-
-Sin el hook, tendrías que escribir un loader que solo reexpone el guard:
-
-```ts
-// ❌ Ceremonia que ya no necesitas
-export const loader = ({ guardData }: LoaderContextWithGuard<typeof guard>) => guardData
-```
 
 ## Timeout
 
@@ -166,4 +201,4 @@ export default function ErrorPage({ statusCode, message, code, data }: ErrorProp
 }
 ```
 
-> El mismo `error()` funciona en handlers API. Ver [API Routes — Errores](./api-routes.md#errores).
+> El mismo `error()` funciona en handlers API y queries. Ver [API Routes — Errores](./api-routes.md#errores).

@@ -4,10 +4,12 @@ import {renderToPipeableStream} from "react-dom/server";
 
 class HtmlTailInjector extends Transform {
     private readonly tail: Buffer
+    private readonly beforeTail?: (write: (chunk: string) => void) => void
 
-    constructor(tail: string) {
+    constructor(tail: string, beforeTail?: (write: (chunk: string) => void) => void) {
         super()
         this.tail = Buffer.from(tail, 'utf-8')
+        this.beforeTail = beforeTail
     }
 
     _transform(chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
@@ -16,6 +18,11 @@ class HtmlTailInjector extends Transform {
     }
 
     _flush(callback: TransformCallback) {
+        if (this.beforeTail) {
+            this.beforeTail((chunk: string) => {
+                this.push(Buffer.from(chunk, 'utf-8'))
+            })
+        }
         this.push(this.tail)
         callback()
     }
@@ -26,6 +33,7 @@ export interface CreateHtmlStreamOptions {
     onError?: (error: unknown) => void
     signal?: AbortSignal
     timeoutMs?: number
+    beforeTail?: (write: (chunk: string) => void) => void
 }
 
 export interface CreateHtmlStreamResult {
@@ -41,7 +49,7 @@ export function createHtmlStream(
 ): Promise<CreateHtmlStreamResult> {
     return new Promise((resolve, reject) => {
         const output = new PassThrough()
-        const injector = new HtmlTailInjector(tail)
+        const injector = new HtmlTailInjector(tail, options?.beforeTail)
         let timer: ReturnType<typeof setTimeout> | undefined
 
         injector.pipe(output)

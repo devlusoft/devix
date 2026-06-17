@@ -1,28 +1,22 @@
+import { Suspense } from 'react'
 import {
-  useLoaderData,
+  useQuery,
   useRevalidate,
+  invalidateQueries,
   Link,
-  type LoaderFunction,
   type Metadata,
 } from '@devlusoft/devix'
-import {
-  getTasks,
-  createTask,
-  deleteTask,
-  type Task,
-} from '../../lib/store.js'
+import { createTask, deleteTask, type Task } from '../../lib/store.js'
+import { getTasksQuery } from '../../lib/queries.js'
+import { TaskListSkeleton } from '../components/TaskListSkeleton.js'
 
 export const metadata: Metadata = {
   title: 'Tasks - Devix Showcase',
-  description: 'Task list exercising the new action() primitive',
+  description: 'Task list exercising query() + useQuery()',
 }
 
-export const loader: LoaderFunction = async () => {
-  return { tasks: getTasks() }
-}
-
-export default function Home() {
-  const { tasks } = useLoaderData<{ tasks: Task[] }>()
+function TaskList() {
+  const tasks = useQuery(() => getTasksQuery()) as Task[]
   const revalidate = useRevalidate()
 
   async function onCreate(e: React.FormEvent<HTMLFormElement>) {
@@ -34,18 +28,18 @@ export default function Home() {
     if (!title || !description) return
     await createTask({ title, description })
     form.reset()
+    invalidateQueries()
     revalidate()
   }
 
   async function onDelete(id: string) {
     await deleteTask(id)
+    invalidateQueries()
     revalidate()
   }
 
   return (
-    <main className="container">
-      <h1>Tasks</h1>
-
+    <>
       <form onSubmit={onCreate}>
         <input name="title" placeholder="Title" required />
         <textarea name="description" placeholder="Description" required />
@@ -69,6 +63,17 @@ export default function Home() {
           </div>
         </div>
       ))}
+    </>
+  )
+}
+
+export default function Home() {
+  return (
+    <main className="container">
+      <h1>Tasks</h1>
+      <Suspense fallback={<TaskListSkeleton count={3} />}>
+        <TaskList />
+      </Suspense>
     </main>
   )
 }

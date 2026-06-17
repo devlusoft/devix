@@ -1,33 +1,40 @@
+import { Suspense } from 'react'
 import {
-  useLoaderData,
+  useQuery,
   useNavigate,
-  type LoaderFunction,
+  invalidateQueries,
   type Metadata,
+  type PageProps,
 } from '@devlusoft/devix'
-import { getTask, updateTask, type Task, type TaskStatus } from '../../../../lib/store.js'
+import { updateTask, type Task, type TaskStatus } from '../../../../lib/store.js'
+import { getTaskQuery } from '../../../../lib/queries.js'
+import { TaskDetailSkeleton } from '../../../components/TaskListSkeleton.js'
 
 export const metadata: Metadata = {
   title: 'Edit task - Devix Showcase',
 }
 
-export const loader: LoaderFunction = async ({ params }) => {
-  const task = getTask(String(params.id))
-  if (!task) throw new Error(`Task ${params.id} not found`)
-  return { task }
-}
-
-export default function EditTask() {
-  const { task } = useLoaderData<{ task: Task }>()
+function TaskEditor({ id }: { id: string }) {
+  const task = useQuery(() => getTaskQuery(id)) as Task | null
   const navigate = useNavigate()
+
+  if (!task) {
+    return (
+      <main className="container">
+        <h1>Task not found</h1>
+      </main>
+    )
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
-    await updateTask(task.id, {
+    await updateTask(task!.id, {
       title: String(fd.get('title') ?? '').trim(),
       description: String(fd.get('description') ?? '').trim(),
       status: String(fd.get('status') ?? 'todo') as TaskStatus,
     })
+    invalidateQueries()
     navigate('/')
   }
 
@@ -45,5 +52,13 @@ export default function EditTask() {
         <button type="submit">Save</button>
       </form>
     </main>
+  )
+}
+
+export default function EditTask({ params }: PageProps<{ id: string }>) {
+  return (
+    <Suspense fallback={<TaskDetailSkeleton />}>
+      <TaskEditor id={params.id} />
+    </Suspense>
   )
 }

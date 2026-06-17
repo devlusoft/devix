@@ -10,6 +10,6 @@
   "prerelease": {
     "mode": "pre",
     "tag": "alpha",
-    "initialVersion": "0.8.0-alpha.5"
+    "initialVersion": "0.9.0-alpha.1"
   }
 }

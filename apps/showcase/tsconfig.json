@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@devlusoft/devix/config": ["../../src/config.ts"],
+      "@devlusoft/devix/data/internal": ["../../src/data/internal.ts"],
+      "@devlusoft/devix/data": ["../../src/data/index.ts"],
+      "@devlusoft/devix": ["../../src/runtime/index.ts"]
+    }
+  },
+  "include": ["app/**/*", "lib/**/*", "devix.config.ts"]
+}

@@ -1,0 +1,107 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #f5f5f5;
+  color: #111;
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.nav {
+  background: #111;
+  color: #fff;
+  padding: 1rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.nav a {
+  color: #fff;
+  text-decoration: none;
+}
+
+.nav a:hover {
+  text-decoration: underline;
+}
+
+.nav .brand {
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card h3 {
+  margin: 0;
+}
+
+.card .actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: #e5e5e5;
+  width: fit-content;
+}
+
+.badge.todo { background: #fef3c7; color: #92400e; }
+.badge.in-progress { background: #dbeafe; color: #1e40af; }
+.badge.done { background: #d1fae5; color: #065f46; }
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+input, textarea, select, button {
+  font: inherit;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+button {
+  background: #111;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  width: fit-content;
+}
+
+button:hover { opacity: 0.9; }
+button.danger { background: #dc2626; }
+button.link {
+  background: none;
+  color: #2563eb;
+  padding: 0;
+  border: none;
+}
+button.link:hover { text-decoration: underline; opacity: 1; }

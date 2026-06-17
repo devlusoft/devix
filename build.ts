@@ -19,6 +19,7 @@ await build({
     packages: 'external',
     define: {
         __DEVIX_VERSION__: JSON.stringify(pkg.version),
+        __DEVIX_PROD__: 'true',
     },
     jsx: 'automatic',
     sourcemap: true,

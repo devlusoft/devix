@@ -7,6 +7,28 @@ import type { Manifest } from 'vite'
 import { registerApiRoutes, registerSsrRoute } from '../server/routes'
 import {pathToFileURL} from "node:url"
 import {loadConfig} from "../utils/load-config"
+import { handleServerFunction } from '../data/server-fn-handler.js'
+import type { RouterEvent } from '../data/request-context.js'
+
+function parseCookies(cookieHeader: string | null): Record<string, string> {
+  const cookies: Record<string, string> = {}
+  if (!cookieHeader) return cookies
+  for (const pair of cookieHeader.split(';')) {
+    const eq = pair.indexOf('=')
+    if (eq < 0) continue
+    const name = pair.slice(0, eq).trim()
+    const value = pair.slice(eq + 1).trim()
+    if (name) cookies[name] = decodeURIComponent(value)
+  }
+  return cookies
+}
+
+function createEvent(request: Request): RouterEvent {
+  return {
+    cookies: () => parseCookies(request.headers.get('cookie')),
+    pathname: new URL(request.url).pathname,
+  }
+}
 
 let renderModule: any
 let apiModule: any
@@ -67,6 +89,22 @@ if (runtimeConfig!.output === 'static') {
     const userConfig = await loadConfig(process.cwd(), 'production').catch(() => null)
     registerApiRoutes(app, { renderModule, apiModule, manifest, server: userConfig?.server })
     registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig!.loaderTimeout, server: userConfig?.server })
+
+    app.post('/_devix/server', async (c) => {
+      let status = 200
+      let body = ''
+      let headers: Record<string, string> = {}
+      await handleServerFunction(
+        c.req.raw,
+        (r) => {
+          status = r.status
+          body = r.body
+          headers = r.headers ?? {}
+        },
+        () => createEvent(c.req.raw),
+      )
+      return new Response(body, { status, headers })
+    })
 }
 
 serve({ fetch: app.fetch, port, hostname: host }, (info: {address: string; port: number}) => console.log(`http://${info.address}:${info.port}`))

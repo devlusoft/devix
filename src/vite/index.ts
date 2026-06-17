@@ -20,6 +20,7 @@ import {scanActions} from "./codegen/scan-actions";
 import {generateActionsDts} from "./codegen/actions-dts";
 import {writeActionsDts} from "./codegen/write-actions-dts";
 import {generateActions} from "./codegen/actions";
+import {dataTransform} from "../data/vite-plugin.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -178,6 +179,10 @@ export function devix(config: DevixConfig): UserConfig {
         configureServer(server) {
             const root = process.cwd()
 
+            for (const cssUrl of cssUrls) {
+                server.transformRequest(cssUrl).catch(() => {})
+            }
+
             const initial = scanAndWritePageTypes(appDir, root)
             for (const w of initial.warnings) console.warn(w)
 
@@ -254,7 +259,7 @@ export function devix(config: DevixConfig): UserConfig {
     }
 
     const base: UserConfig = {
-        plugins: [react(), virtualPlugin],
+        plugins: [react(), virtualPlugin, dataTransform()],
         publicDir: resolve(process.cwd(), config.publicDir ?? 'public'),
         ssr: {noExternal: ['@devlusoft/devix']},
         ...(config.envPrefix ? {envPrefix: config.envPrefix} : {}),

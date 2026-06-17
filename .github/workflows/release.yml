@@ -39,7 +39,7 @@ jobs:
         with:
           publish: pnpm publish --no-git-checks --provenance
           version: pnpm changeset version
-          commit: 'chore(release): %s [skip ci]'
+          commit: 'chore(release): %s'
           title: 'chore(release): version packages'
           setupGitUser: true
         env:

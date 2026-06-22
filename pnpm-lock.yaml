@@ -36,7 +36,7 @@ importers:
     dependencies:
       '@hono/node-server':
         specifier: 1.19.13
-        version: 1.19.13(hono@4.12.18)
+        version: 1.19.13(hono@4.12.26)
       '@nijil71/lumi-cli':
         specifier: 1.0.11
         version: 1.0.11
@@ -47,8 +47,8 @@ importers:
         specifier: 0.28.1
         version: 0.28.1
       hono:
-        specifier: 4.12.18
-        version: 4.12.18
+        specifier: 4.12.26
+        version: 4.12.26
       oxc-parser:
         specifier: 0.121.0
         version: 0.121.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
@@ -1321,8 +1321,8 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
-  hono@4.12.18:
-    resolution: {integrity: sha512-RWzP96k/yv0PQfyXnWjs6zot20TqfpfsNXhOnev8d1InAxubW93L11/oNUc3tQqn2G0bSdAOBpX+2uDFHV7kdQ==}
+  hono@4.12.26:
+    resolution: {integrity: sha512-uyZtpnYxM9CmQ7QsQknM4zN8EftNqhON1qYeIKM0Se67CCEe2c44xyGURwB0axX2fBDu1dqHrHAc1hmNT8ITkw==}
     engines: {node: '>=16.9.0'}
 
   hookable@6.1.1:
@@ -2421,9 +2421,9 @@ snapshots:
 
   '@exodus/bytes@1.15.0': {}
 
-  '@hono/node-server@1.19.13(hono@4.12.18)':
+  '@hono/node-server@1.19.13(hono@4.12.26)':
     dependencies:
-      hono: 4.12.18
+      hono: 4.12.26
 
   '@inquirer/external-editor@1.0.3(@types/node@25.5.0)':
     dependencies:
@@ -2993,7 +2993,7 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
-  hono@4.12.18: {}
+  hono@4.12.26: {}
 
   hookable@6.1.1: {}
 

@@ -5,9 +5,9 @@ import {execSync} from 'node:child_process'
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf-8'))
 
-const entryPoints = (readdirSync('src', {recursive: true}) as string[])
+const entryPoints = (readdirSync('lib', {recursive: true}) as string[])
     .filter(f => /\.(ts|tsx)$/.test(f) && !f.includes('.test.') && !f.endsWith('virtual.d.ts'))
-    .map(f => join('src', f))
+    .map(f => join('lib', f))
 
 await build({
     entryPoints,

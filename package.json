@@ -1,113 +1,18 @@
 {
-  "name": "@devlusoft/devix",
-  "version": "0.9.0-alpha.1",
+  "name": "devix-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Monorepo for the devix framework and its packages",
   "type": "module",
-  "description": "A lightweight React SSR meta-framework — devix",
-  "author": "devlusoft",
-  "license": "MIT",
-  "homepage": "https://github.com/devlusoft/devix#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/devlusoft/devix.git"
-  },
-  "keywords": [
-    "react",
-    "ssr",
-    "meta-framework",
-    "vite",
-    "file-based-routing",
-    "fullstack",
-    "devix",
-    "devlusoft"
-  ],
-  "bin": {
-    "devix": "bin/devix.js"
-  },
-  "types": "./dist/runtime/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/runtime/index.d.ts",
-      "default": "./dist/runtime/index.js"
-    },
-    "./config": {
-      "types": "./dist/config.d.ts",
-      "default": "./dist/config.js"
-    },
-    "./runtime/context": {
-      "types": "./dist/runtime/context.d.ts",
-      "default": "./dist/runtime/context.js"
-    },
-    "./server": {
-      "types": "./dist/server/public-index.d.ts",
-      "default": "./dist/server/public-index.js"
-    },
-    "./data": {
-      "types": "./dist/data/index.d.ts",
-      "default": "./dist/data/index.js"
-    },
-    "./data/internal": {
-      "types": "./dist/data/internal.d.ts",
-      "default": "./dist/data/internal.js"
-    },
-    "./data/internal/server": {
-      "types": "./dist/data/internal-server.d.ts",
-      "default": "./dist/data/internal-server.js"
-    },
-    "./data/internal/client": {
-      "types": "./dist/data/internal-client.d.ts",
-      "default": "./dist/data/internal-client.js"
-    }
-  },
-  "files": [
-    "dist",
-    "bin"
-  ],
-  "scripts": {
-    "build": "node --import tsx/esm build.ts",
-    "prepublishOnly": "pnpm run build",
-    "dev": "tsc --watch",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "start": "node --import tsx/esm lib/cli/index.ts start"
-  },
-  "peerDependencies": {
-    "react": ">=19",
-    "react-dom": ">=19",
-    "vite": ">=8.0.11"
-  },
-  "dependencies": {
-    "@hono/node-server": "1.19.13",
-    "@nijil71/lumi-cli": "1.0.11",
-    "@vitejs/plugin-react": "6.0.1",
-    "esbuild": "0.27.4",
-    "hono": "4.12.18",
-    "oxc-parser": "0.121.0",
-    "picocolors": "1.1.1",
-    "turbo-stream": "3.2.0"
-  },
   "packageManager": "pnpm@11.1.1",
-  "pnpm": {
-    "overrides": {
-      "picomatch": ">=4.0.4"
-    }
+  "scripts": {
+    "build": "pnpm --filter @devlusoft/devix build",
+    "test": "pnpm --filter @devlusoft/devix test",
+    "test:run": "pnpm --filter @devlusoft/devix test:run",
+    "dev": "pnpm --filter @devlusoft/devix dev",
+    "start": "pnpm --filter @devlusoft/devix start"
   },
-  "devDependencies": {
-    "@babel/generator": "7.25.0",
-    "@babel/parser": "7.25.0",
-    "@babel/traverse": "7.25.0",
-    "@babel/types": "7.25.0",
-    "@changesets/cli": "2.29.7",
-    "@types/babel__generator": "7.6.8",
-    "@types/babel__traverse": "7.0.0",
-    "@types/node": "25.5.0",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
-    "jsdom": "29.0.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "tsx": "4.21.0",
-    "typescript": "5.9.3",
-    "vite": "8.0.11",
-    "vitest": "4.1.0"
+  "engines": {
+    "node": ">=20"
   }
 }

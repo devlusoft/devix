@@ -63,7 +63,7 @@
     "bin"
   ],
   "scripts": {
-    "build": "node --import tsx/esm build.ts",
+    "build": "tsdown",
     "prepublishOnly": "pnpm run build",
     "dev": "tsc --watch",
     "test": "vitest",
@@ -79,7 +79,6 @@
     "@hono/node-server": "1.19.13",
     "@nijil71/lumi-cli": "1.0.11",
     "@vitejs/plugin-react": "6.0.1",
-    "esbuild": "0.27.4",
     "hono": "4.12.18",
     "oxc-parser": "0.121.0",
     "picocolors": "1.1.1",
@@ -105,6 +104,7 @@
     "jsdom": "29.0.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "tsdown": "0.22.3",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
     "vite": "8.0.11",

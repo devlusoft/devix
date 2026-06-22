@@ -29,6 +29,7 @@
       "types": "./dist/runtime/index.d.ts",
       "default": "./dist/runtime/index.js"
     },
+    "./package.json": "./package.json",
     "./config": {
       "types": "./dist/config.d.ts",
       "default": "./dist/config.js"
@@ -79,6 +80,7 @@
     "@hono/node-server": "1.19.13",
     "@nijil71/lumi-cli": "1.0.11",
     "@vitejs/plugin-react": "6.0.1",
+    "esbuild": "0.28.1",
     "hono": "4.12.18",
     "oxc-parser": "0.121.0",
     "picocolors": "1.1.1",

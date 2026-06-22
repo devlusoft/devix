@@ -68,7 +68,7 @@
     "dev": "tsc --watch",
     "test": "vitest",
     "test:run": "vitest run",
-    "start": "node --import tsx/esm src/cli/index.ts start"
+    "start": "node --import tsx/esm lib/cli/index.ts start"
   },
   "peerDependencies": {
     "react": ">=19",

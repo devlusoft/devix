@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "lib": [
+      "ESNext",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "paths": {
+      "@devlusoft/devix": [
+        "./lib/runtime/index.ts"
+      ],
+      "@devlusoft/devix/config": [
+        "./lib/config.ts"
+      ],
+      "@devlusoft/devix/runtime/context": [
+        "./lib/runtime/context.ts"
+      ],
+      "@devlusoft/devix/server": [
+        "./lib/server/index.ts"
+      ],
+      "@devlusoft/devix/vite": [
+        "./lib/vite/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "./lib/**/*",
+    "./tests/**/*",
+    "build.ts"
+  ]
+}

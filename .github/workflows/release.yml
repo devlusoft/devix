@@ -32,12 +32,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build package
-        run: pnpm build
+        run: pnpm --filter @devlusoft/devix build
 
       - name: Create or update Version Packages PR
         uses: changesets/action@v1
         with:
-          publish: pnpm publish --no-git-checks --provenance
+          publish: pnpm -r --filter=!devix-monorepo publish --no-git-checks --provenance
           version: pnpm changeset version
           commit: 'chore(release): %s'
           title: 'chore(release): version packages'

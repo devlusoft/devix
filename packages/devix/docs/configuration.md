@@ -45,7 +45,7 @@ Directorio de archivos estáticos servidos en la raíz del sitio. Default: `'pub
 
 ### `loaderTimeout`
 
-Tiempo máximo de ejecución para loaders y guards. Acepta número en ms o string con unidad: `'5s'`, `'2m'`, `'500ms'`,
+Tiempo máximo de ejecución para queries y guards. Acepta número en ms o string con unidad: `'5s'`, `'2m'`, `'500ms'`,
 `'1h'`. Default: `'10s'`.
 
 ### `css`
@@ -82,7 +82,7 @@ export default defineConfig({envPrefix: 'PUBLIC_'})
 const apiUrl = import.meta.env.PUBLIC_API_URL
 ```
 
-Las variables sin prefijo solo están disponibles en loaders, guards y rutas API.
+Las variables sin prefijo solo están disponibles en queries, guards y rutas API.
 
 ## Archivos .env
 

@@ -307,7 +307,7 @@ export const GET = createHandler(async () => {
 })
 ```
 
-`error()` es la misma función que se usa en loaders/guards. Funciona en ambos contextos. Más simple y legible que un throw.
+`error()` es la misma función que se usa en queries/guards. Funciona en ambos contextos. Más simple y legible que un throw.
 
 ### `DevixError` — lanzar (cuando `return` no es práctico)
 

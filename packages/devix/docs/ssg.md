@@ -43,12 +43,8 @@ export async function generateStaticParams() {
   return posts.map(p => ({ slug: p.slug }))
 }
 
-export async function loader({ params }: LoaderContext<{ slug: string }>) {
-  return db.posts.findBySlug(params.slug)
-}
-
-export default function Post({ data }: PageProps<typeof loader>) {
-  return <article>{data.title}</article>
+export default function Post({ params }: { params: { slug: string } }) {
+  return <article>{params.slug}</article>
 }
 ```
 
@@ -73,9 +69,9 @@ npx devix start  # sirve dist/client/ sin SSR
 
 O despliega `dist/client/` directamente en Netlify, Cloudflare Pages, S3, etc.
 
-## Loaders en SSG
+## Queries en SSG
 
-Los loaders corren en tiempo de generación, no de petición. Pueden acceder a base de datos, APIs, archivos — el resultado queda serializado en el HTML.
+Las queries corren en tiempo de generación, no de petición. Pueden acceder a base de datos, APIs, archivos — el resultado queda serializado en el HTML vía Suspense.
 
 ## Limitaciones
 

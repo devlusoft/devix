@@ -24,16 +24,12 @@ Las rutas estáticas tienen prioridad sobre las dinámicas. `/blog/new` siempre 
 
 ## Params
 
-Disponibles en `loader`, `guard`, `generateMetadata` y como props de la página:
+Disponibles en `guard`, `generateMetadata` y como props de la página:
 
 ```tsx
-import type { PageProps, LoaderContext } from '@devlusoft/devix'
+import type { PageProps } from '@devlusoft/devix'
 
-export async function loader({ params }: LoaderContext<{ slug: string }>) {
-  return db.posts.findBySlug(params.slug)
-}
-
-export default function Page({ params }: PageProps) {
+export default function Page({ params }: PageProps<{ slug: string }>) {
   return <p>{params.slug}</p>
 }
 ```
@@ -46,7 +42,7 @@ import { Link } from '@devlusoft/devix';
 <Link href="/blog/hola-mundo">Post</Link>
 ```
 
-Hace prefetch del loader al hacer hover con `prefetch`:
+Hace prefetch de los datos al hacer hover con `prefetch`:
 
 ```tsx
 <Link href="/blog/hola-mundo" prefetch>Post</Link>
@@ -80,7 +76,7 @@ const { slug } = useParams<{ slug: string }>()
 
 ## useRevalidate
 
-Vuelve a ejecutar guards y loaders de la ruta actual sin navegar:
+Vuelve a ejecutar guards de la ruta actual sin navegar:
 
 ```tsx
 import { useRevalidate } from '@devlusoft/devix'
@@ -97,14 +93,14 @@ await revalidate()
 `revalidate()` reproduce el mismo flujo de carga que una navegación entrante:
 
 1. Los **guards** de layouts y de la página actual corren de nuevo (en orden — root layout primero, página al final)
-2. Los **loaders** corren después en paralelo (layouts + página)
+2. Los **guards** corren antes que el render
 3. La metadata se vuelve a resolver
 
 Esto significa que:
 
 - Un **redirect** retornado por un guard durante revalidate funciona automáticamente — el router navega al destino sin trabajo extra.
 - Una **sesión que expiró** entre la primera carga y la revalidación es detectada en el siguiente `revalidate()`: el guard de auth retorna `/login` y el usuario es redirigido.
-- Un **`error()` retornado** por un guard o loader durante revalidate muestra la `error.tsx` correspondiente.
+- Un **`error()` retornado** por un guard durante revalidate muestra la `error.tsx` correspondiente.
 
 ### Caso típico — mutación con re-fetch de datos
 
@@ -146,7 +142,7 @@ async function logout() {
 
 ## error.tsx
 
-Un archivo `error.tsx` captura errores del loader y del renderizado en el mismo directorio y sus subdirectorios.
+Un archivo `error.tsx` captura errores del renderizado en el mismo directorio y sus subdirectorios.
 
 ```tsx
 // app/pages/error.tsx  ← captura errores globales

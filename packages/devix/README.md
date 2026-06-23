@@ -14,11 +14,11 @@ Construye aplicaciones React full-stack con enrutamiento basado en archivos, ren
 - **Rutas API** — basadas en archivos, con `createHandler` para tipado de extremo a extremo
 - **$fetch** — cliente HTTP con body y respuesta tipados, con autocompletado de rutas
 - **Validación de body** — soporte de [Standard Schema](https://standardschema.dev) (Zod, Valibot, ArkType) en `createHandler` con error shape automático
-- **Error shape unificado** — `error()` y `DevixError` producen el mismo `{ statusCode, code, message }` en loaders, guards y handlers
-- **Carga de datos** — funciones `loader` con hidratación automática en el cliente
-- **Guards de ruta** — redirecciones del lado del servidor antes del renderizado, con `useGuardData()` para leer datos del guard sin loader
+- **Error shape unificado** — `error()` y `DevixError` producen el mismo `{ statusCode, code, message }` en queries, guards y handlers
+- **Carga de datos** — funciones `query()` con hidratación automática en el cliente
+- **Guards de ruta** — redirecciones del lado del servidor antes del renderizado, con `useGuardData()` para leer datos del guard
 - **Navegación programática** — `useNavigate()` con soporte de `replace` y View Transitions API
-- **Revalidación de datos** — `useRevalidate()` para refrescar guards y loaders sin recargar la página
+- **Revalidación de datos** — `useRevalidate()` para refrescar guards sin recargar la página
 - **SEO** — `metadata` y `generateMetadata` por página, con soporte de Open Graph y Twitter
 - **TypeScript primero** — inferencia de tipos completa en todo el framework
 
@@ -80,26 +80,33 @@ app/
 
 ## Conceptos principales
 
-### Loader y datos
+### Queries y datos
 
 ```tsx
-import { useLoaderData } from '@devlusoft/devix'
-import type { PageProps, LoaderContext } from '@devlusoft/devix'
+// app/queries/posts.ts
+import { query } from '@devlusoft/devix'
 
-export async function loader({ params, request }: LoaderContext) {
-  const post = await db.posts.findBySlug(params.slug)
-  return post
-}
+export const getPost = query(
+  async (slug: string) => db.posts.findBySlug(slug),
+  'get-post',
+)
 
-export default function BlogPost({ data, params }: PageProps<typeof loader>) {
-  return <article>{data.title}</article>
+// app/pages/blog/[slug].tsx
+import { useQuery } from '@devlusoft/devix'
+import { getPost } from '~/queries/posts'
+
+export default function BlogPost({ params }: { params: { slug: string } }) {
+  const post = useQuery(() => getPost(params.slug))
+  return <article>{post.title}</article>
 }
 ```
 
 ### Guard de ruta
 
 ```ts
-export async function guard({ request }: LoaderContext) {
+import { getSession } from '~/lib/auth'
+
+export async function guard({ request }) {
   const user = await getSession(request)
   if (!user) return '/login'
   return null
@@ -116,9 +123,9 @@ export const metadata = {
   twitter: { card: 'summary_large_image' },
 }
 
-// o dinámica:
-export async function generateMetadata({ loaderData }) {
-  return { title: loaderData.title }
+// o dinámica — usando queries:
+export async function generateMetadata() {
+  return { title: 'Título dinámico' }
 }
 ```
 
@@ -139,7 +146,7 @@ export default function RootLayout({ children }: LayoutProps) {
 
 ### Tipado de params
 
-Pasa el tipo de params directamente sin necesidad de un loader:
+Pasa el tipo de params directamente al genérico:
 
 ```tsx
 import type { PageProps } from '@devlusoft/devix'
@@ -174,10 +181,10 @@ function MyComponent() {
 ```ts
 import { redirect } from '@devlusoft/devix'
 
-export async function loader({ request }: LoaderContext) {
+export async function guard({ request }) {
   const user = await getSession(request)
   if (!user) return redirect('/login', { replace: true })
-  return user
+  return null
 }
 ```
 
@@ -266,7 +273,7 @@ export default defineConfig({
   appDir: 'app',             // directorio de la app (default: 'app')
   publicDir: 'public',       // directorio de archivos estáticos (default: 'public')
   output: 'server',          // 'server' | 'static' (default: 'server')
-  loaderTimeout: 10_000,     // timeout de los loaders en ms (default: 10000)
+  loaderTimeout: 10_000,     // timeout de queries/guards en ms (default: 10000)
   css: ['./app/styles/global.css'],  // archivos CSS globales
   envPrefix: 'PUBLIC_',      // expone variables de entorno con este prefijo al cliente
   vite: {},                  // extiende la configuración de Vite
@@ -280,7 +287,7 @@ La documentación completa está en la carpeta [`docs/`](./docs):
 - [Primeros pasos](./docs/getting-started.md)
 - [Enrutamiento](./docs/routing.md)
 - [Layouts](./docs/layouts.md)
-- [Carga de datos](./docs/data-loading.md)
+- [Queries y datos](./docs/queries.md)
 - [Rutas API](./docs/api-routes.md)
 - [Metadata y SEO](./docs/metadata.md)
 - [Generación estática (SSG)](./docs/ssg.md)

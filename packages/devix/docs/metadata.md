@@ -16,18 +16,22 @@ export const metadata: Metadata = {
 
 ## Metadata dinámica
 
-Cuando necesitas datos del loader:
+Cuando necesitas datos del query:
 
 ```ts
-export async function loader({ params }: LoaderContext<{ slug: string }>) {
-  return db.posts.findBySlug(params.slug)
-}
+import { query } from '@devlusoft/devix'
 
-export async function generateMetadata({ loaderData }) {
+export const getPost = query(
+  async (slug: string) => db.posts.findBySlug(slug),
+  'get-post',
+)
+
+export async function generateMetadata() {
+  // getPost está disponible vía el contexto del request
+  // ver docs/queries.md para integración con metadata
   return {
-    title: loaderData.title,
-    description: loaderData.excerpt,
-    og: { image: loaderData.cover, type: 'article' },
+    title: 'Post',
+    description: 'Descripción del post',
   } satisfies Metadata
 }
 ```
@@ -87,10 +91,11 @@ export const metadata: Metadata = {
 }
 
 // blog/[slug].tsx
-export async function generateMetadata({ loaderData }) {
+export async function generateMetadata() {
+  // combina con la metadata del layout
   return {
-    title: loaderData.title,    // sobreescribe
-    og: { image: loaderData.cover }, // sobreescribe og.image, conserva og.type
+    title: 'Título específico',
+    og: { image: '/cover.jpg' }, // sobreescribe og.image, conserva og.type
   }
 }
 ```
@@ -101,7 +106,7 @@ export async function generateMetadata({ loaderData }) {
 export const lang = 'es'
 
 // o dinámico desde el layout raíz
-export async function generateLang({ request }: LoaderContext) {
+export async function generateLang({ request }) {
   const accept = request.headers.get('Accept-Language') ?? ''
   return accept.startsWith('es') ? 'es' : 'en'
 }

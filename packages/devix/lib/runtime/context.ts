@@ -10,8 +10,6 @@ export interface NavigateOptions {
 export interface RouterContextValue {
     pathname: string
     params: Record<string, string>
-    loaderData: unknown
-    layoutsData: unknown[]
     guardData: unknown
     Page: ComponentType<PageProps>
     layouts: ComponentType<LayoutProps>[]
@@ -30,7 +28,6 @@ export interface PageMetaContextValue {
 }
 
 export interface RouteDataContextValue {
-    loaderData: unknown
     params: Record<string, string>
 }
 

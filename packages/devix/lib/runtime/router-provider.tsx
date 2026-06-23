@@ -1,6 +1,7 @@
 import {ComponentType, ReactNode, Suspense, useCallback, useContext, useEffect, useRef, useState} from "react";
 import {ErrorProps, LayoutProps, PageProps} from "../server/types";
 import {Metadata, Viewport} from "../types";
+import { clearClientQueryCache } from "../data/query";
 import { invalidateQueries } from "./query-client";
 
 const DEFAULT_VIEWPORT: Viewport = {width: 'device-width', initialScale: 1}
@@ -24,8 +25,6 @@ export interface ClientRouteMatcher {
 interface RouteState {
     pathname: string
     params: Record<string, string>
-    loaderData: unknown
-    layoutsData: unknown[]
     guardData: unknown
     Page: ComponentType<PageProps>
     layouts: ComponentType<LayoutProps>[]
@@ -73,7 +72,7 @@ type GuardDataReturn<TGuard> =
  * (layout → page, en orden). Tipado al retorno del guard si pasas `typeof guard`.
  *
  * ```ts
- * export async function guard({ request }: LoaderContext) {
+ * export async function guard({ request }: GuardContext) {
  *   const session = await getSession(request)
  *   if (!session) return '/login'
  *   return session
@@ -117,11 +116,9 @@ interface PrefetchEntry {
 }
 
 interface RouterProviderProps extends ClientRouteMatcher {
-    initialData: unknown
     initialParams: Record<string, string>
     initialPage: ComponentType<PageProps>
     initialLayouts?: ComponentType<LayoutProps>[]
-    initialLayoutsData?: unknown[]
     initialGuardData?: unknown
     initialMeta?: Metadata | null
     initialViewport?: Viewport
@@ -131,11 +128,9 @@ interface RouterProviderProps extends ClientRouteMatcher {
 }
 
 export function RouterProvider({
-                                   initialData,
                                    initialParams,
                                    initialPage,
                                    initialLayouts = [],
-                                   initialLayoutsData = [],
                                    initialGuardData = null,
                                    initialMeta,
                                    initialViewport,
@@ -150,8 +145,6 @@ export function RouterProvider({
     const [state, setState] = useState<RouteState>({
         pathname: window.location.pathname,
         params: initialParams,
-        loaderData: initialData,
-        layoutsData: initialLayoutsData,
         guardData: initialGuardData,
         Page: initialPage,
         layouts: initialLayouts,
@@ -182,6 +175,18 @@ export function RouterProvider({
         ]).then(async ([[pageMod, ...layoutMods], dataRes]) => {
             if (!dataRes.ok || !pageMod.default) return null
             const data = await decodeResponse(dataRes)
+            if (data && data.queryHydration) {
+                // Invalidate the query cache so the next getQuery(...) call
+                // re-reads the freshly-populated __DEVIX_QUERIES__ global
+                // instead of returning a stale Promise from a previous
+                // navigation. The cache will be re-populated by the
+                // component on first render with the new value.
+                clearClientQueryCache()
+                ;(window as { __DEVIX_QUERIES__?: Record<string, unknown> }).__DEVIX_QUERIES__ = {
+                    ...((window as { __DEVIX_QUERIES__?: Record<string, unknown> }).__DEVIX_QUERIES__ ?? {}),
+                    ...(data.queryHydration as Record<string, unknown>),
+                }
+            }
             return {pageMod, layoutMods, data}
         }).catch(() => null)
 
@@ -217,6 +222,13 @@ export function RouterProvider({
         if (prefetched) {
             const {pageMod, layoutMods, data} = prefetched
 
+            if (data.queryHydration) {
+                (window as { __DEVIX_QUERIES__?: Record<string, unknown> }).__DEVIX_QUERIES__ = {
+                    ...((window as { __DEVIX_QUERIES__?: Record<string, unknown> }).__DEVIX_QUERIES__ ?? {}),
+                    ...(data.queryHydration as Record<string, unknown>),
+                }
+            }
+
             if (data.redirect) {
                 if (data.redirectReplace) {
                     window.history.replaceState(null, '', data.redirect)
@@ -230,8 +242,6 @@ export function RouterProvider({
             setState({
                 pathname,
                 params: data.params ?? {},
-                loaderData: data.loaderData,
-                layoutsData: (data.layouts ?? []).map((l: any) => l.loaderData),
                 guardData: data.guardData ?? null,
                 Page: pageMod.default,
                 layouts: layoutMods.map(m => m.default),
@@ -280,6 +290,19 @@ export function RouterProvider({
 
             const data = await decodeResponse(dataRes)
 
+            if (data.queryHydration) {
+                // Invalidate the query cache so the next getQuery(...) call
+                // re-reads the freshly-populated __DEVIX_QUERIES__ global
+                // instead of returning a stale Promise from a previous
+                // navigation. The cache will be re-populated by the
+                // component on first render with the new value.
+                clearClientQueryCache()
+                ;(window as { __DEVIX_QUERIES__?: Record<string, unknown> }).__DEVIX_QUERIES__ = {
+                    ...((window as { __DEVIX_QUERIES__?: Record<string, unknown> }).__DEVIX_QUERIES__ ?? {}),
+                    ...(data.queryHydration as Record<string, unknown>),
+                }
+            }
+
             if (data.redirect) {
                 if (data.redirectReplace) {
                     window.history.replaceState(null, '', data.redirect)
@@ -295,8 +318,6 @@ export function RouterProvider({
             setState({
                 pathname,
                 params: data.params ?? {},
-                loaderData: data.loaderData,
-                layoutsData: (data.layouts ?? []).map((l: any) => l.loaderData),
                 guardData: data.guardData ?? null,
                 Page,
                 layouts: layoutMods.map(m => m.default),
@@ -402,8 +423,6 @@ export function RouterProvider({
         }
         setState(prev => ({
             ...prev,
-            loaderData: data.loaderData,
-            layoutsData: (data.layouts ?? []).map((l: any) => l.loaderData),
             guardData: data.guardData ?? null,
             params: data.params ?? prev.params,
             metadata: data.metadata ?? prev.metadata,
@@ -434,19 +453,18 @@ export function RouterProvider({
             : <h1>{state.pendingError.statusCode}</h1>
     } else {
         let tree: ReactNode = (
-            <RouteDataContext value={{loaderData: state.loaderData, params: state.params}}>
+            <RouteDataContext value={{params: state.params}}>
                 <Suspense fallback={null}>
-                    <state.Page data={state.loaderData} params={state.params} url={state.pathname}/>
+                    <state.Page params={state.params} url={state.pathname}/>
                 </Suspense>
             </RouteDataContext>
         )
 
         for (let i = state.layouts.length - 1; i >= 0; i--) {
             const Layout = state.layouts[i]
-            const layoutData = state.layoutsData[i]
             tree = (
-                <RouteDataContext value={{loaderData: layoutData, params: state.params}}>
-                    <Layout data={layoutData} params={state.params}>{tree}</Layout>
+                <RouteDataContext value={{params: state.params}}>
+                    <Layout params={state.params}>{tree}</Layout>
                 </RouteDataContext>
             )
         }

@@ -9,7 +9,7 @@ type InferLoaderData<T> = T extends (...args: any[]) => infer R
 type IsParams<T> = [T] extends [Record<string, string>] ? true : false
 
 export interface PageProps<TDataOrParams = unknown, TParams = Record<string, string>> {
-    data: IsParams<TDataOrParams> extends true ? unknown : InferLoaderData<TDataOrParams>
+    data?: IsParams<TDataOrParams> extends true ? unknown : InferLoaderData<TDataOrParams>
     params: IsParams<TDataOrParams> extends true
         ? TDataOrParams extends Record<string, string> ? TDataOrParams : Record<string, string>
         : TParams
@@ -18,7 +18,7 @@ export interface PageProps<TDataOrParams = unknown, TParams = Record<string, str
 
 export interface LayoutProps<TDataOrParams = unknown, TParams = Record<string, string>> {
     children: React.ReactNode
-    data: IsParams<TDataOrParams> extends true ? unknown : InferLoaderData<TDataOrParams>
+    data?: IsParams<TDataOrParams> extends true ? unknown : InferLoaderData<TDataOrParams>
     params: IsParams<TDataOrParams> extends true
         ? TDataOrParams extends Record<string, string> ? TDataOrParams : Record<string, string>
         : TParams
@@ -47,7 +47,7 @@ export interface ApiGlob {
 interface BaseModule<TParams = Record<string, string>> {
     guard?: (ctx: GuardContext<TParams>) => Promise<string | Redirect | RouteError | Record<string, unknown> | null> | string | Redirect | RouteError | Record<string, unknown> | null
     metadata?: Metadata
-    generateMetadata?: (ctx: GuardContext<TParams> & { loaderData: unknown }) => Promise<Metadata> | Metadata
+    generateMetadata?: (ctx: GuardContext<TParams>) => Promise<Metadata> | Metadata
     viewport?: Viewport
     generateViewport?: (ctx: GuardContext<TParams>) => Promise<Viewport> | Viewport
     headers?: Record<string, string>
@@ -63,5 +63,5 @@ export interface LayoutModule<TParams = Record<string, string>>
     extends BaseModule<TParams> {
     default: React.ComponentType<LayoutProps<unknown, TParams>>
     lang?: string
-    generateLang?: (ctx: GuardContext<TParams> & { loaderData: unknown }) => Promise<string> | string
+    generateLang?: (ctx: GuardContext<TParams>) => Promise<string> | string
 }

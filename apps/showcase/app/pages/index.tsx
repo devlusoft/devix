@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 }
 
 function TaskList() {
-  const tasks = useQuery(() => getTasksQuery()) as Task[]
+  const tasks = useQuery(getTasksQuery())
   const revalidate = useRevalidate()
 
   async function onCreate(e: React.FormEvent<HTMLFormElement>) {

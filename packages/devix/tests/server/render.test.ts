@@ -1,7 +1,15 @@
 import {describe, it, expect, vi} from 'vitest'
-import {render, runLoader} from '../../lib/server/render'
+import {render} from '../../lib/server/render'
 import {redirect} from '../../lib/utils/response'
 import type {PageGlob} from '../../lib/server/types'
+
+async function readStream(stream: NodeJS.ReadableStream): Promise<string> {
+    const chunks: Buffer[] = []
+    for await (const chunk of stream as unknown as AsyncIterable<Buffer>) {
+        chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)
+    }
+    return Buffer.concat(chunks).toString('utf-8')
+}
 
 const PAGES_DIR = 'app/pages'
 const req = new Request('http://localhost/test')
@@ -98,16 +106,6 @@ describe('guard en layout', () => {
 })
 
 describe('guardData — guard expone datos vía el context', () => {
-    it('runLoader expone guardData en su respuesta', async () => {
-        const glob = makeGlob({
-            [`${PAGES_DIR}/index.tsx`]: pageEntry({
-                guard: async () => ({user: 'ana'}),
-            }),
-        })
-        const result = await runLoader('http://localhost/', req, glob) as any
-        expect(result.guardData).toEqual({user: 'ana'})
-    })
-
     it('render incluye guardData en __DEVIX_TURBO__', async () => {
         const glob = makeGlob({
             [`${PAGES_DIR}/index.tsx`]: pageEntry({
@@ -115,9 +113,10 @@ describe('guardData — guard expone datos vía el context', () => {
             }),
         })
         const result = await render('http://localhost/', req, glob)
-        expect(result.html).toContain('__DEVIX_TURBO__')
+        const html = await readStream(result.stream)
+        expect(html).toContain('__DEVIX_TURBO__')
 
-        const b64 = result.html.match(/__DEVIX_TURBO__=("?)([A-Za-z0-9+/=]+)\1/)?.[2]
+        const b64 = html.match(/__DEVIX_TURBO__=("?)([A-Za-z0-9+/=]+)\1/)?.[2]
         expect(b64).toBeTruthy()
         const turboStr = Buffer.from(b64!, 'base64').toString('utf-8')
         expect(turboStr).toContain('GUARD_DATA')

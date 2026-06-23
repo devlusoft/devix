@@ -50,7 +50,9 @@ const vite = await createViteServer({
 
 const renderModule = {
   render: async (...args: any[]) => (await vite.ssrLoadModule(VIRTUAL_RENDER)).render(...args),
-  runLoader: async (...args: any[]) => (await vite.ssrLoadModule(VIRTUAL_RENDER)).runLoader(...args),
+  renderStream: async (...args: any[]) => (await vite.ssrLoadModule(VIRTUAL_RENDER)).renderStream(...args),
+  renderData: async (...args: any[]) => (await vite.ssrLoadModule(VIRTUAL_RENDER)).renderData(...args),
+  getStaticRoutes: async () => (await vite.ssrLoadModule(VIRTUAL_RENDER)).getStaticRoutes(),
 }
 const apiModule = {
   handleApiRequest: async (...args: any[]) => (await
@@ -82,18 +84,23 @@ app.post('/_devix/server', async (c) => {
 
 app.get('*', async (c: Context) => {
   try {
-    const { html, statusCode, headers } = await renderModule.render(c.req.url, c.req.raw, {
-      loaderTimeout: parseDuration(config.loaderTimeout ?? 10_000),
-    })
     const cssUrls = await collectCss(vite)
     const cssLinks = cssUrls.map(url => `<link rel="stylesheet" href="${url}">`).join('\n')
-    const htmlWithCss = cssLinks ? html.replace('</head>', `${cssLinks}\n</head>`) : html
-    const transformed = await vite.transformIndexHtml(c.req.url, `<!DOCTYPE html>${htmlWithCss}`)
-    const res = c.html(transformed, statusCode)
-    for (const [key, value] of Object.entries(headers as Record<string, string>)) {
-      res.headers.set(key, value)
-    }
-    return res
+
+    const { stream, statusCode, headers } = await renderModule.render(c.req.url, c.req.raw, {
+      loaderTimeout: parseDuration(config.loaderTimeout ?? 10_000),
+      cssLinks: cssLinks || undefined,
+    })
+
+    const { Readable } = await import('node:stream')
+    const webStream = Readable.toWeb(stream as unknown as InstanceType<typeof Readable>) as ReadableStream
+    return new Response(webStream, {
+      status: statusCode as 200,
+      headers: {
+        'Content-Type': 'text/html',
+        ...(headers as Record<string, string>),
+      },
+    })
   } catch (e) {
     vite.ssrFixStacktrace(e as Error)
     console.error(e)

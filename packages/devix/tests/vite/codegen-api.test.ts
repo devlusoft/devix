@@ -21,12 +21,10 @@ describe('generateApi', () => {
 })
 
 describe('generateRender', () => {
-    it('render y runLoader propagan options al runtime', () => {
+    it('render propaga options al runtime', () => {
         const code = generateRender({pagesDir: 'app/pages', renderPath: '/abs/render.js'})
         expect(code).toMatch(/export function render\(url, request, options\)/)
         expect(code).toMatch(/_render\(url, request, _glob, options\)/)
-        expect(code).toMatch(/export function runLoader\(url, request, options\)/)
-        expect(code).toMatch(/_runLoader\(url, request, _glob, options\)/)
     })
 
     it('getStaticRoutes pasa solo el glob', () => {

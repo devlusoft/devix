@@ -6,9 +6,7 @@ export interface ResolvedMeta {
     viewport?: Viewport
 }
 
-export async function resolveMetadata(module: PageModule | LayoutModule, ctx: GuardContext & {
-    loaderData: unknown
-}): Promise<ResolvedMeta> {
+export async function resolveMetadata(module: PageModule | LayoutModule, ctx: GuardContext): Promise<ResolvedMeta> {
     const metadata = module.generateMetadata
         ? await module.generateMetadata(ctx)
         : module.metadata ?? {}

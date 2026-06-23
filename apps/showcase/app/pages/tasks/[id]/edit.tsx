@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 }
 
 function TaskEditor({ id }: { id: string }) {
-  const task = useQuery(() => getTaskQuery(id)) as Task | null
+  const task = useQuery(getTaskQuery(id))
   const navigate = useNavigate()
 
   if (!task) {

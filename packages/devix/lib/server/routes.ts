@@ -29,14 +29,23 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTim
             const {pathname, search} = new URL(c.req.url, 'http://localhost')
             const url = pathname.replace(/^\/_devix\/data/, '') + search
 
-            const data = await renderModule.runLoader(url, c.req.raw, {loaderTimeout})
-            if (data.error) return c.json({statusCode: 500, message: 'Internal Server Error'}, 500)
-            if ('loaderError' in data) {
-                const body = errorToBody(data.loaderError)
-                return c.json(body, body.statusCode as ContentfulStatusCode)
+            const data = await renderModule.renderData(url, c.req.raw, {} as never, {loaderTimeout})
+            if (data.error) {
+                return c.json(data.error, (data.error.statusCode ?? 500) as ContentfulStatusCode)
+            }
+            if (data.redirect) {
+                return c.json({}, data.redirect.status as ContentfulStatusCode, {
+                    Location: data.redirect.url,
+                })
+            }
+            if (data.statusCode !== 200) {
+                return c.json({statusCode: data.statusCode}, data.statusCode as ContentfulStatusCode)
             }
 
-            return createTurboResponse(data, c.req.raw.signal)
+            return createTurboResponse({
+                guardData: data.guardData,
+                queryHydration: data.queryHydration,
+            }, c.req.raw.signal)
         } catch (e) {
             console.error(e)
             return c.json({statusCode: 500, message: 'Internal Server Error'}, 500)
@@ -73,13 +82,6 @@ export function registerSsrRoute(app: Hono, {renderModule, manifest, loaderTimeo
             }
             if (e?.name === 'NotFoundError') {
                 return c.text('Not Found', 404)
-            }
-            if (e?.name === 'LoaderError') {
-                const dataScript = `<script>window.__DEVIX__=${safeJsonStringify({
-                    metadata: null, viewport: undefined, clientEntry: ''
-                })};window.__LOADER_DATA__=null;window.__LAYOUTS_DATA__=[];window.__LOADER_ERROR__=${safeJsonStringify(e.body)};</script>`
-                const html = `<html lang="en"><head><meta charset="utf-8">${dataScript}</head><body><div id="devix-root"></div></body></html>`
-                return c.html(html, e.statusCode as ContentfulStatusCode)
             }
             console.error(e)
             return c.text('Internal Server Error', 500)

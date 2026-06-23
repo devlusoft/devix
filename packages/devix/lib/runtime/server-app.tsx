@@ -12,8 +12,6 @@ const noopPrefetch = (_href: string) => {}
 export interface ServerAppProps {
     pathname: string
     params: Record<string, string>
-    loaderData: unknown
-    layoutsData: unknown[]
     guardData: unknown
     Page: ComponentType<PageProps>
     layouts: ComponentType<LayoutProps>[]
@@ -23,23 +21,22 @@ export interface ServerAppProps {
 }
 
 export function ServerApp({
-    pathname, params, loaderData, layoutsData, guardData,
+    pathname, params, guardData,
     Page, layouts, metadata, viewport, clientEntry,
 }: ServerAppProps) {
     let tree: ReactNode = (
-        <RouteDataContext value={{loaderData, params}}>
+        <RouteDataContext value={{params}}>
             <Suspense fallback={null}>
-                <Page data={loaderData as any} params={params} url={pathname}/>
+                <Page params={params} url={pathname}/>
             </Suspense>
         </RouteDataContext>
     )
 
     for (let i = layouts.length - 1; i >= 0; i--) {
         const Layout = layouts[i]
-        const layoutData = layoutsData[i]
         tree = (
-            <RouteDataContext value={{loaderData: layoutData, params}}>
-                <Layout data={layoutData as any} params={params}>{tree}</Layout>
+            <RouteDataContext value={{params}}>
+                <Layout params={params}>{tree}</Layout>
             </RouteDataContext>
         )
     }
@@ -50,8 +47,6 @@ export function ServerApp({
             <RouterContext value={{
                 pathname,
                 params,
-                loaderData,
-                layoutsData,
                 guardData,
                 Page,
                 layouts,

@@ -1,5 +1,13 @@
 import {describe, it, expect, vi} from 'vitest'
 
+async function readStream(stream: NodeJS.ReadableStream): Promise<string> {
+    const chunks: Buffer[] = []
+    for await (const chunk of stream as unknown as AsyncIterable<Buffer>) {
+        chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)
+    }
+    return Buffer.concat(chunks).toString('utf-8')
+}
+
 describe('render', () => {
     it('wrappea la página dentro del layout', async () => {
         const {render} = await import('../../lib/server/render')
@@ -18,9 +26,10 @@ describe('render', () => {
             }
         }
 
-        const {html, statusCode} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
+        const {stream, statusCode} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
 
         expect(statusCode).toBe(200)
+        const html = await readStream(stream)
         const layoutIdx = html.indexOf('id="layout"')
         const pageIdx = html.indexOf('<main>')
         expect(layoutIdx).toBeLessThan(pageIdx)
@@ -73,7 +82,8 @@ it('incluye metadata en el head', async () => {
         layouts: {}
     }
 
-    const {html} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
+    const {stream} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
+    const html = await readStream(stream);
     expect(html).toContain('<title>Home</title>')
     expect(html).toContain('content="My site"')
 })
@@ -96,7 +106,8 @@ it('usa el lang del layout raíz', async () => {
         }
     }
 
-    const {html} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
+    const {stream} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
+    const html = await readStream(stream);
     expect(html).toContain('lang="es"')
 })
 
@@ -118,7 +129,8 @@ it('usa generateLang dinámico del layout raíz', async () => {
         }
     }
 
-    const {html} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
+    const {stream} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
+    const html = await readStream(stream);
     expect(html).toContain('lang="fr"')
 })
 
@@ -141,7 +153,8 @@ it('metadata de página sobreescribe metadata del layout', async () => {
         }
     }
 
-    const {html} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
+    const {stream} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
+    const html = await readStream(stream);
     expect(html).toContain('<title>Page Title</title>')
     expect(html).toContain('Layout desc')
     expect(html.match(/<title>/g)?.length).toBe(1)
@@ -160,7 +173,8 @@ it('lang por defecto es "en" si no hay layout', async () => {
         layouts: {}
     }
 
-    const {html} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
+    const {stream} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
+    const html = await readStream(stream);
     expect(html).toContain('lang="en"')
 })
 

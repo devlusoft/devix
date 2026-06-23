@@ -2,15 +2,15 @@
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 import {createElement, act} from 'react'
 import {createRoot, Root} from 'react-dom/client'
-import {RouterProvider, useRevalidate} from '@devlusoft/devix'
+import {RouterProvider, useRevalidate, useGuardData} from '@devlusoft/devix'
 import {matchClientRoute, loadErrorPage, getDefaultErrorPage} from 'virtual:devix/client-routes'
 
 let capturedRevalidate: (() => Promise<void>) | null = null
-let receivedLoaderData: unknown = null
+let receivedGuardData: unknown = null
 
-function TestPage(props: any) {
+function TestPage() {
     capturedRevalidate = useRevalidate()
-    receivedLoaderData = props.data
+    receivedGuardData = useGuardData()
     return null
 }
 
@@ -22,7 +22,7 @@ beforeEach(() => {
     document.body.appendChild(container)
     root = null
     capturedRevalidate = null
-    receivedLoaderData = null
+    receivedGuardData = null
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
     vi.mocked(getDefaultErrorPage).mockReturnValue(null as any)
     vi.mocked(loadErrorPage).mockResolvedValue(null)
@@ -35,14 +35,13 @@ afterEach(() => {
     vi.unstubAllGlobals()
 })
 
-async function renderProvider(initialData: unknown = {n: 0}) {
+async function renderProvider() {
     await act(async () => {
         root = createRoot(container)
         root.render(createElement(RouterProvider, {
             matchClientRoute: matchClientRoute as any,
             loadErrorPage: loadErrorPage as any,
             getDefaultErrorPage: getDefaultErrorPage as any,
-            initialData,
             initialParams: {},
             initialPage: TestPage,
             clientEntry: '/entry.js',
@@ -95,16 +94,13 @@ describe('revalidate — race condition (#11)', () => {
             htmlDelay: () => 100,
             dataDelay: (revIdx) => (revIdx === 0 ? 100 : 20),
             dataPayload: (revIdx) => ({
-                loaderData: {n: revIdx === 0 ? 1 : 2},
+                guardData: {n: revIdx === 0 ? 1 : 2},
                 params: {},
-                layouts: [],
-                guardData: null,
-                metadata: null,
             }),
         })
         vi.stubGlobal('fetch', fetchMock)
 
-        await renderProvider({n: 0})
+        await renderProvider()
 
         await act(async () => {
             const p1 = capturedRevalidate!()
@@ -117,7 +113,7 @@ describe('revalidate — race condition (#11)', () => {
         expect(fetchSignals[0].aborted).toBe(true)
         expect(fetchSignals[1].aborted).toBe(false)
         expect(fetchSignals[2].aborted).toBe(false)
-        expect(receivedLoaderData).toEqual({n: 2})
+        expect(receivedGuardData).toEqual({n: 2})
     })
 
     it('después de varios revalidate, el state refleja solo el último', async () => {
@@ -125,16 +121,13 @@ describe('revalidate — race condition (#11)', () => {
             htmlDelay: () => 80,
             dataDelay: (revIdx) => (revIdx === 2 ? 10 : 80),
             dataPayload: (revIdx) => ({
-                loaderData: {idx: revIdx},
+                guardData: {idx: revIdx},
                 params: {},
-                layouts: [],
-                guardData: null,
-                metadata: null,
             }),
         })
         vi.stubGlobal('fetch', fetchMock)
 
-        await renderProvider({})
+        await renderProvider()
 
         await act(async () => {
             const p1 = capturedRevalidate!()
@@ -150,6 +143,6 @@ describe('revalidate — race condition (#11)', () => {
         expect(fetchSignals[1].aborted).toBe(true)
         expect(fetchSignals[2].aborted).toBe(false)
         expect(fetchSignals[3].aborted).toBe(false)
-        expect(receivedLoaderData).toEqual({idx: 2})
+        expect(receivedGuardData).toEqual({idx: 2})
     })
 })

@@ -86,7 +86,6 @@ async function renderProvider(Page = TestPage) {
             matchClientRoute: matchClientRoute as any,
             loadErrorPage: loadErrorPage as any,
             getDefaultErrorPage: getDefaultErrorPage as any,
-            initialData: null,
             initialParams: {},
             initialPage: Page,
             clientEntry: '/entry.js',

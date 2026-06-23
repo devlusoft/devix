@@ -6,8 +6,6 @@ import {DevixError} from '../runtime/error-boundary'
 import {HANDLER_BRAND, type DevixHandler} from '../runtime/create-handler'
 import {withHandlerStore} from './handler-store'
 import {error, errorToBody, isLoaderError} from '../utils/response'
-import type {ServerBackendConfig} from '../config'
-import {makeBoundServer} from './server-bound'
 
 let apiCache: ApiResult | null = null
 let apiCacheKey: string | null = null
@@ -45,7 +43,6 @@ export async function handleApiRequest(
     url: string,
     request: Request,
     glob: ApiGlob,
-    serverConfig?: Record<string, ServerBackendConfig>,
 ): Promise<Response> {
     try {
         const {pathname} = new URL(url, 'http://localhost')
@@ -64,8 +61,7 @@ export async function handleApiRequest(
         if (!matched) return new Response('Not Found', {status: 404})
 
         const {route, params} = matched
-        const $server = makeBoundServer(request, serverConfig)
-        const ctx = new RouteContext(params, request, new URL(url, 'http://localhost'), $server)
+        const ctx = new RouteContext(params, request, new URL(url, 'http://localhost'))
 
         const result = await withHandlerStore({request, ctx}, async () => {
             const middlewareChain = collectMiddlewareChain(route.key, middlewares)

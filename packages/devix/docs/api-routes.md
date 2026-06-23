@@ -139,7 +139,6 @@ La firma es `(ctx) =>`. Todo lo del request vive en `ctx`:
 - `ctx.url` — `URL` parseada (incluye `searchParams`)
 - `ctx.params` — params de la ruta
 - `ctx.set / ctx.get` — estado compartido con el middleware
-- `ctx.$server` — clientes para backends remotos
 
 Métodos disponibles: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`
 

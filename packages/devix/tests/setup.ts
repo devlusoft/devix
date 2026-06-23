@@ -1,3 +1,4 @@
+// @ts-ignore
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const origConsoleError = console.error
@@ -32,3 +33,5 @@ if (typeof document !== 'undefined') {
         }
     }, {capture: true})
 }
+
+export { }

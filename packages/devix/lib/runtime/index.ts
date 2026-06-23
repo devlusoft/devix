@@ -16,8 +16,6 @@ export {createHandler} from './create-handler'
 export type {DevixHandler} from './create-handler'
 export type {StandardSchemaV1} from '../utils/standard-schema'
 export {FetchError} from './fetch'
-export {$server} from './server-client'
-export type {BackendClient, ServerFetchOptions} from './server-client'
 export {DevixError} from './error-boundary'
 export { decode as decodeTurbo } from 'turbo-stream'
 export { decodeResponse } from '../utils/turbo-serializer'
@@ -28,7 +26,6 @@ export type {HttpMethod} from './fetch'
 import {FetchError, type HttpMethod} from './fetch'
 
 export interface ApiRoutes {}
-export interface ServerNamespaces {}
 export interface Actions {}
 
 type ApiKey<M extends HttpMethod, P extends string> = `${M} ${P}`

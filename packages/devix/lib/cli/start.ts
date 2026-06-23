@@ -11,23 +11,23 @@ import { handleServerFunction } from '../data/server-fn-handler.js'
 import type { RouterEvent } from '../data/request-context.js'
 
 function parseCookies(cookieHeader: string | null): Record<string, string> {
-  const cookies: Record<string, string> = {}
-  if (!cookieHeader) return cookies
-  for (const pair of cookieHeader.split(';')) {
-    const eq = pair.indexOf('=')
-    if (eq < 0) continue
-    const name = pair.slice(0, eq).trim()
-    const value = pair.slice(eq + 1).trim()
-    if (name) cookies[name] = decodeURIComponent(value)
-  }
-  return cookies
+    const cookies: Record<string, string> = {}
+    if (!cookieHeader) return cookies
+    for (const pair of cookieHeader.split(';')) {
+        const eq = pair.indexOf('=')
+        if (eq < 0) continue
+        const name = pair.slice(0, eq).trim()
+        const value = pair.slice(eq + 1).trim()
+        if (name) cookies[name] = decodeURIComponent(value)
+    }
+    return cookies
 }
 
 function createEvent(request: Request): RouterEvent {
-  return {
-    cookies: () => parseCookies(request.headers.get('cookie')),
-    pathname: new URL(request.url).pathname,
-  }
+    return {
+        cookies: () => parseCookies(request.headers.get('cookie')),
+        pathname: new URL(request.url).pathname,
+    }
 }
 
 let renderModule: any
@@ -87,8 +87,8 @@ if (runtimeConfig!.output === 'static') {
     console.log('[devix] Static mode — serving pre-generated files from dist/client')
 } else {
     const userConfig = await loadConfig(process.cwd(), 'production').catch(() => null)
-    registerApiRoutes(app, { renderModule, apiModule, manifest, server: userConfig?.server })
-    registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig!.loaderTimeout, server: userConfig?.server })
+    registerApiRoutes(app, { renderModule, apiModule, manifest })
+    registerSsrRoute(app, { renderModule, apiModule, manifest, loaderTimeout: runtimeConfig!.loaderTimeout })
 
     app.post('/_devix/server', async (c) => {
       let status = 200

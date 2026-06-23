@@ -37,8 +37,6 @@ export interface Viewport {
     themeColor?: string
 }
 
-import type {BackendClient} from './runtime/server-client'
-
 /**
  * @deprecated since 0.9.0-alpha.2. `LoaderContext` is tied to the route-level `loader()` API, which is being phased out in favor of `query()` + `useQuery()`. The replacement uses `getRequestEvent()` for request context (cookies, pathname) instead of receiving it as an argument. See `docs/queries.md`.
  */
@@ -46,12 +44,6 @@ export interface LoaderContext<TParams = Record<string, string>> {
     params: TParams
     request: Request
     guardData: unknown
-    /**
-     * Cliente para llamar a backends remotos configurados en `devix.config.ts`.
-     * Bound al request actual — `prepare` recibe el `Request` del usuario para
-     * leer cookies, sesión, etc.
-     */
-    $server: Record<string, BackendClient>
 }
 
 import type { Redirect } from './utils/response'

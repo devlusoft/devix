@@ -13,7 +13,6 @@ Construye aplicaciones React full-stack con enrutamiento basado en archivos, ren
 - **SSG** — genera HTML estático con `generateStaticParams`
 - **Rutas API** — basadas en archivos, con `createHandler` para tipado de extremo a extremo
 - **$fetch** — cliente HTTP con body y respuesta tipados, con autocompletado de rutas
-- **$server** — proxy a backends remotos con auth pass-through y allowlist (multi-backend, tipo via generic en el call site)
 - **Validación de body** — soporte de [Standard Schema](https://standardschema.dev) (Zod, Valibot, ArkType) en `createHandler` con error shape automático
 - **Error shape unificado** — `error()` y `DevixError` producen el mismo `{ statusCode, code, message }` en loaders, guards y handlers
 - **Carga de datos** — funciones `loader` con hidratación automática en el cliente
@@ -184,7 +183,7 @@ export async function loader({ request }: LoaderContext) {
 
 ### Rutas API
 
-`createHandler` da tipado de extremo a extremo — el body y el retorno se infieren automáticamente para `$fetch`. El segundo argumento `ctx` expone `request`, `url`, `params`, `$server` y state heredado de middleware:
+`createHandler` da tipado de extremo a extremo — el body y el retorno se infieren automáticamente para `$fetch`. El segundo argumento `ctx` expone `request`, `url`, `params` y state heredado de middleware:
 
 ```ts
 import { createHandler, json, error } from '@devlusoft/devix'
@@ -223,44 +222,6 @@ const res = await $fetch('/api/items', {
   body: { name: 'nuevo item' },
 })
 ```
-
-### Backend remoto con `$server`
-
-Llama a tu API (Go, Rails, microservicios) directamente desde loaders, handlers y componentes — devix se encarga del proxy y del auth pass-through. Multi-backend soportado.
-
-```ts
-// devix.config.ts
-import { defineConfig } from '@devlusoft/devix/config'
-import { getCookie } from '@devlusoft/devix'
-
-export default defineConfig({
-  server: {
-    api: {
-      url: process.env.API_URL!,
-      prepare: ({ request, headers }) => {
-        const sid = getCookie(request, 'sid')
-        if (sid) headers.set('Authorization', `Bearer ${sid}`)
-      },
-      allowedPaths: ['/v1/**'],
-    },
-  },
-})
-```
-
-```ts
-// Loader/handler — $server bound al request del usuario
-export async function loader({ $server, params }: LoaderContext) {
-  return await $server.api.get<Post>(`/v1/posts/${params.id}`)
-}
-
-// Cliente — pasa por el proxy interno con el mismo prepare
-import { $server } from '@devlusoft/devix'
-const me = await $server.api.get<User>('/v1/me')
-```
-
-El tipo de respuesta se declara con un generic en el call site (`<User>`). El backend remoto vive fuera del repo — devix no puede inferir tipos automáticamente.
-
-> ⚠️ `$server` reenvía credenciales del usuario al backend (el backend valida). **No lo uses para APIs de terceros con keys del server (Stripe, etc.)** — eso expone esa key. Para terceros, escribe un handler explícito con autorización propia. Ver [Server primitive](./docs/server-primitive.md).
 
 ### Generación estática (SSG)
 
@@ -321,7 +282,6 @@ La documentación completa está en la carpeta [`docs/`](./docs):
 - [Layouts](./docs/layouts.md)
 - [Carga de datos](./docs/data-loading.md)
 - [Rutas API](./docs/api-routes.md)
-- [Backend remoto con `$server`](./docs/server-primitive.md)
 - [Metadata y SEO](./docs/metadata.md)
 - [Generación estática (SSG)](./docs/ssg.md)
 - [Configuración](./docs/configuration.md)

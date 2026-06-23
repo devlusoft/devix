@@ -1,24 +1,20 @@
 import type {DevixHandler} from './create-handler'
 import type {RouteError} from '../utils/response'
-import type {BackendClient, ServerClient} from './server-client'
 
 export class RouteContext {
     readonly params: Record<string, string>
     readonly request: Request
     readonly url: URL
-    readonly $server: ServerClient
     private _state = new Map<string, unknown>()
 
     constructor(
         params: Record<string, string>,
         request: Request,
         url: URL,
-        $server: Record<string, BackendClient> = {},
     ) {
         this.params = params
         this.request = request
         this.url = url
-        this.$server = $server as ServerClient
     }
 
     set<T>(key: string, value: T): void {

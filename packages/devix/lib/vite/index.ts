@@ -14,7 +14,6 @@ import { writeRoutesDts } from './codegen/write-routes-dts'
 import { parseSync } from 'oxc-parser'
 import { generateServerEntry } from './codegen/server-entry'
 import { deletePageTypes, scanAndWritePageTypes, writePageTypes } from './codegen/page-types'
-import { generateServerDts, writeServerDts } from './codegen/server-dts'
 import { scanActions } from './codegen/scan-actions'
 import { generateActionsDts } from './codegen/actions-dts'
 import { writeActionsDts } from './codegen/write-actions-dts'
@@ -168,7 +167,6 @@ export function devix(config: DevixConfig): UserConfig {
       const root = process.cwd()
       const entries = scanApiFiles(appDir, root)
       writeRoutesDts(generateRoutesDts(entries, `${appDir}/api`), root)
-      writeServerDts(generateServerDts(config.server), root)
       const actionEntries = scanActions(appDir, root)
       writeActionsDts(generateActionsDts(actionEntries, appDir), root)
       const {warnings} = scanAndWritePageTypes(appDir, root)

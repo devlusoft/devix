@@ -4,10 +4,10 @@ Este monorepo contiene los paquetes oficiales del framework **devix** y su ecosi
 
 ## Paquetes
 
-| Paquete | Descripción |
-|---------|-------------|
-| [`@devlusoft/devix`](./packages/devix) | Meta-framework React 19 SSR sobre Vite 8 + Hono — file-based routing, loaders, guards, API routes, $server backend proxy, SSG. |
-| [`create-devix`](./packages/create-devix) | Scaffolder oficial para crear nuevos proyectos devix (`npm create devix`). |
+| Paquete                                   | Descripción                                                                                             |
+|-------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| [`@devlusoft/devix`](./packages/devix)    | Meta-framework React 19 SSR sobre Vite 8 + Hono — file-based routing, loaders, guards, API routes, SSG. |
+| [`create-devix`](./packages/create-devix) | Scaffolder oficial para crear nuevos proyectos devix (`npm create devix`).                              |
 
 ## Desarrollo
 

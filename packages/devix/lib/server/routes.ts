@@ -1,9 +1,7 @@
 import type {Context, Hono} from 'hono'
 import type {ContentfulStatusCode, RedirectStatusCode} from 'hono/utils/http-status'
 import type {Manifest} from 'vite'
-import {errorToBody, LoaderError, NotFoundError, RedirectError} from "../utils/response"
-import type {ServerBackendConfig} from "../config"
-import {handleProxyRequest} from "./server-proxy"
+import {errorToBody} from "../utils/response"
 import {Readable} from "node:stream";
 import {safeJsonStringify} from "../utils/html";
 import {createTurboResponse} from "../utils/turbo-serializer";
@@ -14,24 +12,12 @@ interface ServerOptions {
     actionsModule?: any
     manifest?: Manifest
     loaderTimeout?: number
-    server?: Record<string, ServerBackendConfig>
 }
 
-export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTimeout, server, actionsModule}: ServerOptions) {
-    if (server) {
-        app.all('/_devix/server/*', async (c: Context) => {
-            try {
-                return await handleProxyRequest(c.req.raw, server)
-            } catch (e) {
-                console.error('[devix] proxy fatal error:', e)
-                return c.json({statusCode: 500, message: 'Internal Server Error'}, 500)
-            }
-        })
-    }
-
+export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTimeout, actionsModule}: ServerOptions) {
     app.all('/api/*', async (c: Context) => {
         try {
-            return await apiModule.handleApiRequest(c.req.url, c.req.raw, server)
+            return await apiModule.handleApiRequest(c.req.url, c.req.raw)
         } catch (e) {
             console.error(e)
             return c.json({statusCode: 500, message: 'Internal Server Error'}, 500)
@@ -43,7 +29,7 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTim
             const {pathname, search} = new URL(c.req.url, 'http://localhost')
             const url = pathname.replace(/^\/_devix\/data/, '') + search
 
-            const data = await renderModule.runLoader(url, c.req.raw, {loaderTimeout, server})
+            const data = await renderModule.runLoader(url, c.req.raw, {loaderTimeout})
             if (data.error) return c.json({statusCode: 500, message: 'Internal Server Error'}, 500)
             if ('loaderError' in data) {
                 const body = errorToBody(data.loaderError)
@@ -69,13 +55,12 @@ export function registerApiRoutes(app: Hono, {apiModule, renderModule, loaderTim
     }
 }
 
-export function registerSsrRoute(app: Hono, {renderModule, manifest, loaderTimeout, server}: ServerOptions) {
+export function registerSsrRoute(app: Hono, {renderModule, manifest, loaderTimeout}: ServerOptions) {
     app.get('*', async (c: Context) => {
         try {
             const {stream, statusCode, headers} = await renderModule.renderStream(c.req.url, c.req.raw, {
                 manifest,
                 loaderTimeout,
-                server
             })
             const webStream = Readable.toWeb(stream) as ReadableStream
             return new Response(webStream, {

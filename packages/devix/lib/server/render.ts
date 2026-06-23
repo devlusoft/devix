@@ -11,8 +11,6 @@ import {withTimeout} from "../utils/async";
 import {collectEncode, stringToBase64} from "../utils/turbo-serializer";
 import {isRedirect, isLoaderError, isDeferred, errorToBody, NotFoundError, RedirectError, LoaderError} from "../utils/response";
 import type {Viewport} from "../types";
-import type {ServerBackendConfig} from "../config";
-import {makeBoundServer} from "./server-bound";
 import {PassThrough} from "node:stream";
 import {createHtmlStream} from "./stream-html";
 import {runWithRequestEvent, createRequestEvent} from "../data/request-context";
@@ -31,7 +29,7 @@ function extractRedirect(result: unknown): { url: string, status: number, replac
     return null
 }
 
-async function resolvePageData(pathname: string, request: Request, glob: PageGlob, timeout: number, serverConfig?: Record<string, ServerBackendConfig>) {
+async function resolvePageData(pathname: string, request: Request, glob: PageGlob, timeout: number) {
     const cacheKey = Object.keys(glob.pages).sort().join('\0') + '|' + Object.keys(glob.layouts).sort().join('\0')
     if (!pagesCache || pagesCacheKey !== cacheKey) {
         pagesCache = buildPages(Object.keys(glob.pages), Object.keys(glob.layouts), glob.pagesDir)
@@ -50,11 +48,10 @@ async function resolvePageData(pathname: string, request: Request, glob: PageGlo
     ])
 
     let guardData: unknown = undefined
-    const $server = makeBoundServer(request, serverConfig)
 
     for (const mod of layoutMods) {
         if (mod.guard) {
-            const result = await mod.guard({params, request, guardData, $server})
+            const result = await mod.guard({params, request, guardData})
             const r = extractRedirect(result)
             if (r !== null) return {redirect: r.url, redirectStatus: r.status, redirectReplace: r.replace}
             if (isLoaderError(result)) return {loaderError: result}
@@ -63,14 +60,14 @@ async function resolvePageData(pathname: string, request: Request, glob: PageGlo
     }
 
     if (pageMod.guard) {
-        const result = await pageMod.guard({params, request, guardData, $server})
+        const result = await pageMod.guard({params, request, guardData})
         const r = extractRedirect(result)
         if (r !== null) return {redirect: r.url, redirectStatus: r.status, redirectReplace: r.replace}
         if (isLoaderError(result)) return {loaderError: result}
         if (result !== null && result !== undefined) guardData = result
     }
 
-    const ctx = {params, request, guardData, $server}
+    const ctx = {params, request, guardData}
 
     const rawLoaderData = pageMod.loader
         ? await withTimeout(Promise.resolve(pageMod.loader(ctx)), timeout)
@@ -112,13 +109,12 @@ async function resolvePageData(pathname: string, request: Request, glob: PageGlo
 
 export async function runLoader(url: string, request: Request, glob: PageGlob, options?: {
     loaderTimeout?: number;
-    server?: Record<string, ServerBackendConfig>
 }) {
     const {pathname} = new URL(url, 'http://localhost')
     let result: Awaited<ReturnType<typeof resolvePageData>>
     try {
         const timeout = options?.loaderTimeout ?? 10_000
-        result = await resolvePageData(pathname, request, glob, timeout, options?.server)
+        result = await resolvePageData(pathname, request, glob, timeout)
     } catch (err) {
         console.error('[devix] render error:', err)
         return {error: true as const, loaderData: null, params: {}, layouts: [], metadata: null, viewport: undefined}
@@ -155,7 +151,7 @@ export async function render(
     url: string,
     request: Request,
     glob: PageGlob,
-    options?: { manifest?: Manifest, loaderTimeout?: number, server?: Record<string, ServerBackendConfig> },
+    options?: { manifest?: Manifest, loaderTimeout?: number },
 ) {
     const clientEntry = options?.manifest
         ? `/${Object.values(options.manifest).find(chunk => chunk.isEntry)?.file}`
@@ -171,7 +167,7 @@ export async function render(
     let result: Awaited<ReturnType<typeof resolvePageData>>
     try {
         const timeout = options?.loaderTimeout ?? 10_000
-        result = await resolvePageData(pathname, request, glob, timeout, options?.server)
+        result = await resolvePageData(pathname, request, glob, timeout)
     } catch (err) {
         console.error('[devix] render error:', err)
         const html = `<html lang="en"><head><meta charset="utf-8">${cssLinks}</head><body><script>window.__DEVIX__=null;window.__LOADER_DATA__=null;window.__LAYOUTS_DATA__=[];</script><script type="module" src="${clientEntry}"></script><div id="devix-root"></div></body></html>`
@@ -296,7 +292,6 @@ export async function getStaticRoutes(glob: PageGlob): Promise<string[]> {
 export async function renderStream(url: string, request: Request, glob: PageGlob, options?: {
     manifest?: Manifest,
     loaderTimeout?: number,
-    server?: Record<string, ServerBackendConfig>
 },): Promise<{ stream: PassThrough, statusCode: number, headers: Record<string, string> }> {
     const clientEntry = options?.manifest
         ? `/${Object.values(options.manifest).find(chunk => chunk.isEntry)?.file}`
@@ -315,7 +310,7 @@ export async function renderStream(url: string, request: Request, glob: PageGlob
         let result: Awaited<ReturnType<typeof resolvePageData>>
         try {
             const timeout = options?.loaderTimeout ?? 10_000
-            result = await resolvePageData(pathname, request, glob, timeout, options?.server)
+            result = await resolvePageData(pathname, request, glob, timeout)
         } catch (err) {
             console.error('[devix] render error:', err)
             throw err

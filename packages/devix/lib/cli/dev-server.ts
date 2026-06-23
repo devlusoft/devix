@@ -7,29 +7,29 @@ import { registerApiRoutes } from '../server/routes'
 import { printDevBanner } from "../utils/banner"
 import { collectCss } from "../server/collect-css"
 import { parseDuration } from "../utils/duration"
-import {loadConfig} from "../utils/load-config";
+import {loadConfig} from "../utils/load-config"
 import { handleServerFunction } from '../data/server-fn-handler.js'
 import type { RouterEvent } from '../data/request-context.js'
 import { logRequest } from './logger.js'
 
 function parseCookies(cookieHeader: string | null): Record<string, string> {
-  const cookies: Record<string, string> = {}
-  if (!cookieHeader) return cookies
-  for (const pair of cookieHeader.split(';')) {
-    const eq = pair.indexOf('=')
-    if (eq < 0) continue
-    const name = pair.slice(0, eq).trim()
-    const value = pair.slice(eq + 1).trim()
-    if (name) cookies[name] = decodeURIComponent(value)
-  }
-  return cookies
+    const cookies: Record<string, string> = {}
+    if (!cookieHeader) return cookies
+    for (const pair of cookieHeader.split(';')) {
+        const eq = pair.indexOf('=')
+        if (eq < 0) continue
+        const name = pair.slice(0, eq).trim()
+        const value = pair.slice(eq + 1).trim()
+        if (name) cookies[name] = decodeURIComponent(value)
+    }
+    return cookies
 }
 
 function createEvent(request: Request): RouterEvent {
-  return {
-    cookies: () => parseCookies(request.headers.get('cookie')),
-    pathname: new URL(request.url).pathname,
-  }
+    return {
+        cookies: () => parseCookies(request.headers.get('cookie')),
+        pathname: new URL(request.url).pathname,
+    }
 }
 
 const VIRTUAL_RENDER = 'virtual:devix/render'
@@ -62,7 +62,7 @@ const actionsModule = {
 }
 
 const app = new Hono()
-registerApiRoutes(app, { renderModule, apiModule, actionsModule, server: config.server })
+registerApiRoutes(app, { renderModule, apiModule, actionsModule })
 
 app.post('/_devix/server', async (c) => {
   let status = 200
@@ -84,7 +84,6 @@ app.get('*', async (c: Context) => {
   try {
     const { html, statusCode, headers } = await renderModule.render(c.req.url, c.req.raw, {
       loaderTimeout: parseDuration(config.loaderTimeout ?? 10_000),
-      server: config.server,
     })
     const cssUrls = await collectCss(vite)
     const cssLinks = cssUrls.map(url => `<link rel="stylesheet" href="${url}">`).join('\n')

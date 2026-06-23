@@ -69,9 +69,7 @@ async function resolvePageData(pathname: string, request: Request, glob: PageGlo
 
     const ctx = {params, request, guardData}
 
-    const rawLoaderData = pageMod.loader
-        ? await withTimeout(Promise.resolve(pageMod.loader(ctx)), timeout)
-        : null
+    const rawLoaderData: unknown = null
 
     if (isRedirect(rawLoaderData)) return {
         redirect: rawLoaderData.url,
@@ -79,10 +77,10 @@ async function resolvePageData(pathname: string, request: Request, glob: PageGlo
         redirectReplace: rawLoaderData.replace
     }
     if (isLoaderError(rawLoaderData)) return {loaderError: rawLoaderData}
-    const loaderData = rawLoaderData
+    const loaderData: unknown = rawLoaderData
 
-    const rawLayoutsData = await withTimeout(
-        Promise.all(layoutMods.map(mod => mod.loader ? mod.loader(ctx) : null)),
+    const rawLayoutsData: unknown[] = await withTimeout(
+        Promise.all(layoutMods.map(() => null)),
         timeout
     )
     for (const raw of rawLayoutsData) {
@@ -140,7 +138,7 @@ export async function runLoader(url: string, request: Request, glob: PageGlob, o
     return {
         loaderData,
         params,
-        layouts: layoutsData.map(loaderData => ({loaderData})),
+        layouts: (layoutsData as unknown[]).map((loaderData: unknown) => ({loaderData})),
         guardData,
         metadata,
         viewport,
@@ -204,7 +202,7 @@ export async function render(
     const {pageMod, layoutMods, params, loaderData, layoutsData, guardData, metadata, viewport, lang} = result
 
     const [syncLoader, deferredLoaderKeys] = separateDeferred(loaderData as Record<string, unknown> | null)
-    const syncLayouts = layoutsData.map(d => separateDeferred(d as Record<string, unknown> | null)[0])
+    const syncLayouts = (layoutsData as unknown[]).map((d: unknown) => separateDeferred(d as Record<string, unknown> | null)[0])
 
     const headTags = metadata ? renderToStaticMarkup(buildHeadNodes(metadata, viewport) as any) : ''
 
@@ -338,7 +336,7 @@ export async function renderStream(url: string, request: Request, glob: PageGlob
         const headTags = metadata ? renderToStaticMarkup(buildHeadNodes(metadata, viewport) as any) : ''
 
         const [syncLoader, deferredLoaderKeys] = separateDeferred(loaderData as Record<string, unknown> | null)
-        const syncLayouts = layoutsData.map(d => separateDeferred(d as Record<string, unknown> | null)[0])
+        const syncLayouts = (layoutsData as unknown[]).map((d: unknown) => separateDeferred(d as Record<string, unknown> | null)[0])
 
         const turboStr = await collectEncode({
             LOADER_DATA: syncLoader ?? null,

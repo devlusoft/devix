@@ -58,20 +58,7 @@ export function useParams<T extends Record<string, string>>() {
     return ctx.params as T
 }
 
-type LoaderReturnType<T> = T extends (...args: any[]) => Promise<infer R>
-    ? [Exclude<R, Redirect | void | undefined>] extends [never] ? undefined : Exclude<R, Redirect | void | undefined>
-    : T extends (...args: any[]) => infer R
-        ? [Exclude<R, Redirect | void | undefined>] extends [never] ? undefined : Exclude<R, Redirect | void | undefined>
-        : T
 
-/**
- * @deprecated since 0.9.0-alpha.2. `useLoaderData()` reads from the route-level `loader()`. Replace with `useQuery(() => getThing())` inside your component. See `docs/queries.md`.
- */
-export function useLoaderData<T>() {
-    const ctx = useContext(RouteDataContext)
-    if (!ctx) throw new Error("useLoaderData must be used within a route or layout")
-    return ctx.loaderData as LoaderReturnType<T>
-}
 
 type GuardDataReturn<TGuard> =
     TGuard extends (...args: any[]) => infer R

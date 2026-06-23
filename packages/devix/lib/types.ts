@@ -37,21 +37,14 @@ export interface Viewport {
     themeColor?: string
 }
 
-/**
- * @deprecated since 0.9.0-alpha.2. `LoaderContext` is tied to the route-level `loader()` API, which is being phased out in favor of `query()` + `useQuery()`. The replacement uses `getRequestEvent()` for request context (cookies, pathname) instead of receiving it as an argument. See `docs/queries.md`.
- */
-export interface LoaderContext<TParams = Record<string, string>> {
+
+export interface GuardContext<TParams = Record<string, string>> {
     params: TParams
     request: Request
     guardData: unknown
 }
 
 import type { Redirect } from './utils/response'
-
-/**
- * @deprecated since 0.9.0-alpha.2. Define your data fetcher with `query(fn, name)` instead and read it with `useQuery()`. Loaders were attached to the route module; queries are reusable, deduped by `(name, args)`, and not coupled to the route tree. See `docs/queries.md`.
- */
-export type LoaderFunction<TData = unknown, TParams = Record<string, string>> = (ctx: LoaderContext<TParams>) => Promise<TData | Redirect | void> | TData | Redirect | void
 
 /**
  * Tipo público para guards. Útil para helpers reutilizables donde el tipo
@@ -61,21 +54,21 @@ export type LoaderFunction<TData = unknown, TParams = Record<string, string>> = 
  * El retorno `object` aplana el tipo concreto. Forma recomendada:
  *
  * ```ts
- * export async function guard({ request }: LoaderContext) {
+ * export async function guard({ request }: GuardContext) {
  *   const session = await getSession(request)
  *   if (!session) return '/login'
  *   return session   // ← TS infiere Session
  * }
  * ```
  */
-export type GuardFunction<TParams = Record<string, string>> = (ctx: LoaderContext<TParams>) => Promise<string | Redirect | object | null> | string | Redirect | object | null
+export type GuardFunction<TParams = Record<string, string>> = (ctx: GuardContext<TParams>) => Promise<string | Redirect | object | null> | string | Redirect | object | null
 
 type GuardData<TGuard> =
     TGuard extends (...args: any[]) => infer R
     ? Exclude<Awaited<R>, string | Redirect | null | undefined>
     : unknown
 
-export type LoaderContextWithGuard<
+export type GuardContextWithGuard<
     TGuard extends GuardFunction | undefined = undefined,
     TParams = Record<string, string>,
-> = LoaderContext<TParams> & { guardData: GuardData<TGuard> }
+> = GuardContext<TParams> & { guardData: GuardData<TGuard> }

@@ -1,5 +1,5 @@
 import type React from "react";
-import {LoaderContext, Metadata, Viewport} from "../types";
+import {GuardContext, Metadata, Viewport} from "../types";
 import type {Redirect, RouteError} from "../utils/response";
 
 type InferLoaderData<T> = T extends (...args: any[]) => infer R
@@ -44,28 +44,24 @@ export interface ApiGlob {
     apiDir: string
 }
 
-interface BaseModule<TData, TParams> {
-    /**
-     * @deprecated since 0.9.0-alpha.2. Replace with `query()` calls inside the page component. The page no longer carries data via the `data` prop; instead, components call `useQuery(() => getThing())` and read the value directly. See `docs/queries.md`.
-     */
-    loader?: (ctx: LoaderContext<TParams>) => Promise<TData | Redirect | void> | TData | Redirect | void
-    guard?: (ctx: LoaderContext<TParams>) => Promise<string | Redirect | RouteError | Record<string, unknown> | null> | string | Redirect | RouteError | Record<string, unknown> | null
+interface BaseModule<TParams = Record<string, string>> {
+    guard?: (ctx: GuardContext<TParams>) => Promise<string | Redirect | RouteError | Record<string, unknown> | null> | string | Redirect | RouteError | Record<string, unknown> | null
     metadata?: Metadata
-    generateMetadata?: (ctx: LoaderContext<TParams> & { loaderData: TData }) => Promise<Metadata> | Metadata
+    generateMetadata?: (ctx: GuardContext<TParams> & { loaderData: unknown }) => Promise<Metadata> | Metadata
     viewport?: Viewport
-    generateViewport?: (ctx: LoaderContext<TParams>) => Promise<Viewport> | Viewport
+    generateViewport?: (ctx: GuardContext<TParams>) => Promise<Viewport> | Viewport
     headers?: Record<string, string>
 }
 
-export interface PageModule<TData = unknown, TParams = Record<string, string>>
-    extends BaseModule<TData, TParams> {
-    default: React.ComponentType<PageProps<TData, TParams>>
+export interface PageModule<TParams = Record<string, string>>
+    extends BaseModule<TParams> {
+    default: React.ComponentType<PageProps<unknown, TParams>>
     generateStaticParams?: () => Promise<Record<string, string>[]> | Record<string, string>[]
 }
 
-export interface LayoutModule<TData = unknown, TParams = Record<string, string>>
-    extends BaseModule<TData, TParams> {
-    default: React.ComponentType<LayoutProps<TData, TParams>>
+export interface LayoutModule<TParams = Record<string, string>>
+    extends BaseModule<TParams> {
+    default: React.ComponentType<LayoutProps<unknown, TParams>>
     lang?: string
-    generateLang?: (ctx: LoaderContext<TParams> & { loaderData: TData }) => Promise<string> | string
+    generateLang?: (ctx: GuardContext<TParams> & { loaderData: unknown }) => Promise<string> | string
 }

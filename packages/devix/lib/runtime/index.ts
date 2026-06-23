@@ -1,10 +1,10 @@
-export {useRouter, useNavigate, useRevalidate, useParams, useLoaderData, useGuardData, RouterProvider, Await, useDeferred} from "./router-provider"
+export {useRouter, useNavigate, useRevalidate, useParams, useGuardData, RouterProvider, Await, useDeferred} from "./router-provider"
 export {useQuery} from "./queries"
 export {invalidateQueries} from "./query-client"
 
 export {Link} from "./link"
 
-export type { Metadata, MetadataIcon, Viewport, LoaderContext, LoaderContextWithGuard, LoaderFunction, GuardFunction } from '../types'
+export type { Metadata, MetadataIcon, Viewport, GuardContext, GuardContextWithGuard, GuardFunction } from '../types'
 export type { NavigateOptions } from './context'
 export type { PageProps, LayoutProps, PageModule, LayoutModule, ErrorProps } from '../server/types'
 export type { RouteHandler, RouteResult, MiddlewareModule } from './api-context'

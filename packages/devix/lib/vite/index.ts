@@ -28,7 +28,7 @@ const VIRTUAL_CONTEXT = 'virtual:devix/context'
 const VIRTUAL_SERVER_ENTRY = 'virtual:devix/server-entry'
 const VIRTUAL_ACTIONS = 'virtual:devix/actions'
 
-const SERVER_EXPORTS = new Set(['loader', 'guard', 'generateStaticParams', 'headers'])
+const SERVER_EXPORTS = new Set(['guard', 'generateStaticParams', 'headers'])
 
 export function devix(config: DevixConfig): UserConfig {
   const appDir = config.appDir ?? 'app'

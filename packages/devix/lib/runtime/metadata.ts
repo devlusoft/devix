@@ -1,12 +1,12 @@
 import {LayoutModule, PageModule} from "../server";
-import {LoaderContext, Metadata, Viewport} from "../types"
+import {GuardContext, Metadata, Viewport} from "../types"
 
 export interface ResolvedMeta {
     metadata: Metadata
     viewport?: Viewport
 }
 
-export async function resolveMetadata(module: PageModule | LayoutModule, ctx: LoaderContext & {
+export async function resolveMetadata(module: PageModule | LayoutModule, ctx: GuardContext & {
     loaderData: unknown
 }): Promise<ResolvedMeta> {
     const metadata = module.generateMetadata

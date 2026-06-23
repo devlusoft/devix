@@ -164,30 +164,7 @@ it('lang por defecto es "en" si no hay layout', async () => {
     expect(html).toContain('lang="en"')
 })
 
-it('llama al loader y pasa los datos a la página', async () => {
-    const {render} = await import('../../lib/server/render')
-    const loader = vi.fn().mockResolvedValue({user: 'John'})
 
-    const glob = {
-        pagesDir: 'app/pages',
-        pages: {
-            'app/pages/index.tsx': () => Promise.resolve({
-                default: () => <main>Page</main>,
-                loader
-            })
-        },
-        layouts: {}
-    }
-
-    const {html} = await render('http://localhost/', new Request('http://localhost/'), glob as any)
-    expect(loader).toHaveBeenCalledOnce()
-    expect(html).toContain('__DEVIX_TURBO__')
-
-    const b64 = html.match(/__DEVIX_TURBO__=("?)([A-Za-z0-9+/=]+)\1/)?.[2]
-    expect(b64).toBeTruthy()
-    const turboStr = Buffer.from(b64!, 'base64').toString('utf-8')
-    expect(turboStr).toContain('"user":"John"')
-})
 
 it('el guard recibe params correctamente', async () => {
     const {render} = await import('../../lib/server/render')

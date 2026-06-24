@@ -12,6 +12,9 @@
     "dev": "pnpm --filter @devlusoft/devix dev",
     "start": "pnpm --filter @devlusoft/devix start"
   },
+  "devDependencies": {
+    "@changesets/cli": "2.31.0"
+  },
   "engines": {
     "node": ">=20"
   }

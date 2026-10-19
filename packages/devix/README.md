@@ -1,298 +1,82 @@
 # devix
 
-Un meta-framework ligero de React 19 con SSR, impulsado por Vite 8 + Hono.
-
-Construye aplicaciones React full-stack con enrutamiento basado en archivos, renderizado del lado del servidor, generación estática de sitios y rutas API — configuración mínima, control máximo.
-
-## Características
-
-- **Vite 8** — HMR instantáneo y builds rápidos con Rolldown
-- **React 19** — SSR con `renderToString` e `hydrateRoot`
-- **Enrutamiento basado en archivos** — páginas, layouts anidados y rutas API desde el sistema de archivos
-- **SSR por defecto** — cada página se renderiza en el servidor
-- **SSG** — genera HTML estático con `generateStaticParams`
-- **Rutas API** — basadas en archivos, con `createHandler` para tipado de extremo a extremo
-- **$fetch** — cliente HTTP con body y respuesta tipados, con autocompletado de rutas
-- **Validación de body** — soporte de [Standard Schema](https://standardschema.dev) (Zod, Valibot, ArkType) en `createHandler` con error shape automático
-- **Error shape unificado** — `error()` y `DevixError` producen el mismo `{ statusCode, code, message }` en queries, guards y handlers
-- **Carga de datos** — funciones `query()` con hidratación automática en el cliente
-- **Guards de ruta** — redirecciones del lado del servidor antes del renderizado, con `useGuardData()` para leer datos del guard
-- **Navegación programática** — `useNavigate()` con soporte de `replace` y View Transitions API
-- **Revalidación de datos** — `useRevalidate()` para refrescar guards sin recargar la página
-- **SEO** — `metadata` y `generateMetadata` por página, con soporte de Open Graph y Twitter
-- **TypeScript primero** — inferencia de tipos completa en todo el framework
+Plugin de Vite sobre Solid 2. `devix()` activa el modo `start` de `@solidjs/vite-plugin` con SSR: el servidor de desarrollo de Vite sirve la app renderizada en el servidor y la hidrata en el cliente.
 
 ## Instalación
 
 ```bash
-npm install @devlusoft/devix react react-dom
+npm install -D @devlusoft/devix
+npm install solid-js @solidjs/web
+npm install -D vite
 ```
 
-Requiere React 19+, Vite 8+, Node 20+.
+## Uso
 
-## Inicio rápido
+Registra el plugin en tu vite.config.ts
 
-```bash
-npx devix dev
-```
-
-**1. Crea `devix.config.ts`:**
-
-```ts
-import { defineConfig } from '@devlusoft/devix/config'
+```js
+import devix from '@devlusoft/devix'
+import { defineConfig } from 'vite'
 
 export default defineConfig({
-  port: 3000,
+  plugins: [devix()]
 })
 ```
 
-**2. Crea tu primera página en `app/pages/index.tsx`:**
-
-```tsx
-export default function Home() {
-  return <h1>¡Hola devix!</h1>
-}
-```
-
-**3. Ejecuta el servidor de desarrollo:**
+Y levanta el servidor de desarrollo:
 
 ```bash
-npx devix dev
+npx vite
 ```
 
-## Convenciones de archivos
+## Convenciones
+
+El plugin busca la app en dos archivos:
 
 ```
 app/
-├── pages/
-│   ├── layout.tsx          # Layout raíz (envuelve todas las páginas)
-│   ├── index.tsx           # → /
-│   ├── about.tsx           # → /about
-│   └── blog/
-│       ├── layout.tsx      # Layout anidado (envuelve páginas de blog)
-│       ├── index.tsx       # → /blog
-│       └── [slug].tsx      # → /blog/:slug
-└── api/
-    ├── middleware.ts        # Middleware global de la API
-    └── posts/
-        └── [id].ts         # → GET/POST /api/posts/:id
+├── app.tsx         # componente raiz
+├── document.tsx    # shell del documento - html, head, body
 ```
 
-## Conceptos principales
+`app/app.tsx` exporta el componente raíz:
 
-### Queries y datos
-
-```tsx
-// app/queries/posts.ts
-import { query } from '@devlusoft/devix'
-
-export const getPost = query(
-  async (slug: string) => db.posts.findBySlug(slug),
-  'get-post',
-)
-
-// app/pages/blog/[slug].tsx
-import { useQuery } from '@devlusoft/devix'
-import { getPost } from '~/queries/posts'
-
-export default function BlogPost({ params }: { params: { slug: string } }) {
-  const post = useQuery(() => getPost(params.slug))
-  return <article>{post.title}</article>
-}
-```
-
-### Guard de ruta
-
-```ts
-import { getSession } from '~/lib/auth'
-
-export async function guard({ request }) {
-  const user = await getSession(request)
-  if (!user) return '/login'
-  return null
-}
-```
-
-### Metadata
-
-```ts
-export const metadata = {
-  title: 'Inicio',
-  description: 'Bienvenido a mi sitio',
-  og: { image: '/og.png', type: 'website' },
-  twitter: { card: 'summary_large_image' },
-}
-
-// o dinámica — usando queries:
-export async function generateMetadata() {
-  return { title: 'Título dinámico' }
-}
-```
-
-### Layouts
-
-```tsx
-import type { LayoutProps } from '@devlusoft/devix'
-
-export default function RootLayout({ children }: LayoutProps) {
+```typescript jsx
+export default function App() {
   return (
-    <div>
-      <nav>...</nav>
-      {children}
-    </div>
+    <h1>Hola devix</h1>
   )
 }
 ```
 
-### Tipado de params
+`app/document.tsx` recibe la app como props.children y renderiza el documento completo, incluido el `<HydrationScript />` que activa la hidratación:
 
-Pasa el tipo de params directamente al genérico:
+```typescript jsx
+import { HydrationScript } from '@solidjs/web'
+import type { ParentProps } from 'solid-js'
 
-```tsx
-import type { PageProps } from '@devlusoft/devix'
-
-export default function ProviderPage({ params }: PageProps<{ providerId: string }>) {
-  return <h1>{params.providerId}</h1>
-}
-```
-
-### Navegación programática
-
-```tsx
-import { useNavigate, useRevalidate } from '@devlusoft/devix'
-
-function MyComponent() {
-  const navigate = useNavigate()
-  const revalidate = useRevalidate()
-
+export default function Document(props: ParentProps) {
   return (
-    <>
-      <button onClick={() => navigate('/dashboard')}>Ir al dashboard</button>
-      <button onClick={() => navigate('/login', { replace: true })}>Login (sin historial)</button>
-      <button onClick={() => navigate('/shop', { viewTransition: true })}>Con animación</button>
-      <button onClick={() => revalidate()}>Refrescar datos</button>
-    </>
+    <html lang="es">
+    <head>
+      <meta charset="utf-8"/>
+      <meta name="viewport" content="width=device-width, initial-scale=1"/>
+      <title>devix playground</title>
+      <HydrationScript/>
+    </head>
+    <body>{props.children}</body>
+    </html>
   )
 }
 ```
 
-### redirect con replace
+## Requisitos
 
-```ts
-import { redirect } from '@devlusoft/devix'
+- Node >= 22.18
+- Solid 2 (`solid-js`, `@solidjs/web`)
+- Vite 8
 
-export async function guard({ request }) {
-  const user = await getSession(request)
-  if (!user) return redirect('/login', { replace: true })
-  return null
-}
-```
+## Estado
 
-### Rutas API
+devix está en alpha. Esta versión solo aporta el arranque.
 
-`createHandler` da tipado de extremo a extremo — el body y el retorno se infieren automáticamente para `$fetch`. El segundo argumento `ctx` expone `request`, `url`, `params` y state heredado de middleware:
-
-```ts
-import { createHandler, json, error } from '@devlusoft/devix'
-
-export const GET = createHandler(async (_body, ctx) => {
-  const filter = ctx.url.searchParams.get('filter')
-  return await db.items.find({ filter })
-})
-
-export const POST = createHandler(async (body: { name: string }, ctx) => {
-  const user = ctx.get<User>('user')  // del middleware
-  if (!user) return error(401, 'No autenticado')
-  const item = await db.items.create({ ...body, ownerId: user.id })
-  return json(item, 201)
-})
-
-export const DELETE = createHandler(async () => null)  // 204
-```
-
-Con [Standard Schema](https://standardschema.dev) la validación es automática — si el body no cumple, devix responde `400` con el shape `{ statusCode, code, message, data: { issues } }`:
-
-```ts
-import { z } from 'zod'
-
-const Input = z.object({ name: z.string().min(1) })
-
-export const POST = createHandler(Input, async (body, ctx) => {
-  return await db.items.create(body)
-})
-```
-
-```ts
-// Cliente — tipado completo
-const res = await $fetch('/api/items', {
-  method: 'POST',
-  body: { name: 'nuevo item' },
-})
-```
-
-### Generación estática (SSG)
-
-Configura `output: 'static'` y exporta `generateStaticParams` desde cualquier página dinámica:
-
-```ts
-// devix.config.ts
-export default defineConfig({ output: 'static' })
-```
-
-```ts
-// app/pages/blog/[slug].tsx
-export async function generateStaticParams() {
-  const posts = await db.posts.all()
-  return posts.map(p => ({ slug: p.slug }))
-}
-```
-
-```bash
-npx devix generate   # compila y pre-renderiza todas las páginas en dist/client/
-npx devix start      # sirve los archivos estáticos (sin SSR en runtime)
-```
-
-## Comandos
-
-| Comando          | Descripción                                     |
-|------------------|-------------------------------------------------|
-| `devix dev`      | Inicia el servidor de desarrollo con HMR        |
-| `devix build`    | Compila para producción                         |
-| `devix start`    | Inicia el servidor de producción                |
-| `devix generate` | Compila y pre-renderiza todas las páginas (SSG) |
-
-## Configuración
-
-```ts
-// devix.config.ts
-import { defineConfig } from '@devlusoft/devix/config'
-
-export default defineConfig({
-  port: 3000,                // puerto del servidor dev y producción (default: 3000)
-  host: false,               // bind a 0.0.0.0 (default: false)
-  appDir: 'app',             // directorio de la app (default: 'app')
-  publicDir: 'public',       // directorio de archivos estáticos (default: 'public')
-  output: 'server',          // 'server' | 'static' (default: 'server')
-  loaderTimeout: 10_000,     // timeout de queries/guards en ms (default: 10000)
-  css: ['./app/styles/global.css'],  // archivos CSS globales
-  envPrefix: 'PUBLIC_',      // expone variables de entorno con este prefijo al cliente
-  vite: {},                  // extiende la configuración de Vite
-})
-```
-
-## Documentación
-
-La documentación completa está en la carpeta [`docs/`](./docs):
-
-- [Primeros pasos](./docs/getting-started.md)
-- [Enrutamiento](./docs/routing.md)
-- [Layouts](./docs/layouts.md)
-- [Queries y datos](./docs/queries.md)
-- [Rutas API](./docs/api-routes.md)
-- [Metadata y SEO](./docs/metadata.md)
-- [Generación estática (SSG)](./docs/ssg.md)
-- [Configuración](./docs/configuration.md)
-
-## Licencia
-
-MIT — devix es un proyecto de [devlusoft](https://www.devlusoft.com).

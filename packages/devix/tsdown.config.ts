@@ -1,7 +1,4 @@
 import { defineConfig } from 'tsdown'
-import { readFileSync } from 'node:fs'
-
-const pkg = JSON.parse(readFileSync('package.json', 'utf-8'))
 
 export default defineConfig({
   entry: [
@@ -12,13 +9,9 @@ export default defineConfig({
   format: ['esm'],
   platform: 'node',
   fixedExtension: false,
-  target: 'node20',
+  target: 'node22',
   sourcemap: false,
   minify: true,
   treeshake: true,
   dts: true,
-  define: {
-    __DEVIX_VERSION__: JSON.stringify(pkg.version),
-    __DEVIX_PROD__: 'true',
-  }
 })

@@ -8,7 +8,7 @@
   "scripts": {
     "build": "pnpm --filter @devlusoft/devix build",
     "dev": "pnpm --filter playground dev",
-    "typecheck": "pnpm -r --filter typecheck"
+    "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
     "@changesets/cli": "2.31.0"

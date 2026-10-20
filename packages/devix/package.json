@@ -20,18 +20,17 @@
     "devlusoft"
   ],
   "files": [
-    "dist",
-    "lib"
+    "dist"
   ],
   "exports": {
     ".": {
-      "types": "./lib/index.ts",
-      "default": "./lib/index.ts"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "tsdown",
+    "build": "tsc --noEmit && tsdown",
     "prepublishOnly": "pnpm run build",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit"

@@ -1,4 +1,3 @@
-import { HydrationScript } from '@solidjs/web'
 import type { ParentProps } from 'solid-js'
 
 export default function Document(props: ParentProps) {
@@ -8,7 +7,6 @@ export default function Document(props: ParentProps) {
       <meta charset="utf-8"/>
       <meta name="viewport" content="width=device-width, initial-scale=1"/>
       <title>devix playground</title>
-      <HydrationScript/>
     </head>
     <body>{props.children}</body>
     </html>

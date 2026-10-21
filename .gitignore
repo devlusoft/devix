@@ -5,10 +5,8 @@
 node_modules
 dist
 
-# devix framework internal files (codegen output)
 .devix
 .devix-config-*.mjs
 
-# Playwright test output
 test-results
 playwright-report

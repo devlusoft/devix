@@ -20,7 +20,8 @@
     "devlusoft"
   ],
   "files": [
-    "dist"
+    "dist",
+    "lib/*.tsx"
   ],
   "exports": {
     ".": {

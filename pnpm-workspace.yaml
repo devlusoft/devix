@@ -6,5 +6,7 @@ allowBuilds:
   esbuild: false
 
 overrides:
+  '@solidjs/vite-plugin>@solidjs/compiler': '2.0.0-rc.16'
+  '@solidjs/vite-plugin>@solidjs/babel-plugin': '2.0.0-rc.16'
   '@changesets/parse>js-yaml': '^4.3.2'
   esbuild: '^0.28.1'
